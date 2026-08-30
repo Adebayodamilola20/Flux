@@ -1,0 +1,21 @@
+include: package:flutter_lints/flutter.yaml
+
+linter:
+  rules:
+    # Dart forbids private named parameters, so a named constructor argument
+    # backing a private field can never be an initializing formal. The lint
+    # fires on every dependency-injected service in this app and cannot be
+    # satisfied without renaming the fields.
+    prefer_initializing_formals: false
+
+    # Enforced beyond the Flutter defaults.
+    always_declare_return_types: true
+    avoid_print: true
+    prefer_final_locals: true
+    unawaited_futures: true
+
+analyzer:
+  errors:
+    # Missing documentation on a public API is worth failing a review over in
+    # this codebase, since the provider abstraction is meant to be extended.
+    todo: ignore

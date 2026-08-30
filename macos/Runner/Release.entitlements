@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  The App Sandbox is intentionally disabled.
+
+	  This app reads Claude Code's session transcripts in ~/.claude and
+	  enumerates running processes to detect an active CLI session. Neither is
+	  possible from inside a sandbox container without prompting the user to
+	  hand-pick ~/.claude in an open panel on every launch, which would be worse
+	  for both usability and comprehension of what the app actually accesses.
+
+	  The trade-off is that this build is not App Store distributable. No other
+	  entitlement is requested: no camera, microphone, contacts, calendars,
+	  location, Apple Events, or downloads access.
+	-->
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+
+	<!-- Outbound HTTPS to api.anthropic.com when an admin key is configured. -->
+	<key>com.apple.security.network.client</key>
+	<true/>
+</dict>
+</plist>
