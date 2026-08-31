@@ -251,6 +251,8 @@ class _WindowDetail extends StatelessWidget {
             Format.consumption(window.consumed, window.limit, window.unit),
             if (window.resetsAt != null)
               'Resets ${Format.resetTime(window.resetsAt!)}',
+            if (window.isStale)
+              'measured ${Format.relativeTime(window.observedAt!)}',
             window.source.label,
           ].join(' · '),
           style: TextStyle(fontSize: 10.5, color: palette.textTertiary),

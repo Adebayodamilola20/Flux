@@ -28,6 +28,7 @@ Map<String, dynamic> rateLimits({
 }
 
 void main() {
+  _staleness();
   group('what the number means', () {
     test('reads the Codex plan allowance as a percentage', () {
       final reading = CodexUsageSource.parse(rateLimits());
@@ -131,6 +132,47 @@ void main() {
 
       expect(reading.hasUsage, isFalse);
       expect(reading.planType, 'free');
+    });
+  });
+}
+
+void _staleness() {
+  group('how old the figure is', () {
+    test('carries when OpenAI measured it, not when we read the file', () {
+      // OpenAI reports the allowance only in the reply to a model request, so
+      // the newest figure available can be days old. Showing "100% Used" with
+      // no date reads as current — the same failure as a stale cache passed
+      // off as live.
+      final reading = CodexUsageSource.parse(
+        {
+          'limit_id': 'codex',
+          'plan_type': 'free',
+          'primary': {
+            'used_percent': 100.0,
+            'window_minutes': 43200,
+            'resets_at': 1790650597,
+          },
+        },
+        timestamp: '2026-08-30T03:20:22.561Z',
+      );
+
+      final window = reading.windows.single;
+      expect(window.observedAt, isNotNull);
+      expect(window.isStale, isTrue);
+      // The reset OpenAI gave, transcribed rather than derived.
+      expect(window.resetsAt, DateTime.fromMillisecondsSinceEpoch(1790650597 * 1000));
+    });
+
+    test('a figure taken just now is not called stale', () {
+      final reading = CodexUsageSource.parse(
+        {
+          'limit_id': 'codex',
+          'primary': {'used_percent': 40.0, 'window_minutes': 43200},
+        },
+        timestamp: DateTime.now().toUtc().toIso8601String(),
+      );
+
+      expect(reading.windows.single.isStale, isFalse);
     });
   });
 }
