@@ -25,7 +25,10 @@ enum ShellSurface {
   settings,
 
   /// One provider, in detail.
-  providerDetail;
+  providerDetail,
+
+  /// Choosing which provider fills an empty rail position.
+  slotPicker;
 
   /// True for surfaces that need a centred, focusable window.
   bool get isPanel => this != ShellSurface.rail;
@@ -62,8 +65,11 @@ class ShellController extends ChangeNotifier {
   /// Size of the window in each panel surface. The rail's size is fixed by
   /// [RailMetrics] and set natively.
   static const Size onboardingSize = Size(760, 600);
-  static const Size settingsSize = Size(640, 580);
+  // Wider than a single-column sheet: the sidebar takes ~150pt before the page
+  // starts, and squeezing both into 640 left the settings rows wrapping.
+  static const Size settingsSize = Size(760, 600);
   static const Size detailSize = Size(520, 560);
+  static const Size slotPickerSize = Size(460, 460);
 
   final NativeBridge _native;
   final SettingsService _settingsService;
@@ -86,9 +92,13 @@ class ShellController extends ChangeNotifier {
       _isExpanded || _settings.railExpansion.autoCollapses == false;
 
   String? _detailProviderId;
+  int? _slotIndex;
 
   /// Which provider the detail surface is about.
   String? get detailProviderId => _detailProviderId;
+
+  /// Which rail position the picker is filling. Null outside that surface.
+  int? get slotIndex => _slotIndex;
 
   List<NativeScreen> _screens = const [];
   List<NativeScreen> get screens => _screens;
@@ -105,11 +115,11 @@ class ShellController extends ChangeNotifier {
 
     await _applyPlacement(force: true);
 
-    if (_settings.onboardingComplete || _usage.hasAnyConnection) {
-      await showRail();
-    } else {
-      await openPanel(ShellSurface.onboarding);
-    }
+    // Straight to the rail. There is nothing to set up: the rail opens empty
+    // and every position is a plus the user fills when they want to. A
+    // full-screen connect wall in front of that would be asking them to make
+    // the same choice twice, in a worse place to make it.
+    await showRail();
   }
 
   // MARK: - Surfaces
@@ -118,6 +128,7 @@ class ShellController extends ChangeNotifier {
   Future<void> showRail() async {
     _surface = ShellSurface.rail;
     _detailProviderId = null;
+    _slotIndex = null;
     notifyListeners();
 
     await _native.hidePanel();
@@ -129,11 +140,16 @@ class ShellController extends ChangeNotifier {
   }
 
   /// Opens a centred, focusable surface.
-  Future<void> openPanel(ShellSurface next, {String? providerId}) async {
+  Future<void> openPanel(
+    ShellSurface next, {
+    String? providerId,
+    int? slotIndex,
+  }) async {
     assert(next.isPanel, 'openPanel is for panel surfaces only');
 
     _surface = next;
     _detailProviderId = providerId;
+    _slotIndex = slotIndex;
     notifyListeners();
 
     await _native.showPanel(size: _sizeFor(next));
@@ -154,6 +170,7 @@ class ShellController extends ChangeNotifier {
         ShellSurface.onboarding => onboardingSize,
         ShellSurface.settings => settingsSize,
         ShellSurface.providerDetail => detailSize,
+        ShellSurface.slotPicker => slotPickerSize,
         ShellSurface.rail => onboardingSize,
       };
 

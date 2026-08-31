@@ -68,6 +68,19 @@ class ProviderDetailView extends StatelessWidget {
                   state.isRefreshing ? null : () => usage.refresh(providerId, manual: true),
             ),
             const SizedBox(width: 8),
+            // Two different requests, so two different actions. Taking a
+            // provider off the rail is about what you want on screen;
+            // disconnecting is about forgetting the account. Collapsing them
+            // into one button would make clearing a slot look destructive.
+            if (usage.slotIndexOf(providerId) case final slot?)
+              PillButton(
+                label: 'Remove from rail',
+                onPressed: () async {
+                  await usage.clearSlot(slot);
+                  await shell.showRail();
+                },
+              ),
+            const SizedBox(width: 8),
             PillButton(
               label: 'Disconnect',
               onPressed: () => usage.disconnect(providerId),

@@ -57,13 +57,15 @@ void main() {
   });
 
   group('startup surface', () {
-    test('shows the connect screen on a first run', () async {
+    test('goes straight to the rail on a first run', () async {
+      // There is nothing to set up: the rail opens empty and each position is
+      // a plus. A connect wall in front of that asks for the same decision in
+      // a worse place to make it.
       await boot();
       await shell.start();
 
-      expect(shell.surface, ShellSurface.onboarding);
-      expect(native.isPanelVisible, isTrue);
-      expect(native.panelSizes.last, ShellController.onboardingSize);
+      expect(shell.surface, ShellSurface.rail);
+      expect(native.isPanelVisible, isFalse);
     });
 
     test('goes straight to the rail once onboarding is done', () async {

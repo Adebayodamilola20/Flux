@@ -76,12 +76,12 @@ class _RailShellState extends State<RailShell>
     });
 
     final metrics = shell.metrics;
-    final states = usage.states;
+    final states = usage.slots;
     final onRight = settings.railEdge == RailEdge.right;
 
     final hovered = _hoveredId == null
         ? null
-        : states.where((s) => s.id == _hoveredId).firstOrNull;
+        : states.nonNulls.where((s) => s.id == _hoveredId).firstOrNull;
 
     return Stack(
       children: [
@@ -110,6 +110,10 @@ class _RailShellState extends State<RailShell>
                     onOpenDetail: (id) => shell.openPanel(
                       ShellSurface.providerDetail,
                       providerId: id,
+                    ),
+                    onAddToSlot: (index) => shell.openPanel(
+                      ShellSurface.slotPicker,
+                      slotIndex: index,
                     ),
                   ),
                 ),

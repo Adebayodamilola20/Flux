@@ -1,4 +1,3 @@
-import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -6,7 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/formatting.dart';
 import '../../models/app_settings.dart';
 import '../../models/rail_placement.dart';
-import '../../services/auth/oauth_registry.dart';
+import '../../providers/provider_registry.dart';
 import '../../services/native/native_bridge.dart';
 import '../../services/settings_service.dart';
 import '../../services/shell_controller.dart';
@@ -17,46 +16,277 @@ import '../widgets/provider_glyph.dart';
 import '../widgets/settings_controls.dart';
 import 'panel_chrome.dart';
 
-/// Preferences.
+/// Preferences, as a sidebar and a page.
 ///
-/// Grouped by what the user is thinking about — where the widget lives, how it
-/// behaves, what it looks like, and what it is connected to — rather than by
-/// which subsystem owns each value.
-class SettingsView extends StatelessWidget {
+/// The sidebar lists General, then one row per app, then About. Per-app rather
+/// than one long scroll because the questions are genuinely different: how the
+/// widget behaves is a question about the widget, while what Claude reads and
+/// whether it is on the rail are questions about Claude. Mixing them produced a
+/// page where the answer to "why is Gemini empty" sat four sections below a
+/// dropdown about screen edges.
+class SettingsView extends StatefulWidget {
   const SettingsView({super.key});
+
+  @override
+  State<SettingsView> createState() => _SettingsViewState();
+}
+
+class _SettingsViewState extends State<SettingsView> {
+  /// Which sidebar row is selected. `null` for General, the About sentinel for
+  /// About, otherwise a provider id.
+  static const String _general = '__general__';
+  static const String _about = '__about__';
+
+  String _page = _general;
 
   @override
   Widget build(BuildContext context) {
     final shell = context.watch<ShellController>();
+    final usage = context.watch<UsageController>();
     final settingsService = context.watch<SettingsService>();
     final settings = settingsService.settings;
 
     Future<void> update(AppSettings next) => settingsService.update(next);
 
+    final providers = [
+      for (final state in usage.states)
+        if (state.descriptor.isImplemented) state,
+    ];
+
+    // A page for a provider that has gone away would render nothing at all.
+    final selected = _page == _general || _page == _about
+        ? _page
+        : (providers.any((p) => p.id == _page) ? _page : _general);
+
     return PanelChrome(
       title: 'Settings',
       onClose: shell.showRail,
-      child: ListView(
-        physics: const ClampingScrollPhysics(),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _RailSection(
-            settings: settings,
-            screens: shell.screens,
-            onUpdate: update,
-            onReloadScreens: shell.reloadScreens,
+          SizedBox(
+            width: 152,
+            child: _Sidebar(
+              selected: selected,
+              providers: providers,
+              generalId: _general,
+              aboutId: _about,
+              onSelect: (id) => setState(() => _page = id),
+            ),
           ),
-          const SizedBox(height: 20),
-          _GeneralSection(settings: settings, onUpdate: update),
-          const SizedBox(height: 20),
-          _AppearanceSection(settings: settings, onUpdate: update),
-          const SizedBox(height: 20),
-          const _ProvidersSection(),
-          const SizedBox(height: 20),
-          const _SignInSetupSection(),
-          const SizedBox(height: 20),
-          _LocalTrackingSection(settings: settings, onUpdate: update),
+          const SizedBox(width: 16),
+          Expanded(
+            child: switch (selected) {
+              _about => const _AboutPage(),
+              _general => _GeneralPage(
+                  settings: settings,
+                  screens: shell.screens,
+                  onUpdate: update,
+                  onReloadScreens: shell.reloadScreens,
+                ),
+              final id => _ProviderPage(
+                  key: ValueKey(id),
+                  providerId: id,
+                  settings: settings,
+                  onUpdate: update,
+                ),
+            },
+          ),
         ],
       ),
+    );
+  }
+}
+
+/// The list on the left.
+class _Sidebar extends StatelessWidget {
+  const _Sidebar({
+    required this.selected,
+    required this.providers,
+    required this.generalId,
+    required this.aboutId,
+    required this.onSelect,
+  });
+
+  final String selected;
+  final List<ProviderState> providers;
+  final String generalId;
+  final String aboutId;
+  final ValueChanged<String> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return Container(
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: palette.surfaceRaised.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: palette.border),
+      ),
+      child: Column(
+        children: [
+          _SidebarRow(
+            label: 'General',
+            icon: Icons.tune_rounded,
+            selected: selected == generalId,
+            onTap: () => onSelect(generalId),
+          ),
+          const SizedBox(height: 10),
+          for (final state in providers)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: _SidebarRow(
+                label: state.displayName,
+                providerId: state.id,
+                accent: Color(state.descriptor.accent),
+                selected: selected == state.id,
+                onTap: () => onSelect(state.id),
+              ),
+            ),
+          const Spacer(),
+          _SidebarRow(
+            label: 'About',
+            icon: Icons.info_outline_rounded,
+            selected: selected == aboutId,
+            onTap: () => onSelect(aboutId),
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            width: double.infinity,
+            child: PillButton(
+              label: 'Quit app',
+              onPressed: () => context.read<NativeBridge>().quit(),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SidebarRow extends StatefulWidget {
+  const _SidebarRow({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.icon,
+    this.providerId,
+    this.accent,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  /// One of these two is used for the leading mark: an icon for the fixed
+  /// rows, the provider's own glyph for an app.
+  final IconData? icon;
+  final String? providerId;
+  final Color? accent;
+
+  @override
+  State<_SidebarRow> createState() => _SidebarRowState();
+}
+
+class _SidebarRowState extends State<_SidebarRow> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final active = widget.selected;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedContainer(
+          duration: AppMetrics.fadeAnimation,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          decoration: BoxDecoration(
+            color: active
+                ? palette.surfaceRaised
+                : (_hovered
+                    ? palette.surfaceRaised.withValues(alpha: 0.6)
+                    : Colors.transparent),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                child: Center(
+                  child: widget.providerId != null
+                      ? ProviderGlyph(
+                          providerId: widget.providerId!,
+                          color: widget.accent ?? palette.textSecondary,
+                          size: 13,
+                        )
+                      : Icon(
+                          widget.icon,
+                          size: 14,
+                          color: active
+                              ? palette.textPrimary
+                              : palette.textTertiary,
+                        ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  widget.label,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                    color:
+                        active ? palette.textPrimary : palette.textSecondary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Everything that is about the widget rather than about an app.
+class _GeneralPage extends StatelessWidget {
+  const _GeneralPage({
+    required this.settings,
+    required this.screens,
+    required this.onUpdate,
+    required this.onReloadScreens,
+  });
+
+  final AppSettings settings;
+  final List<NativeScreen> screens;
+  final Future<void> Function(AppSettings) onUpdate;
+  final Future<void> Function() onReloadScreens;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const ClampingScrollPhysics(),
+      children: [
+        _RailSection(
+          settings: settings,
+          screens: screens,
+          onUpdate: onUpdate,
+          onReloadScreens: onReloadScreens,
+        ),
+        const SizedBox(height: 20),
+        _GeneralSection(settings: settings, onUpdate: onUpdate),
+        const SizedBox(height: 20),
+        _AppearanceSection(settings: settings, onUpdate: onUpdate),
+      ],
     );
   }
 }
@@ -249,64 +479,6 @@ class _AppearanceSection extends StatelessWidget {
   }
 }
 
-class _ProvidersSection extends StatelessWidget {
-  const _ProvidersSection();
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-    final usage = context.watch<UsageController>();
-    final shell = context.read<ShellController>();
-
-    return SettingsSection(
-      title: 'Providers',
-      children: [
-        for (final state in usage.states)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 5),
-            child: Row(
-              children: [
-                ProviderGlyph(
-                  providerId: state.id,
-                  color: Color(state.descriptor.accent),
-                  size: 13,
-                ),
-                const SizedBox(width: 9),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        state.displayName,
-                        style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w500,
-                          color: palette.textPrimary,
-                        ),
-                      ),
-                      Text(
-                        state.connection.status.detail,
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: palette.textTertiary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                PillButton(
-                  label: 'Manage',
-                  onPressed: () => shell.openPanel(ShellSurface.onboarding),
-                ),
-              ],
-            ),
-          ),
-      ],
-    );
-  }
-}
-
-/// Budgets used to turn locally counted tokens into a percentage.
 class _LocalTrackingSection extends StatefulWidget {
   const _LocalTrackingSection({required this.settings, required this.onUpdate});
 
@@ -397,153 +569,218 @@ class _LocalTrackingSectionState extends State<_LocalTrackingSection> {
 /// install — so the id is configuration, entered here once by whoever publishes
 /// the app. Until it is present, Connect says so rather than opening a browser
 /// onto a provider error page.
-class _SignInSetupSection extends StatefulWidget {
-  const _SignInSetupSection();
+class _ProviderPage extends StatelessWidget {
+  const _ProviderPage({
+    super.key,
+    required this.providerId,
+    required this.settings,
+    required this.onUpdate,
+  });
 
-  @override
-  State<_SignInSetupSection> createState() => _SignInSetupSectionState();
-}
-
-class _SignInSetupSectionState extends State<_SignInSetupSection> {
-  final Map<String, TextEditingController> _controllers = {};
-
-  /// Outcome of the last import, shown under the row that triggered it.
-  String? _importMessage;
-  bool _importFailed = false;
-
-  /// Imports the JSON file Google hands you when you create the client.
-  Future<void> _import(
-    String providerId,
-    OAuthRegistry registry,
-    NativeBridge native,
-  ) async {
-    final path = await native.pickFile(
-      title: 'Choose your Google OAuth client JSON',
-      extensions: const ['json'],
-    );
-    if (path == null) return;
-
-    String contents;
-    try {
-      contents = await File(path).readAsString();
-    } on FileSystemException {
-      if (!mounted) return;
-      setState(() {
-        _importFailed = true;
-        _importMessage = 'That file could not be read.';
-      });
-      return;
-    }
-
-    final clientId = await registry.importGoogleClientFile(
-      contents,
-      providerId,
-    );
-    if (!mounted) return;
-
-    setState(() {
-      _importFailed = clientId == null;
-      _importMessage = clientId == null
-          ? OAuthRegistry.importRejectionReason(contents)
-          : 'Imported. Sign-in is ready.';
-      if (clientId != null) {
-        _controllers[providerId]?.text = clientId;
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    for (final controller in _controllers.values) {
-      controller.dispose();
-    }
-    super.dispose();
-  }
-
-  TextEditingController _controllerFor(String id, String current) {
-    return _controllers.putIfAbsent(
-      id,
-      () => TextEditingController(text: current),
-    );
-  }
+  final String providerId;
+  final AppSettings settings;
+  final Future<void> Function(AppSettings) onUpdate;
 
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final registry = context.read<OAuthRegistry>();
-    final native = context.read<NativeBridge>();
     final usage = context.watch<UsageController>();
+    final shell = context.read<ShellController>();
+    final state = usage.stateFor(providerId);
+    final descriptor = state.descriptor;
+    final accent = Color(descriptor.accent);
+    final slot = usage.slotIndexOf(providerId);
+    final provider = context.read<ProviderRegistry>().byId(providerId);
 
-    final oauthSlots =
-        usage.states.where((s) => registry.supports(s.id)).toList();
-    if (oauthSlots.isEmpty) return const SizedBox.shrink();
-
-    return SettingsSection(
-      title: 'Sign-in setup',
+    return ListView(
+      physics: const ClampingScrollPhysics(),
       children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: Text(
-            'Browser sign-in needs an OAuth client registered with the '
-            'provider. Create one as a Desktop app, then import the JSON file '
-            'you download — or paste the client ID directly.',
-            style: TextStyle(
-              fontSize: 10.5,
-              height: 1.4,
-              color: palette.textTertiary,
-            ),
-          ),
-        ),
-        if (_importMessage != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: Text(
-              _importMessage!,
-              style: TextStyle(
-                fontSize: 10.5,
-                height: 1.4,
-                color: _importFailed
-                    ? palette.accentCritical
-                    : palette.accentPositive,
+        Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(11),
+              ),
+              child: Center(
+                child: ProviderGlyph(
+                  providerId: providerId,
+                  color: accent,
+                  size: 18,
+                ),
               ),
             ),
-          ),
-        for (final slot in oauthSlots)
-          SettingsRow(
-            label: '${slot.displayName} client ID',
-            description: registry.isConfigured(slot.id)
-                ? 'Configured.'
-                : 'Not set, so Connect is disabled for ${slot.displayName}.',
-            control: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SettingsTextField(
-                  controller: _controllerFor(
-                    slot.id,
-                    registry.configFor(slot.id)?.clientId ?? '',
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    descriptor.displayName,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: palette.textPrimary,
+                    ),
                   ),
-                  hintText: 'apps.googleusercontent.com',
-                  width: 180,
-                  onSubmitted: (value) async {
-                    await registry.setClient(slot.id, clientId: value);
-                    if (mounted) setState(() {});
-                  },
-                ),
-                const SizedBox(width: 6),
-                PillButton(
-                  label: 'Import JSON…',
-                  emphasised: !registry.isConfigured(slot.id),
-                  onPressed: () => _import(slot.id, registry, native),
-                ),
-                const SizedBox(width: 6),
-                if (OAuthRegistry.registrationUrl(slot.id) case final url?)
-                  PillButton(
-                    label: 'Get one',
-                    onPressed: () => native.openUrl(Uri.parse(url)),
+                  const SizedBox(height: 2),
+                  Text(
+                    state.connection.accountLabel ?? state.status.label,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: palette.textTertiary,
+                    ),
                   ),
-              ],
+                ],
+              ),
             ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        SettingsSection(
+          title: 'On the rail',
+          children: [
+            SettingsRow(
+              label: slot == null
+                  ? 'Not on the rail'
+                  : 'Position ${slot + 1} of ${settings.slots.length}',
+              description: slot == null
+                  ? 'Add it to show its usage on the edge of your screen.'
+                  : 'Remove it to free the position for another app. Your '
+                      'account stays connected.',
+              control: PillButton(
+                label: slot == null ? 'Add to rail' : 'Remove',
+                emphasised: slot == null,
+                onPressed: () async {
+                  if (slot != null) {
+                    await usage.clearSlot(slot);
+                    return;
+                  }
+                  final free = settings.emptySlotIndices.firstOrNull;
+                  if (free == null) return;
+                  await usage.assignSlot(free, providerId);
+                },
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        SettingsSection(
+          title: 'Where the figures come from',
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Text(
+                provider?.sourceDescription ?? descriptor.tagline,
+                style: TextStyle(
+                  fontSize: 11.5,
+                  height: 1.5,
+                  color: palette.textSecondary,
+                ),
+              ),
+            ),
+            if (state.usageUnavailableReason case final reason?)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text(
+                  reason,
+                  style: TextStyle(
+                    fontSize: 11,
+                    height: 1.5,
+                    color: palette.textTertiary,
+                  ),
+                ),
+              ),
+          ],
+        ),
+        if (descriptor.optionalKeyLabel case final keyLabel?) ...[
+          const SizedBox(height: 20),
+          SettingsSection(
+            title: 'Optional key',
+            children: [
+              SettingsRow(
+                label: keyLabel,
+                description: 'Adds a separate figure. Not needed for the '
+                    'allowance above, which reads a tool already signed in on '
+                    'this Mac.',
+                control: PillButton(
+                  label: 'Set up',
+                  onPressed: () => shell.openPanel(
+                    ShellSurface.providerDetail,
+                    providerId: providerId,
+                  ),
+                ),
+              ),
+            ],
           ),
+        ],
+        // Budgets only mean something where the app measures local token
+        // counts against them, which is Claude alone.
+        if (providerId == 'claude') ...[
+          const SizedBox(height: 20),
+          _LocalTrackingSection(settings: settings, onUpdate: onUpdate),
+        ],
+      ],
+    );
+  }
+}
+
+/// What the app is and what it reads.
+class _AboutPage extends StatelessWidget {
+  const _AboutPage();
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return ListView(
+      physics: const ClampingScrollPhysics(),
+      children: [
+        Text(
+          'Flux',
+          style: TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.w600,
+            color: palette.textPrimary,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'A menu-bar monitor for how much of your AI quota you have used.',
+          style: TextStyle(
+            fontSize: 12,
+            height: 1.5,
+            color: palette.textSecondary,
+          ),
+        ),
+        const SizedBox(height: 20),
+        SettingsSection(
+          title: 'What it reads',
+          children: [
+            for (final line in const [
+              'The session each tool has already established on this Mac — '
+                  'Claude Code, Codex, the Antigravity CLI, the Gemini CLI.',
+              'Those sessions are used to ask each provider for your own '
+                  'usage, and for nothing else. No token is stored, logged, '
+                  'or sent anywhere but to the provider it belongs to.',
+              'No web page is scraped, no browser cookie is read, and no '
+                  'credential file is written to.',
+            ])
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  '·  $line',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    height: 1.5,
+                    color: palette.textSecondary,
+                  ),
+                ),
+              ),
+          ],
+        ),
       ],
     );
   }

@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import '../../models/connection_status.dart';
 import '../../services/native/native_bridge.dart';
@@ -21,10 +21,13 @@ class RailColumn extends StatelessWidget {
     required this.hoveredId,
     required this.onHoverSlot,
     required this.onOpenDetail,
+    required this.onAddToSlot,
     required this.onRightEdge,
   });
 
-  final List<ProviderState> states;
+  /// What each rail position holds. A null entry is an empty slot, drawn as a
+  /// plus for the user to fill.
+  final List<ProviderState?> states;
   final RailMetrics metrics;
 
   /// The slot the pointer is on, if any.
@@ -32,6 +35,9 @@ class RailColumn extends StatelessWidget {
 
   final ValueChanged<String?> onHoverSlot;
   final ValueChanged<String> onOpenDetail;
+
+  /// Asks to fill the empty slot at this index.
+  final ValueChanged<int> onAddToSlot;
   final bool onRightEdge;
 
   @override
@@ -57,14 +63,20 @@ class RailColumn extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (final state in states)
-                _RailSlot(
-                  state: state,
-                  height: metrics.slotHeight,
-                  isHovered: state.id == hoveredId,
-                  onEnter: () => onHoverSlot(state.id),
-                  onTap: () => onOpenDetail(state.id),
-                ),
+              for (var index = 0; index < states.length; index++)
+                if (states[index] case final state?)
+                  _RailSlot(
+                    state: state,
+                    height: metrics.slotHeight,
+                    isHovered: state.id == hoveredId,
+                    onEnter: () => onHoverSlot(state.id),
+                    onTap: () => onOpenDetail(state.id),
+                  )
+                else
+                  _EmptySlot(
+                    height: metrics.slotHeight,
+                    onTap: () => onAddToSlot(index),
+                  ),
             ],
           ),
         ),
@@ -251,6 +263,64 @@ class _ActivityDotState extends State<_ActivityDot>
         width: 5.5,
         height: 5.5,
         decoration: BoxDecoration(color: widget.color, shape: BoxShape.circle),
+      ),
+    );
+  }
+}
+
+/// A rail position with nothing in it.
+///
+/// The rail starts as four of these. Filling one is the user's decision, and
+/// any provider can go in any position — a plus that always meant "connect the
+/// provider we chose for this row" would not be a choice.
+class _EmptySlot extends StatefulWidget {
+  const _EmptySlot({required this.height, required this.onTap});
+
+  final double height;
+  final VoidCallback onTap;
+
+  @override
+  State<_EmptySlot> createState() => _EmptySlotState();
+}
+
+class _EmptySlotState extends State<_EmptySlot> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          height: widget.height,
+          child: Center(
+            child: AnimatedContainer(
+              duration: AppMetrics.fadeAnimation,
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: _hovered
+                      ? palette.textSecondary.withValues(alpha: 0.7)
+                      : palette.textTertiary.withValues(alpha: 0.35),
+                  width: 1.2,
+                ),
+              ),
+              child: Icon(
+                Icons.add_rounded,
+                size: 14,
+                color: _hovered ? palette.textSecondary : palette.textTertiary,
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

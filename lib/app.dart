@@ -11,6 +11,7 @@ import 'services/usage_controller.dart';
 import 'ui/panel/onboarding_view.dart';
 import 'ui/panel/provider_detail_view.dart';
 import 'ui/panel/settings_view.dart';
+import 'ui/panel/slot_picker_view.dart';
 import 'ui/rail/rail_shell.dart';
 import 'ui/theme/app_theme.dart';
 
@@ -77,6 +78,7 @@ class _SurfaceRouter extends StatelessWidget {
       ShellSurface.rail => const RailShell(),
       ShellSurface.onboarding => const OnboardingView(),
       ShellSurface.settings => const SettingsView(),
+      ShellSurface.slotPicker => const SlotPickerView(),
       ShellSurface.providerDetail => ProviderDetailView(
           // The router only reaches this surface via `openPanel`, which always
           // supplies the id; the fallback keeps a malformed state from
