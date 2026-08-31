@@ -460,8 +460,8 @@ void main() {
     test('starts empty, so nothing appears uninvited', () {
       final (controller: controller, primary: _) = buildController();
 
-      // Every position a plus, and exactly as many as the rail window is laid
-      // out for. The product does not decide which tools matter to a person.
+      // Four positions, all plus signs. The product does not decide which
+      // tools matter to a person.
       expect(controller.slots, hasLength(ProviderCatalog.slotCount));
       expect(controller.slots, everyElement(isNull));
       expect(controller.hasEmptyRail, isTrue);
@@ -505,14 +505,13 @@ void main() {
       );
       await controller.start();
 
-      final last = ProviderCatalog.slotCount - 1;
       await controller.assignSlot(0, 'claude');
-      await controller.assignSlot(last, 'claude');
+      await controller.assignSlot(3, 'claude');
 
       // One provider, one ring. Two would refresh the same account twice and
       // draw it as though it were two.
       expect(controller.slots[0], isNull);
-      expect(controller.slots[last]?.id, 'claude');
+      expect(controller.slots[3]?.id, 'claude');
     });
 
     test('the picker offers only what is not already on the rail', () async {
