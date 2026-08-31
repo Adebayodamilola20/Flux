@@ -130,19 +130,6 @@ class ClaudeUsageProvider implements UsageProvider {
 
   @override
   Future<void> restore() async {
-    // Never set up, and Claude Code is signed in here: adopt the slot rather
-    // than showing a Connect button for an account that is already available.
-    // A deliberate disconnect leaves a record, so it is not undone by this.
-    if (!_connections.isDismissed(id) && !_connections.load(id).isConnected) {
-      if (supportsLocalOnly) {
-        _log.info('adopting claude: Claude Code is signed in here');
-        await enableLocalOnly();
-        return;
-      }
-      _connection = ProviderConnection.notConnected(id);
-      return;
-    }
-
     final stored = _connections.load(id);
 
     // A stored "connected" state is only meaningful if the key is still in the

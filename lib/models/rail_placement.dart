@@ -61,3 +61,30 @@ class RailOffset {
   @override
   int get hashCode => fraction.hashCode;
 }
+
+
+/// How the rail's own surface is drawn.
+enum RailAppearance {
+  /// A solid panel in the theme's colours.
+  solid,
+
+  /// Frosted, letting the desktop through.
+  ///
+  /// The blur is done by AppKit rather than Flutter: a `BackdropFilter` blurs
+  /// what is behind it *inside the Flutter layer tree*, and behind the rail
+  /// there is nothing — the desktop is behind the transparent window. See
+  /// `RailGlass` on the native side.
+  glass;
+
+  String get label => switch (this) {
+        RailAppearance.solid => 'Solid',
+        RailAppearance.glass => 'Glass',
+      };
+
+  String get description => switch (this) {
+        RailAppearance.solid =>
+          'A solid surface in your theme’s colours.',
+        RailAppearance.glass =>
+          'Frosted, with your desktop showing through.',
+      };
+}

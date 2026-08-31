@@ -79,6 +79,28 @@ enum RailMetrics {
         )
     }
 
+    /// The rail's drawn rectangle — the column of rings, not its hover target.
+    ///
+    /// Distinct from [openHotZone], which spans the card as well: the pointer
+    /// target is deliberately larger than what is painted, and frosting the
+    /// hover zone would put a blurred rectangle over empty screen.
+    static func railRect(
+        in windowSize: NSSize,
+        edge: RailEdge,
+        slots: Int
+    ) -> NSRect {
+        let height = min(collapsedHeight(slots: slots), windowSize.height)
+        let x: CGFloat = edge == .right
+            ? windowSize.width - shadowPadding - collapsedWidth
+            : shadowPadding
+        return NSRect(
+            x: x,
+            y: (windowSize.height - height) / 2,
+            width: collapsedWidth,
+            height: height
+        )
+    }
+
     /// The pointer target while the rail is open: the rail and its card.
     static func openHotZone(
         in windowSize: NSSize,

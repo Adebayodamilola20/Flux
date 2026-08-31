@@ -54,10 +54,10 @@ class CliUsageReading {
 /// in. So the connect step is removed entirely — if the CLI is here, the slot
 /// works.
 ///
-/// **Adoption is automatic.** A provider with a working local source turns
-/// itself on the first time the app runs, rather than waiting behind a Connect
-/// button. Switching it off is remembered, so this never overrides a deliberate
-/// choice — see [ConnectionStore.markDisconnected].
+/// **Adding is one click.** Because there is nothing to authorise, putting one
+/// of these on the rail connects it outright — no Connect button behind the
+/// picker, and no browser step. What the app does *not* do is decide for the
+/// user which tools belong on their rail: it starts empty.
 abstract class CliUsageProvider implements UsageProvider {
   CliUsageProvider({
     required NativeBridge native,
@@ -180,29 +180,14 @@ abstract class CliUsageProvider implements UsageProvider {
   @override
   Future<bool> isAvailable() => quota.isInstalled;
 
-  /// Loads the stored state, and adopts the slot when there is none.
+  /// Loads the stored state, and nothing more.
   ///
-  /// The first run of the app should show numbers, not a row of Connect
-  /// buttons for tools the user has already signed in to elsewhere.
+  /// Adding a provider is the user's decision — the rail starts empty and they
+  /// put things on it. Connecting happens when they do, which is why there is
+  /// no second step: see [UsageController.assignSlot].
   @override
   Future<void> restore() async {
-    if (_connections.isDismissed(id)) {
-      _connection = _connections.load(id);
-      return;
-    }
-
-    if (_connections.load(id).isConnected) {
-      _connection = _connections.load(id);
-      return;
-    }
-
-    if (!await quota.isInstalled) {
-      _connection = ProviderConnection.notConnected(id);
-      return;
-    }
-
-    log.info('adopting $id: its CLI is installed and signed in');
-    await enableLocalOnly();
+    _connection = _connections.load(id);
   }
 
   /// There is no browser step. Connect and Enable do the same thing, so a user

@@ -420,33 +420,33 @@ void main() {
       );
     });
 
-    test('adopts the slot on first run rather than waiting to be connected',
-        () async {
-      // No stored record, and Claude Code is signed in on this machine: the
-      // first launch should show a figure, not a Connect button for an account
-      // the user has already signed in to elsewhere.
+    test('refuses before the user has added it', () async {
+      // The rail starts empty and nothing adopts itself: a provider reports
+      // usage once the user puts it on the rail, not because the tool happens
+      // to be installed.
       SharedPreferences.setMockInitialValues({});
       preferences = await SharedPreferences.getInstance();
       final provider = await build();
+
+      expect(provider.connection.isConnected, isFalse);
+      await expectLater(
+        provider.fetchUsage(const AppSettings()),
+        throwsA(isA<UsageFailure>()),
+      );
+    });
+
+    test('adding is the only click', () async {
+      // No browser, no key: Claude Code has already signed in, so putting it
+      // on the rail is enough to produce a figure.
+      SharedPreferences.setMockInitialValues({});
+      preferences = await SharedPreferences.getInstance();
+      final provider = await build();
+
+      await provider.enableLocalOnly();
 
       expect(provider.connection.isConnected, isTrue);
       final data = await provider.fetchUsage(const AppSettings());
       expect(data.windows, isNotEmpty);
-    });
-
-    test('refuses once the user has deliberately disconnected it', () async {
-      SharedPreferences.setMockInitialValues({});
-      preferences = await SharedPreferences.getInstance();
-      final provider = await build();
-      await provider.disconnect();
-
-      // Adoption must not undo a choice the user made.
-      final reconnected = await build();
-      expect(reconnected.connection.isConnected, isFalse);
-      await expectLater(
-        reconnected.fetchUsage(const AppSettings()),
-        throwsA(isA<UsageFailure>()),
-      );
     });
   });
 
