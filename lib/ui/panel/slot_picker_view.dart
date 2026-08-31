@@ -44,8 +44,18 @@ class SlotPickerView extends StatelessWidget {
                 return _ProviderChoice(
                   descriptor: state.descriptor,
                   onTap: () async {
-                    await usage.assignSlot(slotIndex, state.id);
-                    await shell.showRail();
+                    // Reserve the position, then hand over to that app's own
+                    // connect screen: the user asked for this one, so the
+                    // result they came for is a figure, not a closed dialog.
+                    await usage.assignSlot(
+                      slotIndex,
+                      state.id,
+                      connect: false,
+                    );
+                    await shell.openPanel(
+                      ShellSurface.connectProvider,
+                      providerId: state.id,
+                    );
                   },
                 );
               },

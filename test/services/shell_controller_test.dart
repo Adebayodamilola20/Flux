@@ -220,15 +220,19 @@ void main() {
       expect(shell.detailProviderId, isNull);
     });
 
-    test('finishing onboarding records it so it is not shown again', () async {
+    test('connecting one app opens that app alone', () async {
       await boot();
       await shell.start();
-      expect(settings.settings.onboardingComplete, isFalse);
 
-      await shell.finishOnboarding();
+      await shell.openPanel(
+        ShellSurface.connectProvider,
+        providerId: 'claude',
+      );
 
-      expect(settings.settings.onboardingComplete, isTrue);
-      expect(shell.surface, ShellSurface.rail);
+      // Not a grid of every provider: the user has already said which one.
+      expect(shell.surface, ShellSurface.connectProvider);
+      expect(shell.detailProviderId, 'claude');
+      expect(native.panelSizes.last, ShellController.connectSize);
     });
   });
 

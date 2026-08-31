@@ -132,7 +132,10 @@ class _RailShellState extends State<RailShell>
               key: ValueKey(hovered.id),
               state: hovered,
               onRightEdge: onRight,
-              onConnect: () => shell.openPanel(ShellSurface.onboarding),
+              onConnect: () => shell.openPanel(
+                ShellSurface.connectProvider,
+                providerId: hovered.id,
+              ),
               onRetry: () => usage.refresh(hovered.id, manual: true),
             ),
           ),

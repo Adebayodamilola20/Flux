@@ -24,6 +24,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.railFill,
     required this.railBorder,
     required this.railShadow,
+    required this.accentSystem,
   });
 
   final Color surface;
@@ -51,6 +52,11 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color railBorder;
   final Color railShadow;
 
+  /// macOS system blue — what a native switch, a selected segment and a
+  /// focused field use. Not one of the quota accents: those mean "how close to
+  /// the limit", and reusing one here would make a toggle look like a warning.
+  final Color accentSystem;
+
   static const AppPalette dark = AppPalette(
     surface: Color(0xFF121214),
     surfaceRaised: Color(0xFF1B1B1F),
@@ -68,6 +74,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     railFill: Color(0xFF000000),
     railBorder: Color(0xFF000000),
     railShadow: Color(0x99000000),
+    accentSystem: Color(0xFF0A84FF),
   );
 
   static const AppPalette light = AppPalette(
@@ -89,6 +96,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     railFill: Color(0xFFF7F7F9),
     railBorder: Color(0x14000000),
     railShadow: Color(0x38000000),
+    accentSystem: Color(0xFF007AFF),
   );
 
   /// Accent for a usage fraction. Thresholds are chosen so a mid-range value
@@ -119,6 +127,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
     Color? railFill,
     Color? railBorder,
     Color? railShadow,
+    Color? accentSystem,
   }) {
     return AppPalette(
       surface: surface ?? this.surface,
@@ -137,6 +146,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       railFill: railFill ?? this.railFill,
       railBorder: railBorder ?? this.railBorder,
       railShadow: railShadow ?? this.railShadow,
+      accentSystem: accentSystem ?? this.accentSystem,
     );
   }
 
@@ -161,6 +171,7 @@ class AppPalette extends ThemeExtension<AppPalette> {
       railFill: mix(railFill, other.railFill),
       railBorder: mix(railBorder, other.railBorder),
       railShadow: mix(railShadow, other.railShadow),
+      accentSystem: mix(accentSystem, other.accentSystem),
     );
   }
 }

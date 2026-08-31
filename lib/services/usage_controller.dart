@@ -241,7 +241,11 @@ class UsageController extends ChangeNotifier {
   /// Adding is the only click: these providers read a tool that is already
   /// signed in on this Mac, so a separate Connect step would ask the user to
   /// confirm something the app can simply do.
-  Future<void> assignSlot(int index, String providerId) async {
+  Future<void> assignSlot(
+    int index,
+    String providerId, {
+    bool connect = true,
+  }) async {
     if (index < 0 || index >= _settings.slots.length) return;
 
     final next = [..._settings.slots];
@@ -253,6 +257,8 @@ class UsageController extends ChangeNotifier {
     await _settingsService.update(_settings.copyWith(slots: next));
     _safeNotify();
 
+    if (!connect) return;
+
     final provider = _registry.byId(providerId);
     if (provider == null) return;
 
@@ -261,6 +267,20 @@ class UsageController extends ChangeNotifier {
       _applyConnection(providerId, result);
     }
     await refresh(providerId);
+  }
+
+  /// Connects a provider from its own connect screen.
+  ///
+  /// The same work [assignSlot] does when adding, exposed on its own for the
+  /// screen that asks first — a provider already on the rail but switched off,
+  /// or one the user wants to see the result for before committing.
+  Future<void> connectLocally(String providerId) async {
+    final provider = _registry.byId(providerId);
+    if (provider == null) return;
+
+    final result = await provider.enableLocalOnly();
+    _applyConnection(providerId, result);
+    if (result.isConnected) await refresh(providerId);
   }
 
   /// Empties slot [index].

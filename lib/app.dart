@@ -8,8 +8,8 @@ import 'services/native/native_bridge.dart';
 import 'services/settings_service.dart';
 import 'services/shell_controller.dart';
 import 'services/usage_controller.dart';
-import 'ui/panel/onboarding_view.dart';
 import 'ui/panel/provider_detail_view.dart';
+import 'ui/panel/provider_connect_view.dart';
 import 'ui/panel/settings_view.dart';
 import 'ui/panel/slot_picker_view.dart';
 import 'ui/rail/rail_shell.dart';
@@ -76,7 +76,10 @@ class _SurfaceRouter extends StatelessWidget {
 
     return switch (shell.surface) {
       ShellSurface.rail => const RailShell(),
-      ShellSurface.onboarding => const OnboardingView(),
+      ShellSurface.connectProvider => ProviderConnectView(
+        providerId:
+            shell.detailProviderId ?? context.read<ProviderRegistry>().all.first.id,
+      ),
       ShellSurface.settings => const SettingsView(),
       ShellSurface.slotPicker => const SlotPickerView(),
       ShellSurface.providerDetail => ProviderDetailView(

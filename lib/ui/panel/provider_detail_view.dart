@@ -58,7 +58,10 @@ class ProviderDetailView extends StatelessWidget {
               emphasised: true,
               onPressed: state.status == ConnectionStatus.unsupported
                   ? null
-                  : () => shell.openPanel(ShellSurface.onboarding),
+                  : () => shell.openPanel(
+                        ShellSurface.connectProvider,
+                        providerId: providerId,
+                      ),
             )
           else ...[
             PillButton(

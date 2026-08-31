@@ -19,8 +19,8 @@ enum ShellSurface {
   /// The edge widget. The product's primary interface.
   rail,
 
-  /// First-run "Connect your AI tools".
-  onboarding,
+  /// Connecting one app.
+  connectProvider,
 
   /// Preferences.
   settings,
@@ -65,7 +65,7 @@ class ShellController extends ChangeNotifier {
 
   /// Size of the window in each panel surface. The rail's size is fixed by
   /// [RailMetrics] and set natively.
-  static const Size onboardingSize = Size(760, 600);
+  static const Size connectSize = Size(460, 520);
   // Wider than a single-column sheet: the sidebar takes ~150pt before the page
   // starts, and squeezing both into 640 left the settings rows wrapping.
   static const Size settingsSize = Size(760, 600);
@@ -156,23 +156,12 @@ class ShellController extends ChangeNotifier {
     await _native.showPanel(size: _sizeFor(next));
   }
 
-  /// Leaves a panel surface for the rail, marking onboarding done on the way
-  /// out so the connect screen is not shown again.
-  Future<void> finishOnboarding() async {
-    if (!_settings.onboardingComplete) {
-      await _settingsService.update(
-        _settings.copyWith(onboardingComplete: true),
-      );
-    }
-    await showRail();
-  }
-
   static Size _sizeFor(ShellSurface surface) => switch (surface) {
-        ShellSurface.onboarding => onboardingSize,
+        ShellSurface.connectProvider => connectSize,
         ShellSurface.settings => settingsSize,
         ShellSurface.providerDetail => detailSize,
         ShellSurface.slotPicker => slotPickerSize,
-        ShellSurface.rail => onboardingSize,
+        ShellSurface.rail => connectSize,
       };
 
   // MARK: - Rail behaviour

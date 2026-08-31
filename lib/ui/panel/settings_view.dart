@@ -65,7 +65,7 @@ class _SettingsViewState extends State<SettingsView> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           SizedBox(
-            width: 152,
+            width: 176,
             child: _Sidebar(
               selected: selected,
               providers: providers,
@@ -207,32 +207,34 @@ class _SidebarRowState extends State<_SidebarRow> {
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: AppMetrics.fadeAnimation,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
           decoration: BoxDecoration(
             color: active
-                ? palette.surfaceRaised
+                ? palette.accentSystem
                 : (_hovered
-                    ? palette.surfaceRaised.withValues(alpha: 0.6)
+                    ? palette.surfaceRaised.withValues(alpha: 0.8)
                     : Colors.transparent),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(7),
           ),
           child: Row(
             children: [
               SizedBox(
-                width: 16,
+                width: 18,
                 child: Center(
                   child: widget.providerId != null
                       ? ProviderGlyph(
                           providerId: widget.providerId!,
-                          color: widget.accent ?? palette.textSecondary,
-                          size: 13,
+                          // A selected row is filled with system blue, so the
+                          // mark on it has to be white or it disappears.
+                          color: active
+                              ? Colors.white
+                              : (widget.accent ?? palette.textSecondary),
+                          size: 14,
                         )
                       : Icon(
                           widget.icon,
-                          size: 14,
-                          color: active
-                              ? palette.textPrimary
-                              : palette.textTertiary,
+                          size: 15,
+                          color: active ? Colors.white : palette.textTertiary,
                         ),
                 ),
               ),
@@ -242,10 +244,10 @@ class _SidebarRowState extends State<_SidebarRow> {
                   widget.label,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 11.5,
-                    fontWeight: active ? FontWeight.w600 : FontWeight.w500,
-                    color:
-                        active ? palette.textPrimary : palette.textSecondary,
+                    fontSize: 13,
+                    letterSpacing: -0.1,
+                    fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                    color: active ? Colors.white : palette.textPrimary,
                   ),
                 ),
               ),
@@ -459,6 +461,7 @@ class _AppearanceSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return SettingsSection(
       title: 'Appearance',
+      footnote: settings.railAppearance.description,
       children: [
         SettingsRow(
           label: 'Theme',
@@ -476,14 +479,11 @@ class _AppearanceSection extends StatelessWidget {
         ),
         SettingsRow(
           label: 'Rail surface',
-          description: settings.railAppearance.description,
-          control: SettingsDropdown<RailAppearance>(
+          control: SettingsSegmented<RailAppearance>(
             value: settings.railAppearance,
             items: RailAppearance.values,
             labelBuilder: (a) => a.label,
-            onChanged: (v) => v == null
-                ? null
-                : onUpdate(settings.copyWith(railAppearance: v)),
+            onChanged: (v) => onUpdate(settings.copyWith(railAppearance: v)),
           ),
         ),
       ],
@@ -680,31 +680,32 @@ class _ProviderPage extends StatelessWidget {
         ),
         const SizedBox(height: 20),
         SettingsSection(
-          title: 'Where the figures come from',
+          title: 'Connection',
+          footnote: provider?.sourceDescription ?? descriptor.tagline,
+          trailing: SettingsBadge(
+            label: state.connection.isConnected ? 'Active' : 'Off',
+            color: state.connection.isConnected
+                ? palette.accentPositive
+                : palette.textTertiary,
+          ),
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Text(
-                provider?.sourceDescription ?? descriptor.tagline,
-                style: TextStyle(
-                  fontSize: 11.5,
-                  height: 1.5,
-                  color: palette.textSecondary,
-                ),
+            SettingsRow(
+              label: state.connection.isConnected
+                  ? 'Connected via ${descriptor.displayName}'
+                  : 'Not connected',
+              description: state.connection.accountLabel,
+              control: PillButton(
+                label: state.connection.isConnected ? 'Refresh' : 'Connect',
+                onPressed: () => state.connection.isConnected
+                    ? usage.refresh(providerId, manual: true)
+                    : shell.openPanel(
+                        ShellSurface.connectProvider,
+                        providerId: providerId,
+                      ),
               ),
             ),
             if (state.usageUnavailableReason case final reason?)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(
-                  reason,
-                  style: TextStyle(
-                    fontSize: 11,
-                    height: 1.5,
-                    color: palette.textTertiary,
-                  ),
-                ),
-              ),
+              SettingsRow(label: 'Why there is no figure', description: reason),
           ],
         ),
         if (descriptor.optionalKeyLabel case final keyLabel?) ...[
