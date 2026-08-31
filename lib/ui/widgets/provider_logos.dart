@@ -6,12 +6,26 @@ import 'package:flutter/widgets.dart';
 ///
 /// Drawn rather than bundled as image assets for two reasons: a path stays
 /// crisp at any size on any Retina factor without shipping several rasters
-/// each, and it can be tinted to suit light or dark mode. The shapes follow
-/// each company's published mark so the card is recognisably theirs.
+/// each, and a single brand colour keeps it recognisable in compact UI. The
+/// shapes follow each company's published mark so the card is recognisably
+/// theirs.
 ///
 /// These are trademarks of their respective owners, used here only to identify
 /// the service a card connects to.
 abstract final class ProviderLogos {
+  /// The provider's brand colour in app chrome.
+  static Color? brandColorFor(String providerId) {
+    return switch (providerId) {
+      'chatgpt' || 'codex' => const Color(0xFF10A37F),
+      'openrouter' => const Color(0xFF6467F2),
+      'claude' => const Color(0xFFD97757),
+      'gemini' => const Color(0xFF9168F0),
+      'antigravity' => const Color(0xFF4285F4),
+      'reserved' => const Color(0xFF8A8A8E),
+      _ => null,
+    };
+  }
+
   /// Returns the mark for a provider, or null when there is no drawn logo.
   static CustomPainter? painterFor(String providerId, Color color) {
     return switch (providerId) {

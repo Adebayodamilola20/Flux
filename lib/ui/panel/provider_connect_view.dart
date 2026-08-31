@@ -76,7 +76,6 @@ class _ProviderConnectViewState extends State<ProviderConnectView> {
         ],
       ),
       child: ListView(
-        physics: const ClampingScrollPhysics(),
         children: [
           const SizedBox(height: 8),
           Center(

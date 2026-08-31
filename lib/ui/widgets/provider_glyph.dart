@@ -38,8 +38,10 @@ class ProviderGlyph extends StatelessWidget {
       );
     }
 
-    // Each provider's own mark, so a card is recognisably theirs.
-    final logo = ProviderLogos.painterFor(providerId, color);
+    // Each provider's own mark in its brand colour, so the rail does not turn
+    // every app into the surrounding text colour.
+    final markColor = ProviderLogos.brandColorFor(providerId) ?? color;
+    final logo = ProviderLogos.painterFor(providerId, markColor);
     if (logo != null) {
       return SizedBox.square(
         dimension: size,
@@ -52,7 +54,7 @@ class ProviderGlyph extends StatelessWidget {
       dimension: size,
       child: CustomPaint(
         painter: _PolygonGlyphPainter(
-          color: color,
+          color: markColor,
           sides: _sidesFor(providerId),
         ),
       ),
