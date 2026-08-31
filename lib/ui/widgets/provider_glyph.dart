@@ -22,6 +22,9 @@ class ProviderGlyph extends StatelessWidget {
   final String providerId;
   final Color color;
   final double size;
+
+  /// Uses the provider's brand colour when true. Turn this off in surfaces
+  /// where the icon needs to contrast with the current theme instead.
   final bool useBrandColor;
 
   /// Draws a plus instead of the provider's mark.
