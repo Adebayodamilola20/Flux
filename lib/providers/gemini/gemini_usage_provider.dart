@@ -42,6 +42,9 @@ class GeminiUsageProvider extends CliUsageProvider {
   final GeminiCliAccountSource _accounts;
   final GeminiCodeAssistSource _quota;
 
+  /// The account the last reading belonged to. See [readUsage].
+  String? _lastAccount;
+
   @override
   ProviderDescriptor get descriptor => ProviderCatalog.gemini;
 
@@ -64,6 +67,18 @@ class GeminiUsageProvider extends CliUsageProvider {
   @override
   Future<CliUsageReading> readUsage(AppSettings settings) async {
     final account = await _accounts.read();
+
+    // The Code Assist project is cached across refreshes because it does not
+    // change — for one account. Signing in as a different Google account gives
+    // a different project, and asking the new session about the old one either
+    // fails or answers for an account the user has left.
+    if (_lastAccount != null && account.email != _lastAccount) {
+      log.info('the signed-in Google account changed; rediscovering its '
+          'Code Assist project');
+      _quota.reset();
+    }
+    _lastAccount = account.email;
+
     final (quota, failure) = await _quota.fetch();
 
     if (quota != null && quota.hasUsage) {

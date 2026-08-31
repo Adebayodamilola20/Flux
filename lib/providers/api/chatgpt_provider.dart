@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -11,6 +12,7 @@ import '../../models/usage_source.dart';
 import '../../models/usage_window.dart';
 import '../provider_catalog.dart';
 import '../usage_provider.dart';
+import '../chatgpt/codex_account_source.dart';
 import '../chatgpt/codex_usage_source.dart';
 import 'api_key_provider.dart';
 
@@ -33,14 +35,17 @@ class ChatGptProvider extends ApiKeyUsageProvider {
     super.logger,
     Uri? endpoint,
     CodexUsageSource? codexSource,
+    CodexAccountSource? accountSource,
   })  : _endpoint = endpoint ?? defaultEndpoint,
-        _codex = codexSource ?? CodexUsageSource();
+        _codex = codexSource ?? CodexUsageSource(),
+        _account = accountSource ?? CodexAccountSource();
 
   static final Uri defaultEndpoint =
       Uri.parse('https://api.openai.com/v1/organization/costs');
 
   final Uri _endpoint;
   final CodexUsageSource _codex;
+  final CodexAccountSource _account;
 
   /// True when Codex has recorded an allowance on this Mac, which is a link
   /// that needs no key at all.
@@ -54,7 +59,9 @@ class ChatGptProvider extends ApiKeyUsageProvider {
   /// reading the allowance OpenAI reported for that account.
   @override
   Future<ProviderConnection> enableLocalOnly() async {
-    final reading = await _codex.read();
+    final account = await _syncAccount();
+    final reading = await _codex.read(notBefore: connection.accountChangedAt);
+
     if (!reading.hasUsage) {
       return updateConnection(connection.copyWith(
         status: ConnectionStatus.error,
@@ -68,15 +75,91 @@ class ChatGptProvider extends ApiKeyUsageProvider {
       status: ConnectionStatus.connected,
       connectedAt: DateTime.now(),
       accountLabel: CodexUsageSource.planLabel(reading.planType),
+      accountId: account.accountId,
+      accountChangedAt: connection.accountChangedAt,
     ));
   }
 
-  /// Re-reads the moment Codex records a new allowance.
+  /// Re-reads the moment Codex records a new allowance, or signs in again.
   ///
   /// Codex only learns the figure when it talks to OpenAI, so a transcript
-  /// write is the earliest this app can possibly know the number moved.
+  /// write is the earliest this app can possibly know the number moved. The
+  /// auth file is watched alongside it because a sign-in changes which account
+  /// the figures are even about, and that must not wait for the next poll.
   @override
-  Stream<void>? get changes => _codex.isAvailable ? _codex.watch() : null;
+  Stream<void>? get changes {
+    final sources = [
+      if (_codex.isAvailable) _codex.watch(),
+      if (_account.isAvailable) _account.watch(),
+    ];
+    if (sources.isEmpty) return null;
+    if (sources.length == 1) return sources.first;
+    return _merge(sources);
+  }
+
+  /// Two watchers as one stream, for the single listener that subscribes.
+  ///
+  /// Hand-rolled rather than pulling in a package for one merge. The sources
+  /// are infinite polling loops, so cancelling has to reach both of them or
+  /// they keep statting files after the provider is gone.
+  static Stream<void> _merge(List<Stream<DateTime>> sources) {
+    final subscriptions = <StreamSubscription<DateTime>>[];
+    late final StreamController<void> controller;
+
+    controller = StreamController<void>(
+      onListen: () {
+        for (final source in sources) {
+          subscriptions.add(
+            source.listen(
+              (_) => controller.add(null),
+              onError: controller.addError,
+            ),
+          );
+        }
+      },
+      onCancel: () async {
+        for (final subscription in subscriptions) {
+          await subscription.cancel();
+        }
+        subscriptions.clear();
+      },
+    );
+
+    return controller.stream;
+  }
+
+  /// Notices a sign-in as a different ChatGPT account, and records when.
+  ///
+  /// Returns the account Codex holds now. When it is not the one the stored
+  /// connection was made for, the changeover is stamped — every allowance Codex
+  /// recorded before that moment belongs to the previous sign-in, and is
+  /// excluded from then on.
+  Future<CodexAccount> _syncAccount() async {
+    final account = await _account.read();
+    final current = account.accountId;
+
+    // Nothing to compare against: either Codex is signed out, or this is the
+    // first reading and there is no earlier account to have left.
+    if (current == null) return account;
+    if (current == connection.accountId) return account;
+
+    final changedAt = DateTime.now();
+    if (connection.accountId != null) {
+      log.info('Codex signed in as a different account; earlier figures '
+          'no longer apply');
+    }
+
+    await updateConnection(connection.copyWith(
+      accountId: current,
+      // Only a genuine switch resets the cut-off. The first time an account is
+      // seen there is nothing to exclude, and stamping it would throw away
+      // figures that do belong to it.
+      accountChangedAt: connection.accountId == null ? null : changedAt,
+      clearAccountLabel: connection.accountId != null,
+    ));
+
+    return account;
+  }
 
   /// Reading a local transcript costs nothing, so there is no reason to let the
   /// figure sit for the user's whole refresh interval.
@@ -107,11 +190,27 @@ class ChatGptProvider extends ApiKeyUsageProvider {
   /// this is the plan allowance OpenAI reports for the ChatGPT account, and
   /// [readUsage] is spend on a separate API billing account.
   Future<ApiUsageReading> readCodexAllowance() async {
-    final reading = await _codex.read();
+    final account = await _syncAccount();
+
+    if (account.isInstalled && !account.isSignedIn) {
+      return const ApiUsageReading.unavailable(
+        'Codex is signed out on this Mac. Run `codex` and sign in, then '
+        'refresh.',
+      );
+    }
+
+    // Anything Codex recorded before the account changed belongs to the
+    // account the user left, so it is not offered as this one's.
+    final since = connection.accountChangedAt;
+    final reading = await _codex.read(notBefore: since);
 
     if (!reading.hasUsage) {
-      return const ApiUsageReading.unavailable(
-        'Codex has not recorded an allowance on this Mac yet.',
+      return ApiUsageReading.unavailable(
+        since == null
+            ? 'Codex has not recorded an allowance on this Mac yet.'
+            : 'Codex is signed in as a different ChatGPT account than before. '
+                'Run Codex once so OpenAI reports this account’s allowance — '
+                'until then there is nothing to show for it.',
       );
     }
 

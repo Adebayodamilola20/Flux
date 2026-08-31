@@ -393,5 +393,109 @@ void main() {
       expect(failure, ClaudeLiveFailure.tokenExpired);
       expect(requests, 0);
     });
+
+    group('signing in again', () {
+      test('re-reads the session once the stored one is replaced', () async {
+        // The complaint this fixes: `claude /login` as a different account,
+        // and the rail goes on reporting the account that was left. The old
+        // token has not expired, so nothing about it looks wrong — the only
+        // evidence is that the item behind it was rewritten.
+        var stamp = DateTime(2026, 8, 31, 9);
+        var reads = 0;
+        final tokens = ['first', 'second'];
+
+        final source = ClaudeLiveUsageSource(
+          homeDirectory: home.path,
+          keychainStampReader: () async => stamp,
+          keychainReader: () async {
+            final token = tokens[reads.clamp(0, tokens.length - 1)];
+            reads++;
+            return ClaudeCodeCredentialAccess.found(
+              keychainBlob(
+                token: token,
+                expiresAt: DateTime.now().add(const Duration(hours: 6)),
+              ),
+            );
+          },
+          client: MockClient((request) async {
+            return http.Response(
+              liveBody(
+                fiveHour:
+                    request.headers['Authorization'] == 'Bearer second' ? 3 : 78,
+              ),
+              200,
+            );
+          }),
+        );
+
+        final (before, _) = await source.fetch();
+        expect(before!.windows.first.consumed, 78);
+        expect(reads, 1);
+
+        // Unchanged store: still one read, still the same account.
+        await source.fetch();
+        expect(reads, 1);
+
+        // The user signs in again.
+        stamp = DateTime(2026, 8, 31, 10);
+        final (after, _) = await source.fetch();
+
+        expect(reads, 2);
+        expect(after!.windows.first.consumed, 3);
+      });
+
+      test('a new sign-in is asked about even after a refusal', () async {
+        // The back-off exists so declining once is respected. It must not
+        // outlive the thing it was an answer about: a user who declined, then
+        // signed in again, is asking a different question.
+        var stamp = DateTime(2026, 8, 31, 9);
+        var reads = 0;
+
+        final source = ClaudeLiveUsageSource(
+          homeDirectory: home.path,
+          keychainStampReader: () async => stamp,
+          keychainReader: () async {
+            reads++;
+            return const ClaudeCodeCredentialAccess.denied();
+          },
+          client: MockClient((_) async => http.Response('{}', 200)),
+        );
+
+        await source.fetch();
+        await source.fetch();
+        expect(reads, 1, reason: 'the refusal is respected while nothing has '
+            'changed');
+
+        stamp = DateTime(2026, 8, 31, 10);
+        await source.fetch();
+        expect(reads, 2);
+      });
+
+      test('holds the token when the stamp cannot be read', () async {
+        // No native stamp — an older build, say. The token is still reused, so
+        // the poll costs one request rather than a Keychain round trip; the
+        // hold is simply time-bounded instead of stamp-bounded.
+        var reads = 0;
+        final source = ClaudeLiveUsageSource(
+          homeDirectory: home.path,
+          keychainStampReader: () async => null,
+          keychainReader: () async {
+            reads++;
+            return ClaudeCodeCredentialAccess.found(
+              keychainBlob(
+                token: 'live',
+                expiresAt: DateTime.now().add(const Duration(hours: 6)),
+              ),
+            );
+          },
+          client: MockClient((_) async => http.Response(liveBody(), 200)),
+        );
+
+        await source.fetch();
+        await source.fetch();
+
+        expect(reads, 1);
+      });
+    });
   });
 }

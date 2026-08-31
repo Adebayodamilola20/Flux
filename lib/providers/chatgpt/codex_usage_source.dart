@@ -132,9 +132,26 @@ class CodexUsageSource {
     return files;
   }
 
-  Future<CodexUsageReading> read() async {
+  /// The most recent allowance Codex recorded.
+  ///
+  /// [notBefore] discards anything older. A transcript carries no account
+  /// identity, so after a sign-in as somebody else the only thing separating
+  /// the new account's figures from the previous one's is *when* they were
+  /// recorded. Passing the moment the account changed is what stops the
+  /// account the user just left from being reported as the one they are on.
+  Future<CodexUsageReading> read({DateTime? notBefore}) async {
     for (final file in (await _recentFiles()).take(_filesToScan)) {
-      final reading = await _readFile(file);
+      // Cheap reject: a transcript last written before the cut-off cannot hold
+      // an event after it, so it is not worth opening.
+      if (notBefore != null) {
+        try {
+          if (file.statSync().modified.isBefore(notBefore)) continue;
+        } on FileSystemException {
+          continue;
+        }
+      }
+
+      final reading = await _readFile(file, notBefore: notBefore);
       if (reading != null) return reading;
     }
 
@@ -142,7 +159,7 @@ class CodexUsageSource {
   }
 
   /// The last rate-limit event in one transcript, if it has one.
-  Future<CodexUsageReading?> _readFile(File file) async {
+  Future<CodexUsageReading?> _readFile(File file, {DateTime? notBefore}) async {
     var contents = await _readTail(file);
 
     // A tail that happens to contain no rate-limit event is not proof the file
@@ -182,8 +199,16 @@ class CodexUsageSource {
       // Only the Codex bucket carries the plan allowance.
       if (limits['limit_id'] != codexLimitId) continue;
 
+      final at = decoded['timestamp'];
+      if (notBefore != null) {
+        // Undated, or dated before the account changed: it belongs to a sign-in
+        // this reading is not about.
+        final recorded = at is String ? DateTime.tryParse(at) : null;
+        if (recorded == null || recorded.toLocal().isBefore(notBefore)) continue;
+      }
+
       latest = limits;
-      latestTimestamp = decoded['timestamp'] as String?;
+      latestTimestamp = at as String?;
     }
 
     if (latest == null) return null;

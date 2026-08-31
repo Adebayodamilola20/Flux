@@ -50,6 +50,7 @@ class ClaudeUsageProvider implements UsageProvider {
         _live = liveSource ??
             ClaudeLiveUsageSource(
               keychainReader: native.readClaudeCodeCredentials,
+              keychainStampReader: native.claudeCodeCredentialsChangedAt,
             ),
         _local = localSource ?? ClaudeLocalSource(),
         _api = apiSource ?? ClaudeAdminApiSource(),
@@ -79,6 +80,12 @@ class ClaudeUsageProvider implements UsageProvider {
   final Logger _log;
 
   ProviderConnection _connection;
+
+  /// The account the last reading belonged to.
+  ///
+  /// Held so a sign-in as somebody else is noticed at the moment it happens,
+  /// rather than whenever the previous account's token would have expired.
+  String? _lastAccount;
 
   @override
   ProviderDescriptor get descriptor => ProviderCatalog.claude;
@@ -312,6 +319,15 @@ class ClaudeUsageProvider implements UsageProvider {
         hint: 'Sign in to Claude Code, then reconnect.',
       );
     }
+
+    // A different account than the last reading means everything held for the
+    // previous one has to go: the token in memory is still valid and would
+    // still answer, but it answers for the account the user just left.
+    if (_lastAccount != null && reading.email != _lastAccount) {
+      _log.info('the signed-in Claude account changed; dropping held session');
+      _live.reset();
+    }
+    _lastAccount = reading.email;
 
     if (reading.email != _connection.accountLabel) {
       await _update(_connection.copyWith(accountLabel: reading.email));

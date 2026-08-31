@@ -78,6 +78,8 @@ class ProviderConnection {
     required this.providerId,
     required this.status,
     this.accountLabel,
+    this.accountId,
+    this.accountChangedAt,
     this.connectedAt,
     this.message,
   });
@@ -88,6 +90,21 @@ class ProviderConnection {
   /// Something the user recognises — an organisation or account name reported
   /// by the provider. Never an email guessed by the app.
   final String? accountLabel;
+
+  /// The provider's own identifier for the linked account, when it has one.
+  ///
+  /// Opaque, and never a credential: its only job is to let a provider tell
+  /// "the same account as last time" from "somebody signed in as someone else",
+  /// which is not otherwise answerable from figures alone. Persisted, because a
+  /// switch that happened while the app was closed still has to be noticed.
+  final String? accountId;
+
+  /// When [accountId] was first seen.
+  ///
+  /// A provider whose figures come from local records uses this as a cut-off:
+  /// anything recorded earlier belongs to a previous sign-in and is not this
+  /// account's usage.
+  final DateTime? accountChangedAt;
 
   final DateTime? connectedAt;
 
@@ -111,6 +128,8 @@ class ProviderConnection {
   ProviderConnection copyWith({
     ConnectionStatus? status,
     String? accountLabel,
+    String? accountId,
+    DateTime? accountChangedAt,
     DateTime? connectedAt,
     String? message,
     bool clearMessage = false,
@@ -122,6 +141,8 @@ class ProviderConnection {
       accountLabel: clearAccountLabel
           ? null
           : (accountLabel ?? this.accountLabel),
+      accountId: accountId ?? this.accountId,
+      accountChangedAt: accountChangedAt ?? this.accountChangedAt,
       connectedAt: connectedAt ?? this.connectedAt,
       message: clearMessage ? null : (message ?? this.message),
     );
@@ -131,6 +152,8 @@ class ProviderConnection {
     'providerId': providerId,
     'status': status.name,
     'accountLabel': accountLabel,
+    'accountId': accountId,
+    'accountChangedAt': accountChangedAt?.toIso8601String(),
     'connectedAt': connectedAt?.toIso8601String(),
     'message': message,
   };
@@ -145,6 +168,11 @@ class ProviderConnection {
         orElse: () => ConnectionStatus.notConnected,
       ),
       accountLabel: json['accountLabel'] as String?,
+      accountId: json['accountId'] as String?,
+      accountChangedAt: switch (json['accountChangedAt']) {
+        final String s => DateTime.tryParse(s),
+        _ => null,
+      },
       connectedAt: switch (json['connectedAt']) {
         final String s => DateTime.tryParse(s),
         _ => null,
@@ -162,10 +190,19 @@ class ProviderConnection {
       other.providerId == providerId &&
       other.status == status &&
       other.accountLabel == accountLabel &&
+      other.accountId == accountId &&
+      other.accountChangedAt == accountChangedAt &&
       other.connectedAt == connectedAt &&
       other.message == message;
 
   @override
-  int get hashCode =>
-      Object.hash(providerId, status, accountLabel, connectedAt, message);
+  int get hashCode => Object.hash(
+    providerId,
+    status,
+    accountLabel,
+    accountId,
+    accountChangedAt,
+    connectedAt,
+    message,
+  );
 }
