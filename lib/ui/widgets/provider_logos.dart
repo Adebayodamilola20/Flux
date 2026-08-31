@@ -364,7 +364,7 @@ class _SvgPathData {
 
     final startVector = Offset((x1p - cxp) / rx, (y1p - cyp) / ry);
     final endVector = Offset((-x1p - cxp) / rx, (-y1p - cyp) / ry);
-    var startAngle = _vectorAngle(const Offset(1, 0), startVector);
+    final startAngle = _vectorAngle(const Offset(1, 0), startVector);
     var sweepAngle = _vectorAngle(startVector, endVector);
 
     if (!sweep && sweepAngle > 0) sweepAngle -= 2 * math.pi;
