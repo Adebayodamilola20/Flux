@@ -283,9 +283,17 @@ class _WindowRow extends StatelessWidget {
         Text(
           // A window with no published limit reports a total, not a share of
           // one — inventing a denominator would be a lie.
-          percent == null
-              ? '${Format.compactNumber(window.consumed)} ${window.unit}'
-              : '$percent% Used',
+          [
+            percent == null
+                ? '${Format.compactNumber(window.consumed)} ${window.unit}'
+                : '$percent% Used',
+            // When the provider measured it, if that is not now. A figure that
+            // cannot be asked for on demand — OpenAI reports the Codex
+            // allowance only in the reply to a prompt — can be days old, and
+            // "100% Used" with no date reads as current.
+            if (window.isStale)
+              'as of ${Format.relativeTime(window.observedAt!)}',
+          ].join(' · '),
           style: TextStyle(
             fontSize: 10,
             fontWeight: FontWeight.w600,

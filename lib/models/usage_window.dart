@@ -15,6 +15,7 @@ class UsageWindow {
     this.limit,
     this.unit = 'tokens',
     this.resetsAt,
+    this.observedAt,
   });
 
   /// Stable identifier, unique within a provider (`session`, `weekly`, …).
@@ -34,6 +35,27 @@ class UsageWindow {
 
   /// When this window rolls over. Null when unknown.
   final DateTime? resetsAt;
+
+  /// When the *provider* measured this, which is not always when the app
+  /// fetched it.
+  ///
+  /// The distinction matters wherever a figure cannot be asked for on demand.
+  /// OpenAI reports the Codex allowance only in the reply to a model request,
+  /// so the newest figure available may be days old — and "100% Used" shown
+  /// without that context reads as current, which is the same failure as
+  /// showing a stale cache and calling it live.
+  ///
+  /// Null when the reading is taken at fetch time, which is the common case.
+  final DateTime? observedAt;
+
+  /// True when this figure is old enough that saying so matters.
+  ///
+  /// A few minutes is noise; an hour is a different number.
+  bool get isStale {
+    final at = observedAt;
+    if (at == null) return false;
+    return DateTime.now().difference(at) > const Duration(minutes: 15);
+  }
 
   /// Provenance of these specific numbers.
   final UsageSource source;
