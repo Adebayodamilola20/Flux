@@ -16,11 +16,13 @@ class ProviderGlyph extends StatelessWidget {
     required this.color,
     this.size = 14,
     this.isEmpty = false,
+    this.useBrandColor = true,
   });
 
   final String providerId;
   final Color color;
   final double size;
+  final bool useBrandColor;
 
   /// Draws a plus instead of the provider's mark.
   ///
@@ -38,8 +40,12 @@ class ProviderGlyph extends StatelessWidget {
       );
     }
 
-    // Each provider's own mark, so a card is recognisably theirs.
-    final logo = ProviderLogos.painterFor(providerId, color);
+    // Each provider's own mark in its brand colour, so the rail does not turn
+    // every app into the surrounding text colour.
+    final markColor = useBrandColor
+        ? ProviderLogos.brandColorFor(providerId) ?? color
+        : color;
+    final logo = ProviderLogos.painterFor(providerId, markColor);
     if (logo != null) {
       return SizedBox.square(
         dimension: size,
@@ -52,7 +58,7 @@ class ProviderGlyph extends StatelessWidget {
       dimension: size,
       child: CustomPaint(
         painter: _PolygonGlyphPainter(
-          color: color,
+          color: markColor,
           sides: _sidesFor(providerId),
         ),
       ),

@@ -92,7 +92,6 @@ class ProviderDetailView extends StatelessWidget {
         ],
       ),
       child: ListView(
-        physics: const ClampingScrollPhysics(),
         children: [
           Row(
             children: [

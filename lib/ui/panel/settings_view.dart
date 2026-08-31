@@ -276,7 +276,6 @@ class _GeneralPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      physics: const ClampingScrollPhysics(),
       children: [
         _RailSection(
           settings: settings,
@@ -605,7 +604,6 @@ class _ProviderPage extends StatelessWidget {
     final provider = context.read<ProviderRegistry>().byId(providerId);
 
     return ListView(
-      physics: const ClampingScrollPhysics(),
       children: [
         Row(
           children: [
@@ -749,7 +747,6 @@ class _AboutPage extends StatelessWidget {
     final palette = context.palette;
 
     return ListView(
-      physics: const ClampingScrollPhysics(),
       children: [
         Text(
           'Flux',
