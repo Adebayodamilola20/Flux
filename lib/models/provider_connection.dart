@@ -16,6 +16,21 @@ enum ProviderAuthMethod {
   /// password — and stores it in the macOS Keychain.
   consoleApiKey,
 
+  /// The provider's own CLI holds the session. Connecting means confirming
+  /// that CLI is installed and signed in — and, if it is not, letting it run
+  /// its own sign-in, which opens the provider's consent page in the browser.
+  /// This app never handles the exchange or the resulting token.
+  cliSession,
+
+  /// The provider offers no account sign-in this app can use, but useful
+  /// information about it can still be observed locally.
+  ///
+  /// Nothing to connect and nothing to configure: the app reports what is
+  /// running on this Mac and is explicit that account-level usage is not
+  /// available. Any optional credential lives in Settings, not in front of a
+  /// user who just wants the product to work.
+  localActivityOnly,
+
   /// No account link is needed; figures are derived from local artifacts this
   /// machine already owns.
   localOnly,
@@ -25,7 +40,9 @@ enum ProviderAuthMethod {
 
   String get callToAction => switch (this) {
     ProviderAuthMethod.browserOAuth => 'Connect',
-    ProviderAuthMethod.consoleApiKey => 'Add Admin key',
+    ProviderAuthMethod.consoleApiKey => 'Connect',
+    ProviderAuthMethod.cliSession => 'Connect',
+    ProviderAuthMethod.localActivityOnly => 'No sign-in needed',
     ProviderAuthMethod.localOnly => 'Enable',
     ProviderAuthMethod.unavailable => 'Unavailable',
   };
@@ -36,8 +53,15 @@ enum ProviderAuthMethod {
     ProviderAuthMethod.browserOAuth =>
       'Opens the provider’s sign-in page in your browser.',
     ProviderAuthMethod.consoleApiKey =>
-      'Opens the signed-in Anthropic Console → Admin keys. This is an API '
-          'key, not an account-authorization sign-in.',
+      'Opens the provider’s own site so you can create a key, then paste it '
+          'back here. A key, never a password.',
+    ProviderAuthMethod.cliSession =>
+      'Uses the sign-in already held by the provider’s own CLI. If it is '
+          'signed out, the CLI opens its own sign-in page.',
+    ProviderAuthMethod.localActivityOnly =>
+      'This provider offers no account sign-in for reading usage, so there is '
+          'nothing to connect. Sessions running on this Mac are detected '
+          'automatically.',
     ProviderAuthMethod.localOnly =>
       'Reads usage from files already on this Mac. No sign-in needed.',
     ProviderAuthMethod.unavailable =>

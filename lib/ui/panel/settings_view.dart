@@ -1,9 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/formatting.dart';
 import '../../models/app_settings.dart';
 import '../../models/rail_placement.dart';
+import '../../services/auth/oauth_registry.dart';
 import '../../services/native/native_bridge.dart';
 import '../../services/settings_service.dart';
 import '../../services/shell_controller.dart';
@@ -48,6 +51,8 @@ class SettingsView extends StatelessWidget {
           _AppearanceSection(settings: settings, onUpdate: update),
           const SizedBox(height: 20),
           const _ProvidersSection(),
+          const SizedBox(height: 20),
+          const _SignInSetupSection(),
           const SizedBox(height: 20),
           _LocalTrackingSection(settings: settings, onUpdate: update),
         ],
@@ -379,6 +384,166 @@ class _LocalTrackingSectionState extends State<_LocalTrackingSection> {
           alignment: Alignment.centerRight,
           child: PillButton(label: 'Apply budgets', onPressed: _commit),
         ),
+      ],
+    );
+  }
+}
+
+
+/// Where the OAuth client for each browser-sign-in provider is registered.
+///
+/// OAuth has no way for an unregistered client to authenticate, and a client id
+/// baked into a shipped binary is one revocation away from breaking every
+/// install — so the id is configuration, entered here once by whoever publishes
+/// the app. Until it is present, Connect says so rather than opening a browser
+/// onto a provider error page.
+class _SignInSetupSection extends StatefulWidget {
+  const _SignInSetupSection();
+
+  @override
+  State<_SignInSetupSection> createState() => _SignInSetupSectionState();
+}
+
+class _SignInSetupSectionState extends State<_SignInSetupSection> {
+  final Map<String, TextEditingController> _controllers = {};
+
+  /// Outcome of the last import, shown under the row that triggered it.
+  String? _importMessage;
+  bool _importFailed = false;
+
+  /// Imports the JSON file Google hands you when you create the client.
+  Future<void> _import(
+    String providerId,
+    OAuthRegistry registry,
+    NativeBridge native,
+  ) async {
+    final path = await native.pickFile(
+      title: 'Choose your Google OAuth client JSON',
+      extensions: const ['json'],
+    );
+    if (path == null) return;
+
+    String contents;
+    try {
+      contents = await File(path).readAsString();
+    } on FileSystemException {
+      if (!mounted) return;
+      setState(() {
+        _importFailed = true;
+        _importMessage = 'That file could not be read.';
+      });
+      return;
+    }
+
+    final clientId = await registry.importGoogleClientFile(
+      contents,
+      providerId,
+    );
+    if (!mounted) return;
+
+    setState(() {
+      _importFailed = clientId == null;
+      _importMessage = clientId == null
+          ? OAuthRegistry.importRejectionReason(contents)
+          : 'Imported. Sign-in is ready.';
+      if (clientId != null) {
+        _controllers[providerId]?.text = clientId;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _controllers.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  TextEditingController _controllerFor(String id, String current) {
+    return _controllers.putIfAbsent(
+      id,
+      () => TextEditingController(text: current),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final registry = context.read<OAuthRegistry>();
+    final native = context.read<NativeBridge>();
+    final usage = context.watch<UsageController>();
+
+    final oauthSlots =
+        usage.states.where((s) => registry.supports(s.id)).toList();
+    if (oauthSlots.isEmpty) return const SizedBox.shrink();
+
+    return SettingsSection(
+      title: 'Sign-in setup',
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Text(
+            'Browser sign-in needs an OAuth client registered with the '
+            'provider. Create one as a Desktop app, then import the JSON file '
+            'you download — or paste the client ID directly.',
+            style: TextStyle(
+              fontSize: 10.5,
+              height: 1.4,
+              color: palette.textTertiary,
+            ),
+          ),
+        ),
+        if (_importMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Text(
+              _importMessage!,
+              style: TextStyle(
+                fontSize: 10.5,
+                height: 1.4,
+                color: _importFailed
+                    ? palette.accentCritical
+                    : palette.accentPositive,
+              ),
+            ),
+          ),
+        for (final slot in oauthSlots)
+          SettingsRow(
+            label: '${slot.displayName} client ID',
+            description: registry.isConfigured(slot.id)
+                ? 'Configured.'
+                : 'Not set, so Connect is disabled for ${slot.displayName}.',
+            control: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SettingsTextField(
+                  controller: _controllerFor(
+                    slot.id,
+                    registry.configFor(slot.id)?.clientId ?? '',
+                  ),
+                  hintText: 'apps.googleusercontent.com',
+                  width: 180,
+                  onSubmitted: (value) async {
+                    await registry.setClient(slot.id, clientId: value);
+                    if (mounted) setState(() {});
+                  },
+                ),
+                const SizedBox(width: 6),
+                PillButton(
+                  label: 'Import JSON…',
+                  emphasised: !registry.isConfigured(slot.id),
+                  onPressed: () => _import(slot.id, registry, native),
+                ),
+                const SizedBox(width: 6),
+                if (OAuthRegistry.registrationUrl(slot.id) case final url?)
+                  PillButton(
+                    label: 'Get one',
+                    onPressed: () => native.openUrl(Uri.parse(url)),
+                  ),
+              ],
+            ),
+          ),
       ],
     );
   }

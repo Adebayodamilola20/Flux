@@ -17,6 +17,8 @@ class UsageData {
     this.sessions = const <ActiveSession>[],
     this.accountLabel,
     this.notes = const <String>[],
+    this.usageUnavailableReason,
+    this.usageUnavailableIsPermanent = false,
   });
 
   /// Stable provider key (`claude`).
@@ -44,6 +46,28 @@ class UsageData {
 
   /// Human-readable caveats worth surfacing (e.g. "Weekly budget not set").
   final List<String> notes;
+
+  /// Why there are no [windows], when the account is connected and nothing
+  /// went wrong.
+  ///
+  /// A connected provider that publishes no readable quota is a normal state,
+  /// not an error: the user has done everything right and has nothing to fix.
+  /// Carrying the reason here lets the card say "Connected · Usage
+  /// unavailable" and still show local activity, instead of the whole snapshot
+  /// being replaced by a failure.
+  final String? usageUnavailableReason;
+
+  /// True when the provider publishes no such data at all, so trying again
+  /// cannot change the answer.
+  ///
+  /// The difference matters in the UI: a temporary gap deserves a Retry, and a
+  /// structural one deserves an explanation. Offering Retry against an
+  /// endpoint that does not exist just invites the user to press it forever.
+  final bool usageUnavailableIsPermanent;
+
+  /// True when the provider is connected but had no quota to report.
+  bool get isUsageUnavailable =>
+      windows.isEmpty && usageUnavailableReason != null;
 
   /// An empty snapshot used before the first successful fetch.
   factory UsageData.empty({
@@ -88,13 +112,12 @@ class UsageData {
   /// card with, so a mixed snapshot is never over-claimed as authoritative.
   UsageSource get source {
     if (windows.isEmpty) return UsageSource.unavailable;
-    if (windows.every((w) => w.source == UsageSource.providerReported)) {
-      return UsageSource.providerReported;
-    }
-    if (windows.any((w) => w.source != UsageSource.unavailable)) {
-      return UsageSource.localTracking;
-    }
-    return UsageSource.unavailable;
+    // The weakest source in the set. A snapshot is only as trustworthy as its
+    // least trustworthy number, and labelling it by the best one would let a
+    // single official figure launder the estimates sitting beside it.
+    return windows
+        .map((w) => w.source)
+        .reduce((a, b) => a.rank >= b.rank ? a : b);
   }
 
   bool get hasUsage => windows.isNotEmpty;
@@ -114,6 +137,8 @@ class UsageData {
     String? accountLabel,
     bool clearAccountLabel = false,
     List<String>? notes,
+    String? usageUnavailableReason,
+    bool? usageUnavailableIsPermanent,
   }) {
     return UsageData(
       providerId: providerId,
@@ -125,6 +150,10 @@ class UsageData {
       accountLabel:
           clearAccountLabel ? null : (accountLabel ?? this.accountLabel),
       notes: notes ?? this.notes,
+      usageUnavailableReason:
+          usageUnavailableReason ?? this.usageUnavailableReason,
+      usageUnavailableIsPermanent:
+          usageUnavailableIsPermanent ?? this.usageUnavailableIsPermanent,
     );
   }
 

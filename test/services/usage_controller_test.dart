@@ -1,3 +1,4 @@
+import 'package:ai_usage_monitor/models/active_session.dart';
 import 'package:ai_usage_monitor/models/connection_status.dart';
 import 'package:ai_usage_monitor/models/usage_failure.dart';
 import 'package:ai_usage_monitor/providers/provider_catalog.dart';
@@ -33,14 +34,24 @@ void main() {
   /// shape this build actually ships.
   ({UsageController controller, FakeProvider primary}) buildController({
     FakeProvider? provider,
+    Duration? refreshInterval,
   }) {
     final primary =
         provider ?? FakeProvider(id: 'claude', displayName: 'Claude');
     final registry = ProviderRegistry([
       primary,
-      ReservedProvider(ProviderCatalog.codex),
-      ReservedProvider(ProviderCatalog.antigravity),
+      ReservedProvider(ProviderCatalog.reserved),
+      FakeProvider(id: 'antigravity', displayName: 'Antigravity'),
+      FakeProvider(id: 'openrouter', displayName: 'OpenRouter'),
     ]);
+
+    // Applied before the controller reads it, so its first schedule already
+    // uses the interval the test asked for.
+    if (refreshInterval != null) {
+      settings.update(
+        settings.settings.copyWith(refreshInterval: refreshInterval),
+      );
+    }
 
     return (
       controller: UsageController(
@@ -52,6 +63,12 @@ void main() {
       primary: primary,
     );
   }
+
+  /// Waits out [UsageController.changeDebounce], plus enough slack for the
+  /// fetch it schedules to run.
+  Future<void> afterDebounce() => Future<void>.delayed(
+        UsageController.changeDebounce + const Duration(milliseconds: 60),
+      );
 
   group('slots', () {
     test('exposes one state per slot before anything is fetched', () {
@@ -69,7 +86,7 @@ void main() {
 
     test('reports reserved slots as unsupported, never as an error', () {
       final (controller: controller, primary: _) = buildController();
-      final reserved = controller.stateFor('codex');
+      final reserved = controller.stateFor('reserved');
 
       expect(reserved.status, ConnectionStatus.unsupported);
       expect(reserved.percent, isNull);
@@ -120,7 +137,30 @@ void main() {
       // "updated 5m ago" rather than blanking out.
       expect(state.percent, 52);
       expect(state.failure?.kind, UsageFailureKind.network);
+      // A network blip does not un-connect the account. The user signed in
+      // successfully and has nothing to fix, so the slot stays connected and
+      // reports the usage as unavailable instead.
+      expect(state.status, ConnectionStatus.connected);
+      expect(state.isUsageUnavailable, isTrue);
+    });
+
+    test('an expired sign-in does downgrade the slot', () async {
+      final provider = FakeProvider(id: 'claude', percent: 52)..seedConnected();
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+      );
+
+      provider.failure = const UsageFailure(
+        UsageFailureKind.authentication,
+        'sign-in expired',
+      );
+      await controller.refresh('claude');
+
+      // This one the user *does* have to fix, so it is not dressed up as a
+      // usage problem.
+      final state = controller.stateFor('claude');
       expect(state.status, ConnectionStatus.error);
+      expect(state.isUsageUnavailable, isFalse);
     });
 
     test('reports an unmeasurable window as unknown, not zero', () async {
@@ -133,6 +173,180 @@ void main() {
       await controller.refresh('claude');
 
       expect(controller.stateFor('claude').percent, isNull);
+    });
+  });
+
+  group('local activity', () {
+    test('is observed for slots that were never connected', () async {
+      final provider = FakeProvider(id: 'claude', displayName: 'Claude')
+        ..sessions = const [
+          ActiveSession(
+            title: 'ai_usage_monitor',
+            host: 'Terminal',
+            command: 'Claude Code',
+            isBusy: true,
+          ),
+        ];
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+      );
+
+      await controller.refreshAll();
+
+      // Nothing is connected, so no usage was fetched — and the running
+      // session still shows. This is the whole point of keeping the two apart.
+      expect(controller.hasAnyConnection, isFalse);
+      expect(provider.fetchCount, 0);
+
+      final state = controller.stateFor('claude');
+      expect(state.sessions, hasLength(1));
+      expect(state.sessions.single.command, 'Claude Code');
+      expect(state.activity, ActivityStatus.working);
+      expect(controller.hasActivity, isTrue);
+    });
+
+    test('survives a provider whose usage fetch failed', () async {
+      final provider = FakeProvider(id: 'claude')
+        ..seedConnected()
+        ..sessions = const [ActiveSession(title: 'demo', isBusy: true)]
+        ..failure = const UsageFailure(UsageFailureKind.network, 'offline');
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+      );
+
+      await controller.refreshAll();
+
+      expect(controller.stateFor('claude').sessions, hasLength(1));
+    });
+
+    test('reports idle when nothing is running', () async {
+      final (controller: controller, primary: _) = buildController();
+
+      await controller.refreshAll();
+
+      expect(controller.stateFor('claude').activity, ActivityStatus.idle);
+      expect(controller.hasActivity, isFalse);
+    });
+  });
+
+  group('live updates', () {
+    test('refreshes a slot the moment its data changes', () async {
+      final provider = FakeProvider(id: 'claude', percent: 10)..seedConnected();
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+      );
+      await controller.start();
+      expect(provider.fetchCount, 1);
+
+      // Standing in for Claude Code rewriting its config: the rail should not
+      // wait out the refresh interval to show the new figure.
+      provider.percent = 42;
+      provider.changeSignal.add(null);
+      await afterDebounce();
+
+      expect(provider.fetchCount, 2);
+      expect(controller.stateFor('claude').percent, 42);
+    });
+
+    test('collapses a burst of changes into one fetch', () async {
+      final provider = FakeProvider(id: 'claude', percent: 10)..seedConnected();
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+      );
+      await controller.start();
+      expect(provider.fetchCount, 1);
+
+      // A tool rewriting its state file several times in a second is normal —
+      // once per streamed response, say. Fetching for each would leave the rail
+      // refreshing more than it shows a number.
+      provider.percent = 42;
+      for (var i = 0; i < 5; i++) {
+        provider.changeSignal.add(null);
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+      }
+      await afterDebounce();
+
+      expect(provider.fetchCount, 2);
+      expect(controller.stateFor('claude').percent, 42);
+    });
+
+    test('polls a provider that asks for a faster cadence', () async {
+      final provider = FakeProvider(id: 'claude', percent: 10)
+        ..seedConnected()
+        ..preferredRefreshInterval = const Duration(milliseconds: 40);
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+        // The user's own interval, far longer than the provider's preference.
+        refreshInterval: const Duration(minutes: 30),
+      );
+      await controller.start();
+      final afterStart = provider.fetchCount;
+
+      await Future<void>.delayed(const Duration(milliseconds: 140));
+
+      // A figure that moves with every prompt must not sit for half an hour.
+      expect(provider.fetchCount, greaterThan(afterStart));
+    });
+
+    test('never polls more slowly than the user asked', () async {
+      final provider = FakeProvider(id: 'claude', percent: 10)
+        ..seedConnected()
+        // Longer than the user's interval: a preference is a floor, not a way
+        // for a provider to opt out of being refreshed.
+        ..preferredRefreshInterval = const Duration(hours: 1);
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+        refreshInterval: const Duration(milliseconds: 40),
+      );
+      await controller.start();
+      final afterStart = provider.fetchCount;
+
+      await Future<void>.delayed(const Duration(milliseconds: 140));
+
+      expect(provider.fetchCount, greaterThan(afterStart));
+    });
+
+    test('ignores changes for a slot that is not connected', () async {
+      final provider = FakeProvider(id: 'claude');
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+      );
+      await controller.start();
+
+      provider.changeSignal.add(null);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(provider.fetchCount, 0);
+    });
+  });
+
+  group('retry is offered only when it can help', () {
+    test('a network failure is retryable', () async {
+      final provider = FakeProvider(id: 'claude')
+        ..seedConnected()
+        ..failure = const UsageFailure(UsageFailureKind.network, 'offline');
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+      );
+
+      await controller.refresh('claude');
+
+      expect(controller.stateFor('claude').canRetryUsage, isTrue);
+    });
+
+    test('a provider with no such endpoint is not', () async {
+      final provider = FakeProvider(id: 'claude')
+        ..seedConnected()
+        ..permanentlyUnavailable = 'no endpoint exists';
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+      );
+
+      await controller.refresh('claude');
+
+      final state = controller.stateFor('claude');
+      expect(state.isUsageUnavailable, isTrue);
+      expect(state.canRetryUsage, isFalse);
     });
   });
 

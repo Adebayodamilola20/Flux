@@ -1,11 +1,11 @@
-import 'dart:io';
-
 import 'package:ai_usage_monitor/models/app_settings.dart';
 import 'package:ai_usage_monitor/models/connection_status.dart';
 import 'package:ai_usage_monitor/models/usage_failure.dart';
 import 'package:ai_usage_monitor/models/usage_source.dart';
 import 'package:ai_usage_monitor/models/usage_window.dart';
+import 'package:ai_usage_monitor/providers/claude/claude_account_source.dart';
 import 'package:ai_usage_monitor/providers/claude/claude_admin_api_source.dart';
+import 'package:ai_usage_monitor/providers/claude/claude_live_source.dart';
 import 'package:ai_usage_monitor/providers/claude/claude_local_source.dart';
 import 'package:ai_usage_monitor/providers/claude/claude_usage_provider.dart';
 import 'package:ai_usage_monitor/providers/claude/transcript_scanner.dart';
@@ -18,15 +18,10 @@ import '../support/fake_native_bridge.dart';
 /// A local source with scripted results, so provider composition can be tested
 /// without touching the filesystem.
 class _StubLocalSource implements ClaudeLocalSource {
-  _StubLocalSource({
-    this.available = true,
-    this.result,
-    this.error,
-  });
+  _StubLocalSource({this.available = true, this.result});
 
   final bool available;
   final ClaudeLocalUsage? result;
-  final Object? error;
   int loadCount = 0;
 
   @override
@@ -35,8 +30,6 @@ class _StubLocalSource implements ClaudeLocalSource {
   @override
   Future<ClaudeLocalUsage> load(AppSettings settings) async {
     loadCount++;
-    final err = error;
-    if (err != null) throw err;
     return result ?? const ClaudeLocalUsage(windows: []);
   }
 
@@ -46,10 +39,9 @@ class _StubLocalSource implements ClaudeLocalSource {
 
 /// An API source that returns or throws whatever the test wants.
 class _StubApiSource implements ClaudeAdminApiSource {
-  _StubApiSource({this.window, this.error});
+  _StubApiSource({this.window});
 
   final UsageWindow? window;
-  final UsageFailure? error;
   int callCount = 0;
   String? seenKey;
 
@@ -57,8 +49,6 @@ class _StubApiSource implements ClaudeAdminApiSource {
   Future<UsageWindow?> fetchDailyUsage({required String adminKey}) async {
     callCount++;
     seenKey = adminKey;
-    final err = error;
-    if (err != null) throw err;
     return window;
   }
 
@@ -66,263 +56,357 @@ class _StubApiSource implements ClaudeAdminApiSource {
   void close() {}
 }
 
-UsageWindow localWindow(String id, {int consumed = 100}) => UsageWindow(
-      id: id,
-      label: id,
-      consumed: consumed,
-      limit: 1000,
-      source: UsageSource.localTracking,
-    );
-
 UsageWindow apiWindow({int consumed = 4200}) => UsageWindow(
       id: ClaudeAdminApiSource.windowId,
       label: 'API usage today',
       consumed: consumed,
-      source: UsageSource.providerReported,
+      source: UsageSource.officialApi,
     );
+
+/// A stubbed live-usage fetch, so provider composition can be tested without
+/// reading the real `~/.claude/.credentials.json` or hitting the network.
+class _StubLiveSource implements ClaudeLiveUsageSource {
+  _StubLiveSource({
+    this.reading,
+    this.failure = ClaudeLiveFailure.noCredentials,
+  });
+
+  ClaudeLiveReading? reading;
+  ClaudeLiveFailure? failure;
+  int fetchCount = 0;
+
+  @override
+  bool get isAvailable => reading != null;
+
+  @override
+  String get credentialsPath => '/stub/.credentials.json';
+
+  @override
+  Future<(ClaudeLiveReading?, ClaudeLiveFailure?)> fetch() async {
+    fetchCount++;
+    if (reading != null) return (reading, null);
+    return (null, failure);
+  }
+
+  /// Counts deliberate refreshes, which is how the provider tells the source to
+  /// consult the Keychain again rather than reuse the token it holds.
+  int resetCount = 0;
+
+  @override
+  void reset() => resetCount++;
+
+  @override
+  void close() {}
+}
+
+ClaudeLiveReading liveReading({num fiveHour = 7, num sevenDay = 63}) {
+  return ClaudeLiveReading(
+    windows: [
+      UsageWindow(
+        id: 'five_hour',
+        label: 'Current session',
+        consumed: fiveHour,
+        limit: 100,
+        unit: '%',
+        source: UsageSource.officialApi,
+      ),
+      UsageWindow(
+        id: 'seven_day',
+        label: 'This week',
+        consumed: sevenDay,
+        limit: 100,
+        unit: '%',
+        source: UsageSource.officialApi,
+      ),
+    ],
+    fetchedAt: DateTime.now(),
+  );
+}
+
+/// A stubbed read of Claude Code's local account state.
+class _StubAccount implements ClaudeAccountSource {
+  _StubAccount(this.reading);
+
+  ClaudeAccountReading reading;
+  bool available = true;
+  int reads = 0;
+
+  @override
+  bool get isAvailable => available;
+
+  @override
+  Future<ClaudeAccountReading> read() async {
+    reads++;
+    return reading;
+  }
+
+  @override
+  String get configPath => '/stub/.claude.json';
+
+  /// No file to watch in a test; the provider only listens to this.
+  @override
+  Stream<DateTime> watch({Duration interval = const Duration(seconds: 5)}) =>
+      const Stream<DateTime>.empty();
+}
+
+/// The shape Claude Code actually writes to `~/.claude.json`.
+Map<String, dynamic> claudeConfig({
+  String? email = 'someone@example.com',
+  num fiveHour = 2,
+  num sevenDay = 51,
+  bool extraEnabled = false,
+  DateTime? fetchedAt,
+}) {
+  return {
+    'oauthAccount': {
+      if (email != null) 'emailAddress': email,
+      'displayName': 'Stephen',
+      'organizationType': 'claude_pro',
+    },
+    'cachedUsageUtilization': {
+      'fetchedAtMs':
+          (fetchedAt ?? DateTime(2026, 8, 30, 13, 49)).millisecondsSinceEpoch,
+      'utilization': {
+        'five_hour': {
+          'utilization': fiveHour,
+          'resets_at': '2026-08-31T01:30:00.000000+00:00',
+        },
+        'seven_day': {
+          'utilization': sevenDay,
+          'resets_at': '2026-09-03T18:00:00.000000+00:00',
+        },
+        'seven_day_opus': null,
+        'extra_usage': {
+          'is_enabled': extraEnabled,
+          'monthly_limit': 4000,
+          'used_credits': 4024,
+        },
+      },
+    },
+  };
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   late FakeNativeBridge native;
   late SharedPreferences preferences;
+  late _StubAccount account;
 
   setUp(() async {
     native = FakeNativeBridge();
-    // A settled connection. Refusing to fetch for a provider the user has
-    // never connected is a separate case, tested on its own below.
     SharedPreferences.setMockInitialValues({
       'flutter.connection.claude':
           '{"providerId":"claude","status":"connected"}',
     });
     preferences = await SharedPreferences.getInstance();
+    account = _StubAccount(
+      ClaudeAccountSource.parse(claudeConfig()),
+    );
   });
 
   tearDown(() => native.dispose());
 
   Future<ClaudeUsageProvider> build({
     ClaudeLocalSource? local,
-    ClaudeAdminApiSource? api,
+    ClaudeLiveUsageSource? live,
   }) async {
     final provider = ClaudeUsageProvider(
       native: native,
       connectionStore: ConnectionStore(preferences: preferences),
+      accountSource: account,
+      // Defaults to "no live credentials", so tests that care only about the
+      // cache path fall back to it exactly as they did before the live source
+      // existed. Tests exercising the live path pass their own stub.
+      liveSource: live ?? _StubLiveSource(),
       localSource: local ?? _StubLocalSource(available: false),
-      apiSource: api ?? _StubApiSource(window: apiWindow()),
+      apiSource: _StubApiSource(window: apiWindow()),
     );
     await provider.restore();
     return provider;
   }
 
-  void signIn([String key = 'sk-ant-admin-key']) {
-    native.secrets[ClaudeUsageProvider.adminKeyKeychainId] = key;
-  }
+  group('reading the account', () {
+    test('parses Anthropic’s own utilization figures', () {
+      final reading = ClaudeAccountSource.parse(claudeConfig());
 
-  group('identity', () {
-    test('exposes a stable id and a human name', () async {
-      final provider = await build();
-      expect(provider.id, 'claude');
-      expect(provider.displayName, 'Claude');
-      expect(provider.sourceDescription, isNotEmpty);
+      expect(reading.email, 'someone@example.com');
+      expect(reading.plan, 'claude_pro');
+      expect(ClaudeAccountSource.planLabel(reading.plan), 'Claude Pro');
+
+      final session = reading.windows.firstWhere((w) => w.id == 'five_hour');
+      final week = reading.windows.firstWhere((w) => w.id == 'seven_day');
+
+      // Anthropic reports whole percentages. They are used verbatim rather
+      // than recomputed from anything.
+      expect(session.percentUsed, 2);
+      expect(week.percentUsed, 51);
+      expect(session.resetsAt, isNotNull);
     });
 
-    test('offers no signed-out path', () async {
-      final provider = await build(local: _StubLocalSource(available: true));
+    test('marks the figures as provider-reported', () {
+      final reading = ClaudeAccountSource.parse(claudeConfig());
+      expect(
+        reading.windows.every((w) => w.source == UsageSource.officialApi),
+        isTrue,
+      );
+    });
 
-      // Local transcripts exist, but they are not a usage source: the number
-      // they produce is this app's arithmetic, not Anthropic's.
-      expect(provider.supportsLocalOnly, isFalse);
+    test('records when Claude Code last refreshed them', () {
+      final at = DateTime(2026, 8, 30, 13, 49);
+      final reading = ClaudeAccountSource.parse(claudeConfig(fetchedAt: at));
+
+      // This is a cache, so the age has to be available to show.
+      expect(reading.fetchedAt, at);
+    });
+
+    test('skips codenamed buckets that mean nothing to a person', () {
+      final ids = ClaudeAccountSource.parse(claudeConfig()).windows.map(
+            (w) => w.id,
+          );
+      expect(ids, isNot(contains('seven_day_opus')));
+    });
+
+    test('omits extra usage unless it is switched on', () {
+      final off = ClaudeAccountSource.parse(claudeConfig());
+      expect(off.windows.any((w) => w.id == 'extra_usage'), isFalse);
+
+      final on = ClaudeAccountSource.parse(
+        claudeConfig(extraEnabled: true),
+      );
+      final extra = on.windows.firstWhere((w) => w.id == 'extra_usage');
+      expect(extra.consumed, 4024);
+      expect(extra.limit, 4000);
+    });
+
+    test('handles a config with no account', () {
+      final reading = ClaudeAccountSource.parse(claudeConfig(email: null));
+      expect(reading.isSignedIn, isFalse);
+    });
+
+    test('handles a config with no usage block', () {
+      final reading = ClaudeAccountSource.parse({
+        'oauthAccount': {'emailAddress': 'a@b.com'},
+      });
+      expect(reading.isSignedIn, isTrue);
+      expect(reading.hasUsage, isFalse);
+    });
+  });
+
+  group('connecting', () {
+    test('adopts the account Claude Code is signed in as', () async {
+      SharedPreferences.setMockInitialValues({});
+      preferences = await SharedPreferences.getInstance();
+      final provider = await build();
 
       final result = await provider.enableLocalOnly();
-      expect(result.status, ConnectionStatus.error);
-      expect(result.message, contains('signing in'));
-    });
-  });
 
-  group('availability', () {
-    test('is available when local transcripts exist', () async {
-      final provider = await build(local: _StubLocalSource(available: true));
-      expect(await provider.isAvailable(), isTrue);
-    });
-
-    test('is available when a key is stored', () async {
-      signIn();
-      final provider = await build();
-      expect(await provider.isAvailable(), isTrue);
-    });
-  });
-
-  group('connect', () {
-    test('sends the user to Anthropic’s own console', () async {
-      final provider = await build();
-      Uri? opened;
-
-      final result = await provider.connect(launchUrl: (url) async {
-        opened = url;
-        return true;
-      });
-
-      expect(opened, ClaudeUsageProvider.consoleUrl);
-      expect(opened!.host, 'console.anthropic.com');
-      // The flow finishes in the browser and comes back as a pasted key.
-      expect(result.status, ConnectionStatus.connecting);
-    });
-
-    test('says so when the browser could not be opened', () async {
-      final provider = await build();
-
-      final result = await provider.connect(launchUrl: (_) async => false);
-
-      expect(result.status, ConnectionStatus.error);
-      expect(result.message, contains('browser'));
-    });
-
-    test('verifies a key against the real API before storing it', () async {
-      final api = _StubApiSource(
-        error: const UsageFailure(
-          UsageFailureKind.authentication,
-          'The Anthropic admin key was rejected.',
-        ),
-      );
-      final provider = await build(api: api);
-
-      final result = await provider.completeAuthentication('sk-ant-wrong');
-
-      expect(result.status, ConnectionStatus.error);
-      expect(api.callCount, 1);
-      // A rejected key must never reach the Keychain.
-      expect(native.secrets, isEmpty);
-    });
-
-    test('stores a verified key in the Keychain', () async {
-      final provider = await build(api: _StubApiSource(window: apiWindow()));
-
-      final result = await provider.completeAuthentication(' sk-ant-good  ');
-
+      // Anthropic's own figures for a real account, so this is connected
+      // rather than a lesser "limited" state.
       expect(result.status, ConnectionStatus.connected);
-      expect(
-        native.secrets[ClaudeUsageProvider.adminKeyKeychainId],
-        'sk-ant-good',
-      );
+      expect(result.accountLabel, 'someone@example.com');
+      // No browser, no key, no terminal — the session already exists.
+      expect(native.openedUrls, isEmpty);
+      expect(native.secrets, isEmpty);
     });
 
-    test('rejects an empty credential without calling the API', () async {
-      final api = _StubApiSource(window: apiWindow());
-      final provider = await build(api: api);
-
-      final result = await provider.completeAuthentication('   ');
-
-      expect(result.status, ConnectionStatus.error);
-      expect(api.callCount, 0);
-    });
-
-    test('disconnect removes the key', () async {
-      signIn();
+    test('says so when no Claude account is signed in here', () async {
+      account.reading = ClaudeAccountSource.parse(claudeConfig(email: null));
+      SharedPreferences.setMockInitialValues({});
+      preferences = await SharedPreferences.getInstance();
       final provider = await build();
 
-      await provider.disconnect();
+      final result = await provider.enableLocalOnly();
 
-      expect(native.secrets, isEmpty);
-      expect(provider.connection.status, ConnectionStatus.notConnected);
-    });
-
-    test('a stored connection with no key is downgraded on restore', () async {
-      // The user revoked the key in Keychain Access; the app must not keep
-      // claiming to be connected.
-      final provider = ClaudeUsageProvider(
-        native: native,
-        connectionStore: ConnectionStore(preferences: preferences),
-        localSource: _StubLocalSource(available: false),
-        apiSource: _StubApiSource(window: apiWindow()),
-      );
-
-      await provider.restore();
-
-      expect(provider.connection.status, ConnectionStatus.notConnected);
+      expect(result.status, ConnectionStatus.error);
+      expect(result.message, contains('No signed-in Claude account'));
     });
   });
 
-  group('fetchUsage', () {
-    test('refuses when the user has not signed in', () async {
-      final provider = await build(local: _StubLocalSource(available: true));
-
-      // Local transcripts are present and would happily yield a number; the
-      // provider still refuses, because that number is not Anthropic's.
-      await expectLater(
-        provider.fetchUsage(const AppSettings()),
-        throwsA(isA<UsageFailure>()),
-      );
-      expect(provider.connection.isConnected, isFalse);
-    });
-
-    test('a signed-in link survives restore', () async {
-      signIn();
+  group('usage', () {
+    test('reports the subscription percentages, not token counts', () async {
       final provider = await build();
-      expect(provider.connection.status, ConnectionStatus.connected);
-    });
-
-    test('reports only provider-reported figures', () async {
-      signIn();
-      final local = _StubLocalSource(
-        available: true,
-        result: ClaudeLocalUsage(windows: [localWindow('session')]),
-      );
-      final provider = await build(local: local);
 
       final data = await provider.fetchUsage(const AppSettings());
 
-      expect(data.windows, hasLength(1));
-      expect(data.windows.single.source, UsageSource.providerReported);
-      expect(data.source, UsageSource.providerReported);
-      expect(data.connection, ConnectionStatus.connected);
+      expect(data.windows.map((w) => w.id), ['five_hour', 'seven_day']);
+      expect(data.windows.first.percentUsed, 2);
+      expect(data.windows.last.percentUsed, 51);
+      // Nothing derived from transcripts, and no token window at all.
+      expect(data.windows.any((w) => w.unit == 'tokens'), isFalse);
+      expect(data.accountLabel, 'someone@example.com');
     });
 
-    test('passes the trimmed key to the API', () async {
-      signIn('  sk-ant-admin-spaced  ');
-      final api = _StubApiSource(window: apiWindow());
-      final provider = await build(api: api);
+    test('names the plan and says how fresh the figures are', () async {
+      final provider = await build();
 
-      await provider.fetchUsage(const AppSettings());
+      final data = await provider.fetchUsage(const AppSettings());
 
-      expect(api.seenKey, 'sk-ant-admin-spaced');
+      expect(data.notes, contains('Claude Pro'));
+      expect(data.notes.join(), contains('Reported by Anthropic'));
     });
 
-    test('treats a blank stored key as signed out', () async {
-      signIn('   ');
-      final api = _StubApiSource(window: apiWindow());
-      final provider = await build(api: api);
+    test('prefers the live figure over the cached one', () async {
+      // Cache says 2%/51%; the live endpoint says 7%/63%. The live figure is
+      // the one the user should see, and it is labelled as live.
+      final provider = await build(live: _StubLiveSource(reading: liveReading()));
 
-      await expectLater(
-        provider.fetchUsage(const AppSettings()),
-        throwsA(isA<UsageFailure>()),
-      );
-      expect(api.callCount, 0);
+      final data = await provider.fetchUsage(const AppSettings());
+
+      expect(data.windows.first.percentUsed, 7);
+      expect(data.windows.last.percentUsed, 63);
+      expect(data.notes.join(), contains('Live from Anthropic'));
+      // The live path must not claim to be a cache read.
+      expect(data.notes.join(), isNot(contains('Reported by Anthropic')));
+      // Identity still comes from the local account file.
+      expect(data.accountLabel, 'someone@example.com');
+      expect(data.notes, contains('Claude Pro'));
     });
 
-    test('surfaces an API failure rather than substituting a figure', () async {
-      signIn();
+    test('falls back to the cache when the session token is expired', () async {
+      // The token exists but is stale. Refreshing it would log the user out of
+      // Claude Code, so the provider uses the cached figure instead — and says
+      // it is a cache, not live.
       final provider = await build(
-        local: _StubLocalSource(
-          available: true,
-          result: ClaudeLocalUsage(windows: [localWindow('session')]),
-        ),
-        api: _StubApiSource(
-          error: const UsageFailure(UsageFailureKind.network, 'offline'),
-        ),
+        live: _StubLiveSource(failure: ClaudeLiveFailure.tokenExpired),
       );
 
-      await expectLater(
-        provider.fetchUsage(const AppSettings()),
-        throwsA(
-          isA<UsageFailure>()
-              .having((f) => f.kind, 'kind', UsageFailureKind.network),
-        ),
-      );
+      final data = await provider.fetchUsage(const AppSettings());
+
+      expect(data.windows.first.percentUsed, 2);
+      expect(data.windows.last.percentUsed, 51);
+      expect(data.notes.join(), contains('Reported by Anthropic'));
+      expect(data.notes.join(), isNot(contains('Live from Anthropic')));
     });
 
-    test('refuses when the account has no reported usage', () async {
-      signIn();
-      final provider = await build(api: _StubApiSource());
+    test('falls back to the cache when the live call fails on the network',
+        () async {
+      final provider = await build(
+        live: _StubLiveSource(failure: ClaudeLiveFailure.network),
+      );
+
+      final data = await provider.fetchUsage(const AppSettings());
+
+      expect(data.windows.first.percentUsed, 2);
+      expect(data.notes.join(), contains('Reported by Anthropic'));
+    });
+
+    test('stays connected but reports nothing when usage is absent', () async {
+      account.reading = ClaudeAccountSource.parse({
+        'oauthAccount': {'emailAddress': 'a@b.com'},
+      });
+      final provider = await build();
+
+      final data = await provider.fetchUsage(const AppSettings());
+
+      expect(data.connection, ConnectionStatus.connected);
+      expect(data.isUsageUnavailable, isTrue);
+      expect(data.windows, isEmpty);
+    });
+
+    test('asks for reconnection when the account signed out', () async {
+      account.reading = ClaudeAccountSource.parse(claudeConfig(email: null));
+      final provider = await build();
 
       await expectLater(
         provider.fetchUsage(const AppSettings()),
@@ -330,40 +414,44 @@ void main() {
           isA<UsageFailure>().having(
             (f) => f.kind,
             'kind',
-            UsageFailureKind.notConfigured,
+            UsageFailureKind.authentication,
           ),
         ),
+      );
+    });
+
+    test('adopts the slot on first run rather than waiting to be connected',
+        () async {
+      // No stored record, and Claude Code is signed in on this machine: the
+      // first launch should show a figure, not a Connect button for an account
+      // the user has already signed in to elsewhere.
+      SharedPreferences.setMockInitialValues({});
+      preferences = await SharedPreferences.getInstance();
+      final provider = await build();
+
+      expect(provider.connection.isConnected, isTrue);
+      final data = await provider.fetchUsage(const AppSettings());
+      expect(data.windows, isNotEmpty);
+    });
+
+    test('refuses once the user has deliberately disconnected it', () async {
+      SharedPreferences.setMockInitialValues({});
+      preferences = await SharedPreferences.getInstance();
+      final provider = await build();
+      await provider.disconnect();
+
+      // Adoption must not undo a choice the user made.
+      final reconnected = await build();
+      expect(reconnected.connection.isConnected, isFalse);
+      await expectLater(
+        reconnected.fetchUsage(const AppSettings()),
+        throwsA(isA<UsageFailure>()),
       );
     });
   });
 
-  group('active session', () {
-    test('reports no session when no CLI process is running', () async {
-      signIn();
-      final provider = await build(
-        local: _StubLocalSource(
-          available: true,
-          result: ClaudeLocalUsage(
-            windows: const [],
-            latestEvent: TranscriptEvent(
-              id: 'e1',
-              timestamp: DateTime.now(),
-              tokens: 10,
-              workingDirectory: '/Users/test/usage-notch',
-            ),
-          ),
-        ),
-      );
-
-      final data = await provider.fetchUsage(const AppSettings());
-
-      // A transcript with nothing running is history, not activity.
-      expect(data.sessions, isEmpty);
-      expect(data.activity, ActivityStatus.idle);
-    });
-
+  group('local activity stays separate from usage', () {
     test('names a running session after its working directory', () async {
-      signIn();
       native.processes = [
         {'pid': 42, 'name': 'claude', 'host': 'Terminal'},
       ];
@@ -382,60 +470,17 @@ void main() {
         ),
       );
 
-      final data = await provider.fetchUsage(const AppSettings());
+      final sessions = await provider.detectActivity();
 
-      expect(data.activeSession?.title, 'usage-notch');
-      expect(data.activeSession?.host, 'Terminal');
-      expect(data.activeSession?.command, 'Claude Code');
-      expect(data.activeSession?.pid, 42);
-      expect(data.activity, ActivityStatus.working);
+      expect(sessions.single.title, 'usage-notch');
+      expect(sessions.single.command, 'Claude Code');
     });
 
-    test('marks a session busy only while it is recently active', () async {
-      signIn();
-      native.processes = [
-        {'pid': 42, 'name': 'claude', 'host': 'Terminal'},
-      ];
+    test('reports nothing when no CLI is running', () async {
       final provider = await build(
-        local: _StubLocalSource(
-          available: true,
-          result: ClaudeLocalUsage(
-            windows: const [],
-            latestEvent: TranscriptEvent(
-              id: 'e1',
-              timestamp: DateTime.now().subtract(const Duration(hours: 1)),
-              tokens: 10,
-              workingDirectory: '/Users/test/usage-notch',
-            ),
-          ),
-        ),
+        local: _StubLocalSource(available: true),
       );
-
-      final data = await provider.fetchUsage(const AppSettings());
-
-      // Still running, but sitting at a prompt rather than working.
-      expect(data.activeSession?.isBusy, isFalse);
-      expect(data.activity, ActivityStatus.waiting);
-    });
-
-    test('keeps the usage when the transcript scan fails', () async {
-      signIn();
-      native.processes = [
-        {'pid': 42, 'name': 'claude', 'host': 'Terminal'},
-      ];
-      final provider = await build(
-        local: _StubLocalSource(
-          available: true,
-          error: const FileSystemException('unreadable'),
-        ),
-      );
-
-      final data = await provider.fetchUsage(const AppSettings());
-
-      // Losing the session row must not lose the figures the user signed in
-      // for.
-      expect(data.windows, hasLength(1));
-      expect(data.sessions, isEmpty);
+      expect(await provider.detectActivity(), isEmpty);
     });
   });
 }

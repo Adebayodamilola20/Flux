@@ -44,7 +44,12 @@ class RailColumn extends StatelessWidget {
       onRightEdge: onRightEdge,
       child: SizedBox(
         width: metrics.collapsedWidth,
-        height: metrics.collapsedHeight,
+        // Sized from what is actually rendered, not from the slot count the
+        // metrics were built with. The two can drift — a provider added to the
+        // catalog without the native side agreeing — and the symptom is a
+        // clipped ring rather than anything that names the cause.
+        height: metrics.collapsedVerticalPadding * 2 +
+            states.length * metrics.slotHeight,
         child: Padding(
           padding: EdgeInsets.symmetric(
             vertical: metrics.collapsedVerticalPadding,
@@ -91,7 +96,13 @@ class _RailSlot extends StatelessWidget {
     final fraction = window?.fractionUsed;
     final isReserved = state.status == ConnectionStatus.unsupported;
     final isLive = state.isLive;
-    final isUnconnected = !state.connection.isConnected;
+
+    // One source of truth for the whole slot. Deriving the glyph from the
+    // connection and the label from the data let them disagree — a ring could
+    // draw the "empty slot" plus *and* a percentage next to it, which says two
+    // contradictory things at once. A slot is empty only when it has nothing
+    // to show at all.
+    final isEmpty = !isLive && !state.connection.isConnected;
 
     // A slot with no usable figure keeps the provider's own accent rather than
     // borrowing the quota colour scale, so a grey ring never reads as "safe".
@@ -124,23 +135,17 @@ class _RailSlot extends StatelessWidget {
                       fraction: fraction,
                       color: ringColor,
                       dimmed: !isLive,
-                      child: isUnconnected
-                          ? Text(
-                              '+',
-                              style: TextStyle(
-                                fontSize: 17,
-                                height: 1,
-                                fontWeight: FontWeight.w400,
-                                color: palette.textTertiary,
-                              ),
-                            )
-                          : ProviderGlyph(
-                              providerId: state.id,
-                              color: isLive
-                                  ? palette.textPrimary
-                                  : palette.textTertiary,
-                              size: 13,
-                            ),
+                      // Drawn rather than typeset: a "+" from the system font
+                      // sits off-centre in a ring and changes weight with the
+                      // user's text settings.
+                      child: ProviderGlyph(
+                        providerId: state.id,
+                        isEmpty: isEmpty,
+                        color: isLive
+                            ? palette.textPrimary
+                            : palette.textTertiary,
+                        size: isEmpty ? 11 : 13,
+                      ),
                     ),
                   ),
                   if (state.activity == ActivityStatus.working)
@@ -151,7 +156,7 @@ class _RailSlot extends StatelessWidget {
                     ),
                 ],
               ),
-              if (_label(state) case final label?) ...[
+              if (isEmpty ? null : _label(state) case final label?) ...[
                 const SizedBox(height: 3),
                 Text(
                   label,
@@ -171,8 +176,10 @@ class _RailSlot extends StatelessWidget {
     );
   }
 
-  /// Only actual measured percentages earn a text label. Empty slots are
-  /// represented by their plus sign alone, without a dash or error marker.
+  /// Only actual measured percentages earn a text label.
+  ///
+  /// An empty slot is its plus sign alone — no dash, no error marker, and
+  /// never a percentage, which would contradict the plus above it.
   static String? _label(ProviderState state) {
     final percent = state.percent;
     return percent == null ? null : '$percent%';

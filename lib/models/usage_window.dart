@@ -104,10 +104,7 @@ class UsageWindow {
         final String s => DateTime.tryParse(s),
         _ => null,
       },
-      source: UsageSource.values.firstWhere(
-        (s) => s.name == json['source'],
-        orElse: () => UsageSource.unavailable,
-      ),
+      source: UsageSource.fromName(json['source']),
     );
   }
 

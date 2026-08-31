@@ -2,8 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 
-import '../../providers/provider_catalog.dart';
-import 'spark_icon.dart';
+import 'provider_logos.dart';
 
 /// The mark that identifies a provider inside its usage ring.
 ///
@@ -16,18 +15,39 @@ class ProviderGlyph extends StatelessWidget {
     required this.providerId,
     required this.color,
     this.size = 14,
+    this.isEmpty = false,
   });
 
   final String providerId;
   final Color color;
   final double size;
 
+  /// Draws a plus instead of the provider's mark.
+  ///
+  /// An empty slot has nothing to identify yet, and a silhouette in a ring
+  /// reads as "a tool that is at 0%" rather than "a tool you have not added".
+  /// A plus is the one glyph that says the slot is an invitation.
+  final bool isEmpty;
+
   @override
   Widget build(BuildContext context) {
-    if (providerId == ProviderCatalog.claude.id) {
-      return SparkIcon(color: color, size: size);
+    if (isEmpty) {
+      return SizedBox.square(
+        dimension: size,
+        child: CustomPaint(painter: _PlusGlyphPainter(color: color)),
+      );
     }
 
+    // Each provider's own mark, so a card is recognisably theirs.
+    final logo = ProviderLogos.painterFor(providerId, color);
+    if (logo != null) {
+      return SizedBox.square(
+        dimension: size,
+        child: CustomPaint(painter: logo),
+      );
+    }
+
+    // A provider with no drawn mark yet still needs something distinct.
     return SizedBox.square(
       dimension: size,
       child: CustomPaint(
@@ -46,6 +66,41 @@ class ProviderGlyph extends StatelessWidget {
     'antigravity' => 4,
     _ => 5,
   };
+}
+
+/// A plus, for a slot with nothing in it yet.
+class _PlusGlyphPainter extends CustomPainter {
+  const _PlusGlyphPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final arm = size.shortestSide / 2;
+    if (arm <= 0) return;
+
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+
+    canvas
+      ..drawLine(
+        Offset(center.dx - arm, center.dy),
+        Offset(center.dx + arm, center.dy),
+        paint,
+      )
+      ..drawLine(
+        Offset(center.dx, center.dy - arm),
+        Offset(center.dx, center.dy + arm),
+        paint,
+      );
+  }
+
+  @override
+  bool shouldRepaint(_PlusGlyphPainter oldDelegate) =>
+      oldDelegate.color != color;
 }
 
 class _PolygonGlyphPainter extends CustomPainter {

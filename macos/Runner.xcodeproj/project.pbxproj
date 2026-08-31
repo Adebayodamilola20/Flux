@@ -37,6 +37,7 @@
 		CFC7CCCB7B237CBBB1B3F54D /* StatusItemController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F29F2C3FDE6B47D01811C5E7 /* StatusItemController.swift */; };
 		E0ADC6617785D8291F001979 /* Pods_RunnerTests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 86DB28A47C556B5C6D53F764 /* Pods_RunnerTests.framework */; };
 		E4359315D6E6E6177FA87360 /* RailWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F79F33F395A1907F442743C /* RailWindow.swift */; };
+		A1B2C3D40005E5F600000005 /* PtySession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40005E5F600000006 /* PtySession.swift */; };
 		EE2EBCBD9DE4FAC750B79CD7 /* ProcessScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8A405A538FD05FFA4AA473A /* ProcessScanner.swift */; };
 /* End PBXBuildFile section */
 
@@ -72,6 +73,7 @@
 
 /* Begin PBXFileReference section */
 		1F79F33F395A1907F442743C /* RailWindow.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = RailWindow.swift; sourceTree = "<group>"; };
+		A1B2C3D40005E5F600000006 /* PtySession.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PtySession.swift; sourceTree = "<group>"; };
 		2B0403B71A7951ECCAED87EA /* NativeChannel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NativeChannel.swift; sourceTree = "<group>"; };
 		331C80D5294CF71000263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		331C80D7294CF71000263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
@@ -205,6 +207,7 @@
 				1F79F33F395A1907F442743C /* RailWindow.swift */,
 				A1B2C3D40003E5F600000004 /* RailWindowController.swift */,
 				A1B2C3D40001E5F600000002 /* RailMetrics.swift */,
+				A1B2C3D40005E5F600000006 /* PtySession.swift */,
 				2B0403B71A7951ECCAED87EA /* NativeChannel.swift */,
 				DC4ECB48571A00C4849905D1 /* KeychainStore.swift */,
 				47BE5AA0BB0944D60DA6698D /* LoginItemManager.swift */,
@@ -460,6 +463,7 @@
 				E4359315D6E6E6177FA87360 /* RailWindow.swift in Sources */,
 				A1B2C3D40003E5F600000003 /* RailWindowController.swift in Sources */,
 				A1B2C3D40001E5F600000001 /* RailMetrics.swift in Sources */,
+				A1B2C3D40005E5F600000005 /* PtySession.swift in Sources */,
 				258F2B7BB15C662F911D4160 /* NativeChannel.swift in Sources */,
 				121A26092F87B3C3B8537CB1 /* KeychainStore.swift in Sources */,
 				3D82F494D8C475B2A7CD76D1 /* LoginItemManager.swift in Sources */,

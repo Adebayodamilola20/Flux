@@ -79,7 +79,7 @@ void main() {
 
       expect(window, isNotNull);
       expect(window!.consumed, 200);
-      expect(window.source, UsageSource.providerReported);
+      expect(window.source, UsageSource.officialApi);
       expect(window.limit, isNull,
           reason: 'the report gives consumption, not a quota');
       expect(window.percentUsed, isNull);

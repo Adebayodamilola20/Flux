@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'providers/provider_registry.dart';
+import 'services/auth/oauth_registry.dart';
 import 'services/history_service.dart';
 import 'services/native/native_bridge.dart';
 import 'services/settings_service.dart';
@@ -27,6 +28,7 @@ class AiUsageMonitorApp extends StatelessWidget {
     required this.historyService,
     required this.usageController,
     required this.shellController,
+    required this.oauthRegistry,
   });
 
   final NativeBridge native;
@@ -35,6 +37,7 @@ class AiUsageMonitorApp extends StatelessWidget {
   final HistoryService historyService;
   final UsageController usageController;
   final ShellController shellController;
+  final OAuthRegistry oauthRegistry;
 
   @override
   Widget build(BuildContext context) {
@@ -43,6 +46,7 @@ class AiUsageMonitorApp extends StatelessWidget {
         Provider<NativeBridge>.value(value: native),
         Provider<ProviderRegistry>.value(value: registry),
         Provider<HistoryService>.value(value: historyService),
+        Provider<OAuthRegistry>.value(value: oauthRegistry),
         ChangeNotifierProvider<SettingsService>.value(value: settingsService),
         ChangeNotifierProvider<UsageController>.value(value: usageController),
         ChangeNotifierProvider<ShellController>.value(value: shellController),

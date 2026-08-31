@@ -1,3 +1,4 @@
+import '../models/active_session.dart';
 import '../models/app_settings.dart';
 import '../models/provider_connection.dart';
 import '../models/usage_data.dart';
@@ -14,6 +15,9 @@ class ProviderDescriptor {
     required this.authMethod,
     required this.accent,
     this.isImplemented = true,
+    this.connectNote,
+    this.credentialHint,
+    this.optionalKeyLabel,
   });
 
   /// Stable machine key, used for persistence and snapshot grouping.
@@ -34,6 +38,32 @@ class ProviderDescriptor {
   /// False for reserved slots that ship without an implementation. The slot is
   /// still shown, so the product's shape is honest about what is coming.
   final bool isImplemented;
+
+  /// Shape of the credential this provider issues, e.g. `sk-or-v1-…`.
+  ///
+  /// Shown in the paste field so the user can tell at a glance whether they
+  /// copied the right thing.
+  final String? credentialHint;
+
+  /// Label for an *additional*, optional credential this provider can also use,
+  /// e.g. `Add API key`.
+  ///
+  /// Only meaningful for a provider whose main connection needs no credential
+  /// at all. Such a provider may still have a key that unlocks a second,
+  /// different figure — Codex reports the plan allowance with no key, and API
+  /// spend with one. Naming that separately is what keeps the key out of the
+  /// main path: a user who does not have one is never shown a paste box, and a
+  /// user who does is not told it is required.
+  ///
+  /// Null when there is no such extra.
+  final String? optionalKeyLabel;
+
+  /// A caveat specific to this provider, shown under the connect action.
+  ///
+  /// Exists so provider-specific wording lives with the provider instead of
+  /// leaking into the shared enum, where it would be shown against every
+  /// integration that happens to use the same auth method.
+  final String? connectNote;
 }
 
 /// Opens a URL in the user's default browser.
@@ -109,6 +139,45 @@ abstract class UsageProvider {
 
   /// Forgets this provider's credentials, removing them from the Keychain.
   Future<void> disconnect();
+
+  /// Locally observable sessions for this provider.
+  ///
+  /// Deliberately separate from [fetchUsage] and from any notion of being
+  /// connected. Whether a tool is running on this Mac is an observation about
+  /// this Mac; it is not a claim about an account, it needs no credential, and
+  /// it must keep working for a provider the user has never signed in to.
+  Future<List<ActiveSession>> detectActivity() async => const [];
+
+  /// Fires when this provider's underlying data changes.
+  ///
+  /// For providers whose figures come from a local file the provider's own app
+  /// rewrites, this is what keeps the rail current: the alternative is polling
+  /// on a timer and showing a number that is up to a refresh interval old.
+  /// Null when a provider has nothing to watch.
+  Stream<void>? get changes => null;
+
+  /// How often this provider wants to be polled, when that differs from the
+  /// interval the user chose.
+  ///
+  /// The global setting is a ceiling for providers whose figures cost a real
+  /// network round trip and barely move. A provider reading a number that
+  /// changes with every prompt — and reading it cheaply — should not be held to
+  /// it, because a five-minute-old percentage is wrong for most of those five
+  /// minutes. Honoured as a floor, never as a way to poll less often than the
+  /// user asked for.
+  ///
+  /// Null means "use the user's interval".
+  Duration? get preferredRefreshInterval => null;
+
+  /// Discards anything this provider is holding on to that a user pressing
+  /// Refresh would expect to be reconsidered.
+  ///
+  /// Providers cache to avoid repeating expensive or intrusive work — a
+  /// Keychain read that raises a system dialog, a CLI session that takes half a
+  /// minute to run. That caching is right on a timer and wrong when the user
+  /// has just fixed something and is asking again, so a deliberate refresh says
+  /// so and a scheduled one does not.
+  void invalidateCaches() {}
 
   /// Fetch current usage.
   ///

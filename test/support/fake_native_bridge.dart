@@ -57,6 +57,17 @@ class FakeNativeBridge extends NativeBridge {
 
   set screens(List<Map<String, Object?>> value) => _state.screens = value;
 
+  /// Absolute paths the fake reports for installed CLIs, keyed by name.
+  /// Anything absent is treated as not installed.
+  Map<String, String> get installedClis => _state.installedClis;
+
+  /// What the next `cli.probe` returns. Set to a recorded panel capture to
+  /// exercise a provider against real CLI output.
+  set probeResult(Map<String, Object?> value) => _state.probeResult = value;
+
+  /// Every `cli.probe` request, in order.
+  List<CliProbeCall> get probes => _state.probes;
+
   void dispose() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(_channel, null);
@@ -80,6 +91,31 @@ class MenuBarUpdate {
   @override
   String toString() =>
       'MenuBarUpdate(icon: $showIcon, percent: $percent, error: $isError)';
+}
+
+/// One recorded `cli.probe` call.
+class CliProbeCall {
+  const CliProbeCall({
+    required this.executable,
+    required this.steps,
+    required this.timeout,
+    this.workingDirectory,
+  });
+
+  final String executable;
+
+  /// Where the CLI was told to run. Recorded because running these tools in
+  /// the app's own directory — `/` for anything launched from Finder — makes
+  /// them index the whole filesystem and time out.
+  final String? workingDirectory;
+
+  /// The scripted keystrokes, as `(seconds, keys)` pairs.
+  final List<(double, String)> steps;
+
+  final double timeout;
+
+  @override
+  String toString() => 'CliProbeCall($executable, ${steps.length} steps)';
 }
 
 /// One recorded `rail.configure` call.
@@ -118,6 +154,15 @@ class _FakeNativeState {
     {'id': '1', 'name': 'Built-in Display', 'isPrimary': true},
   ];
 
+  final Map<String, String> installedClis = {};
+  final List<CliProbeCall> probes = [];
+  Map<String, Object?> probeResult = const {
+    'output': '',
+    'launched': false,
+    'timedOut': false,
+    'failure': 'not installed',
+  };
+
   Future<Object?> handle(MethodCall call) async {
     final args = (call.arguments as Map?)?.cast<String, Object?>() ?? {};
 
@@ -132,7 +177,7 @@ class _FakeNativeState {
           'edgeInset': 6.0,
           'windowWidth': 348.0,
           'windowHeight': 520.0,
-          'slots': 3,
+          'slots': 4,
         };
 
       case 'rail.configure':
@@ -215,6 +260,23 @@ class _FakeNativeState {
         return processes
             .where((p) => names.contains(p['name']))
             .toList(growable: false);
+
+      case 'cli.which':
+        return installedClis[args['name'] as String];
+
+      case 'cli.probe':
+        probes.add(
+          CliProbeCall(
+            executable: args['executable'] as String,
+            steps: [
+              for (final step in (args['steps'] as List).cast<Map>())
+                (step['at'] as double, step['keys'] as String),
+            ],
+            timeout: args['timeout'] as double,
+            workingDirectory: args['workingDirectory'] as String?,
+          ),
+        );
+        return probeResult;
 
       case 'app.quit':
         didQuit = true;

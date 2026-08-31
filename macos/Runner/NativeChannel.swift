@@ -185,6 +185,23 @@ final class NativeChannel {
                 result(KeychainStore.delete(key: key))
             }
 
+        case "keychain.claudeCode":
+            // Reading another application's item can put an approval dialog on
+            // screen, which would deadlock the main thread the channel runs on.
+            DispatchQueue.global(qos: .userInitiated).async {
+                let outcome = ClaudeCodeCredentials.read()
+                DispatchQueue.main.async {
+                    switch outcome {
+                    case .found(let blob):
+                        result(["status": "found", "value": blob])
+                    case .absent:
+                        result(["status": "absent"])
+                    case .denied:
+                        result(["status": "denied"])
+                    }
+                }
+            }
+
         case "process.find":
             guard let names = args["names"] as? [String] else {
                 result(NativeChannel.badArguments("names"))
@@ -203,6 +220,74 @@ final class NativeChannel {
                 }
                 DispatchQueue.main.async { result(matches) }
             }
+
+        case "cli.probe":
+            guard
+                let executable = args["executable"] as? String,
+                let rawSteps = args["steps"] as? [[String: Any]]
+            else {
+                result(NativeChannel.badArguments("executable/steps"))
+                return
+            }
+
+            let arguments = args["arguments"] as? [String] ?? []
+            let timeout = args["timeout"] as? Double ?? 60
+            let columns = args["columns"] as? Int ?? 120
+            let rows = args["rows"] as? Int ?? 45
+            let workingDirectory = args["workingDirectory"] as? String
+
+            let steps = rawSteps.compactMap { step -> PtySession.Step? in
+                guard
+                    let at = step["at"] as? Double,
+                    let keys = step["keys"] as? String
+                else { return nil }
+                return PtySession.Step(at: at, keys: keys)
+            }
+
+            // A CLI session runs for tens of seconds. On the main thread that
+            // would freeze the rail for the whole probe.
+            DispatchQueue.global(qos: .utility).async {
+                let outcome = PtySession.run(
+                    executable: executable,
+                    arguments: arguments,
+                    steps: steps,
+                    timeout: timeout,
+                    columns: columns,
+                    rows: rows,
+                    workingDirectory: workingDirectory
+                )
+                DispatchQueue.main.async {
+                    result([
+                        "output": outcome.output,
+                        "exitCode": outcome.exitCode as Any,
+                        "timedOut": outcome.timedOut,
+                        "launched": outcome.launched,
+                        "failure": outcome.failure as Any,
+                    ] as [String: Any])
+                }
+            }
+
+        case "dialog.openFile":
+            let panel = NSOpenPanel()
+            panel.canChooseFiles = true
+            panel.canChooseDirectories = false
+            panel.allowsMultipleSelection = false
+            panel.title = args["title"] as? String ?? "Choose a file"
+            if let types = args["extensions"] as? [String] {
+                panel.allowedFileTypes = types
+            }
+            // The rail is a non-activating panel, so the app has to come
+            // forward or the sheet opens behind whatever the user was in.
+            NSApp.activate(ignoringOtherApps: true)
+            let choice = panel.runModal()
+            result(choice == .OK ? panel.url?.path : nil)
+
+        case "cli.which":
+            guard let name = args["name"] as? String else {
+                result(NativeChannel.badArguments("name"))
+                return
+            }
+            result(PtySession.locate(name))
 
         case "app.quit":
             result(nil)

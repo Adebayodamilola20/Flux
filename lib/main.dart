@@ -5,10 +5,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
 import 'core/logger.dart';
+import 'providers/antigravity/antigravity_usage_provider.dart';
+import 'providers/api/chatgpt_provider.dart';
 import 'providers/claude/claude_usage_provider.dart';
-import 'providers/provider_catalog.dart';
+import 'providers/gemini/gemini_usage_provider.dart';
 import 'providers/provider_registry.dart';
-import 'providers/reserved_provider.dart';
+import 'services/auth/oauth_registry.dart';
 import 'services/connection_store.dart';
 import 'services/history_service.dart';
 import 'services/native/native_bridge.dart';
@@ -36,14 +38,23 @@ Future<void> main() async {
 
   final historyService = HistoryService(preferences: preferences);
   final connectionStore = ConnectionStore(preferences: preferences);
+  // Kept for the settings screen, which can still register an OAuth client for
+  // a future provider. No shipped slot uses one — every one of them reads a
+  // tool that is already signed in on this Mac.
+  final oauthRegistry = OAuthRegistry(preferences: preferences);
 
-  // The three slots, in rail order. Claude is integrated; the other two are
-  // reserved and refuse honestly rather than pretending to work. Replacing one
-  // is a single line here plus its implementation.
+  // The four slots, in rail order.
+  //
+  // None of them asks the user to sign in. Each reads a tool that is already
+  // installed and already authenticated on this Mac — Claude Code, Codex, the
+  // Antigravity CLI, the Gemini CLI — because for these providers an account
+  // link would grant the app nothing the local tool does not already have.
+  // Slots adopt themselves on first run; see each provider's `restore`.
   final registry = ProviderRegistry([
+    GeminiUsageProvider(native: native, connectionStore: connectionStore),
+    ChatGptProvider(native: native, connectionStore: connectionStore),
+    AntigravityUsageProvider(native: native, connectionStore: connectionStore),
     ClaudeUsageProvider(native: native, connectionStore: connectionStore),
-    ReservedProvider(ProviderCatalog.codex),
-    ReservedProvider(ProviderCatalog.antigravity),
   ]);
 
   final usageController = UsageController(
@@ -67,6 +78,7 @@ Future<void> main() async {
       historyService: historyService,
       usageController: usageController,
       shellController: shellController,
+      oauthRegistry: oauthRegistry,
     ),
   );
 

@@ -151,7 +151,7 @@ class ClaudeAdminApiSource {
       // to divide by. The UI renders this as a figure without a progress bar.
       limit: null,
       resetsAt: endsAt,
-      source: UsageSource.providerReported,
+      source: UsageSource.officialApi,
     );
   }
 

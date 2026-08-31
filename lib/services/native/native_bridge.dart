@@ -1,6 +1,7 @@
 import 'package:flutter/services.dart';
 
 import '../../core/logger.dart';
+import 'cli_probe.dart';
 import '../../models/rail_placement.dart';
 
 /// Description of a running provider-related process, as reported by the
@@ -39,6 +40,30 @@ class NativeProcessInfo {
           : null,
     );
   }
+}
+
+/// The result of asking the Keychain for Claude Code's stored session.
+///
+/// Three outcomes rather than a nullable string, because they call for
+/// different behaviour: an absent credential means Claude Code is not signed
+/// in, while a refused one means the user said no to a system dialog and the
+/// app should quietly use cached figures instead of nagging.
+class ClaudeCodeCredentialAccess {
+  const ClaudeCodeCredentialAccess.found(String this.blob) : isDenied = false;
+  const ClaudeCodeCredentialAccess.absent()
+      : blob = null,
+        isDenied = false;
+  const ClaudeCodeCredentialAccess.denied()
+      : blob = null,
+        isDenied = true;
+
+  /// The stored credential JSON, or null when there is none to read.
+  final String? blob;
+
+  /// True when macOS or the user refused the read.
+  final bool isDenied;
+
+  bool get hasBlob => blob != null;
 }
 
 /// A display the rail can be placed on.
@@ -107,7 +132,7 @@ class RailMetrics {
     edgeInset: 6,
     windowWidth: 348,
     windowHeight: 520,
-    slots: 3,
+    slots: 4,
   );
 
   double get collapsedHeight =>
@@ -312,6 +337,29 @@ class NativeBridge {
         false;
   }
 
+  /// Reads the credential blob Claude Code keeps in the login Keychain.
+  ///
+  /// Used for one thing: asking Anthropic for the account's current usage, so
+  /// the rail shows the live figure rather than the copy Claude Code last
+  /// cached. The token is never stored, logged, or refreshed.
+  ///
+  /// macOS asks the user to approve the first read, because the item belongs to
+  /// Claude Code rather than to this app. A refusal returns
+  /// [ClaudeCodeCredentialAccess.denied] so the caller can fall back to the
+  /// cache instead of reporting the account as broken.
+  Future<ClaudeCodeCredentialAccess> readClaudeCodeCredentials() async {
+    final raw = await _invoke<Map<Object?, Object?>>('keychain.claudeCode');
+    if (raw == null) return const ClaudeCodeCredentialAccess.absent();
+
+    final value = raw['value'];
+    return switch (raw['status']) {
+      'found' when value is String && value.isNotEmpty =>
+        ClaudeCodeCredentialAccess.found(value),
+      'denied' => const ClaudeCodeCredentialAccess.denied(),
+      _ => const ClaudeCodeCredentialAccess.absent(),
+    };
+  }
+
   /// Lists running processes matching [executableNames].
   Future<List<NativeProcessInfo>> findProcesses(
     List<String> executableNames,
@@ -324,6 +372,53 @@ class NativeBridge {
         .map(NativeProcessInfo.fromMap)
         .whereType<NativeProcessInfo>()
         .toList();
+  }
+
+  /// Asks the user to choose a file, returning its path or null if cancelled.
+  Future<String?> pickFile({
+    required String title,
+    List<String> extensions = const [],
+  }) {
+    return _invoke<String>('dialog.openFile', {
+      'title': title,
+      'extensions': extensions,
+    });
+  }
+
+  // MARK: - Official CLIs
+
+  /// Resolves an installed CLI to its absolute path, or null when it is not
+  /// on this machine.
+  ///
+  /// Cannot be done in Dart: an app launched from Finder has almost nothing on
+  /// its `PATH`, so `Process.run('which', …)` finds none of these tools.
+  Future<String?> locateCli(String name) =>
+      _invoke<String>('cli.which', {'name': name});
+
+  /// Runs an official CLI under a pseudo-terminal and returns what it drew.
+  ///
+  /// Used for providers whose quota is only shown in an interactive panel.
+  /// The CLI authenticates itself exactly as it would if the user ran it; this
+  /// app never sees or stores its credentials.
+  Future<CliProbeResult> probeCli({
+    required String executable,
+    List<String> arguments = const [],
+    required List<CliProbeStep> steps,
+    Duration timeout = const Duration(seconds: 75),
+    int columns = 120,
+    int rows = 45,
+    String? workingDirectory,
+  }) async {
+    final raw = await _invoke<Map<Object?, Object?>>('cli.probe', {
+      'executable': executable,
+      'arguments': arguments,
+      'steps': [for (final step in steps) step.toJson()],
+      'timeout': timeout.inMilliseconds / 1000,
+      'columns': columns,
+      'rows': rows,
+      'workingDirectory': workingDirectory,
+    });
+    return CliProbeResult.fromMap(raw) ?? CliProbeResult.unavailable;
   }
 
   Future<void> quit() => _invoke<void>('app.quit');

@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:ai_usage_monitor/models/active_session.dart';
 import 'package:ai_usage_monitor/models/app_settings.dart';
 import 'package:ai_usage_monitor/models/connection_status.dart';
 import 'package:ai_usage_monitor/models/provider_connection.dart';
@@ -42,6 +45,9 @@ class FakeProvider implements UsageProvider {
 
   /// When set, the next fetch throws this instead of returning data.
   UsageFailure? failure;
+
+  /// When set, the fetch succeeds but reports usage as permanently absent.
+  String? permanentlyUnavailable;
 
   /// Number of times [fetchUsage] was called.
   int fetchCount = 0;
@@ -112,11 +118,47 @@ class FakeProvider implements UsageProvider {
     _connection = ProviderConnection.notConnected(id);
   }
 
+  /// Sessions the test wants this provider to observe locally.
+  List<ActiveSession> sessions = const [];
+
+  /// Lets a test push a change signal, the way a watched file would.
+  final StreamController<void> changeSignal = StreamController<void>.broadcast();
+
+  @override
+  Stream<void>? get changes => changeSignal.stream;
+
+  /// Settable so a test can assert that a provider asking for a faster cadence
+  /// actually gets one.
+  @override
+  Duration? preferredRefreshInterval;
+
+  /// Counts deliberate refreshes, so a test can tell one apart from a poll.
+  int invalidateCount = 0;
+
+  @override
+  void invalidateCaches() => invalidateCount++;
+
+  @override
+  Future<List<ActiveSession>> detectActivity() async => sessions;
+
   @override
   Future<UsageData> fetchUsage(AppSettings settings) async {
     fetchCount++;
     final f = failure;
     if (f != null) throw f;
+
+    final absent = permanentlyUnavailable;
+    if (absent != null) {
+      return UsageData(
+        providerId: id,
+        providerName: displayName,
+        windows: const [],
+        connection: _connection.status,
+        fetchedAt: DateTime.now(),
+        usageUnavailableReason: absent,
+        usageUnavailableIsPermanent: true,
+      );
+    }
 
     return UsageData(
       providerId: id,
