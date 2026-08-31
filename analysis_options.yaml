@@ -19,3 +19,6 @@ analyzer:
     # Missing documentation on a public API is worth failing a review over in
     # this codebase, since the provider abstraction is meant to be extended.
     todo: ignore
+  exclude:
+    - build/**
+    - macos/**
