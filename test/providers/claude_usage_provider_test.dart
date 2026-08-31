@@ -156,7 +156,15 @@ Map<String, dynamic> claudeConfig({
   num sevenDay = 51,
   bool extraEnabled = false,
   DateTime? fetchedAt,
+  DateTime? fiveHourResetsAt,
+  DateTime? sevenDayResetsAt,
 }) {
+  // Relative to now, not a fixed date. A cached window whose reset has already
+  // passed is deliberately dropped by the provider, so a hard-coded date here
+  // would quietly turn every cache-fallback test into a test of that instead.
+  final now = DateTime.now().toUtc();
+  final fiveHourReset = fiveHourResetsAt ?? now.add(const Duration(hours: 3));
+  final sevenDayReset = sevenDayResetsAt ?? now.add(const Duration(days: 3));
   return {
     'oauthAccount': {
       if (email != null) 'emailAddress': email,
@@ -169,11 +177,11 @@ Map<String, dynamic> claudeConfig({
       'utilization': {
         'five_hour': {
           'utilization': fiveHour,
-          'resets_at': '2026-08-31T01:30:00.000000+00:00',
+          'resets_at': fiveHourReset.toIso8601String(),
         },
         'seven_day': {
           'utilization': sevenDay,
-          'resets_at': '2026-09-03T18:00:00.000000+00:00',
+          'resets_at': sevenDayReset.toIso8601String(),
         },
         'seven_day_opus': null,
         'extra_usage': {
@@ -377,6 +385,74 @@ void main() {
       expect(data.windows.last.percentUsed, 51);
       expect(data.notes.join(), contains('Reported by Anthropic'));
       expect(data.notes.join(), isNot(contains('Live from Anthropic')));
+    });
+
+    group('a cached window that has already reset', () {
+      test('is not reported as the current figure', () async {
+        // The bug this fixes, with the real numbers: the cache was written at
+        // 9:37 saying "66% used, resets 9:40". By 11:03 the window had rolled
+        // over and the count had restarted — the CLI on another machine read
+        // 14% — but the rail still showed 66% beside a reset time an hour and
+        // a half in the past.
+        account.reading = ClaudeAccountSource.parse(claudeConfig(
+          fiveHour: 66,
+          fiveHourResetsAt: DateTime.now().toUtc().subtract(
+                const Duration(hours: 1, minutes: 23),
+              ),
+        ));
+        final provider = await build(
+          live: _StubLiveSource(failure: ClaudeLiveFailure.tokenExpired),
+        );
+
+        final data = await provider.fetchUsage(const AppSettings());
+
+        // The dead window is gone; the weekly one, which has not reset, stays.
+        expect(data.windows.map((w) => w.id), isNot(contains('five_hour')));
+        expect(data.windows.map((w) => w.id), contains('seven_day'));
+      });
+
+      test('reports nothing rather than a dead number when all have reset',
+          () async {
+        final now = DateTime.now().toUtc();
+        account.reading = ClaudeAccountSource.parse(claudeConfig(
+          fiveHour: 66,
+          fiveHourResetsAt: now.subtract(const Duration(hours: 2)),
+          sevenDayResetsAt: now.subtract(const Duration(days: 1)),
+        ));
+
+        final provider = await build(
+          live: _StubLiveSource(failure: ClaudeLiveFailure.keychainDenied),
+        );
+
+        final data = await provider.fetchUsage(const AppSettings());
+
+        expect(data.windows, isEmpty);
+        expect(data.isUsageUnavailable, isTrue);
+        // And it says why, rather than leaving a blank slot.
+        expect(data.usageUnavailableReason, contains('already reset'));
+        // The account itself is fine — this is not a sign-in problem.
+        expect(data.connection, ConnectionStatus.connected);
+      });
+
+      test('a live reading is never second-guessed this way', () async {
+        // Live figures are current by construction, so the filter must not
+        // touch them — not even when the cache sitting beside them is entirely
+        // made of windows that have rolled over.
+        final now = DateTime.now().toUtc();
+        account.reading = ClaudeAccountSource.parse(claudeConfig(
+          fiveHour: 66,
+          fiveHourResetsAt: now.subtract(const Duration(hours: 2)),
+          sevenDayResetsAt: now.subtract(const Duration(days: 1)),
+        ));
+        final provider = await build(
+          live: _StubLiveSource(reading: liveReading()),
+        );
+
+        final data = await provider.fetchUsage(const AppSettings());
+
+        expect(data.windows.first.percentUsed, 7);
+        expect(data.notes.join(), contains('Live from Anthropic'));
+      });
     });
 
     test('falls back to the cache when the live call fails on the network',

@@ -374,9 +374,22 @@ class ClaudeUsageProvider implements UsageProvider {
       _ => null,
     };
 
-    if (!reading.hasUsage) {
-      // Signed in, but neither the live call nor the cache has a figure yet.
-      // Stated as unavailable rather than backfilled with a number of our own.
+    // A cached figure only describes the window it was measured in. Once that
+    // window has rolled over the count restarts, so the cached number is not
+    // stale — it is about a period that has ended, and presenting it as the
+    // current one is simply wrong. This is what showed 66% beside "Resets
+    // 9:40 AM" at 11:03, while the CLI on another machine correctly read 14%.
+    final current = reading.windows.where((w) => !w.hasReset).toList();
+    final expired = reading.windows.length - current.length;
+    if (expired > 0) {
+      _log.info('$expired cached Claude window(s) have already reset; '
+          'not reporting them as current');
+    }
+
+    if (current.isEmpty) {
+      // Nothing usable: either nothing was ever cached, or everything in the
+      // cache is for a window that has since rolled over. Both are stated
+      // rather than backfilled with a number of our own.
       return UsageData(
         providerId: id,
         providerName: displayName,
@@ -384,9 +397,12 @@ class ClaudeUsageProvider implements UsageProvider {
         connection: ConnectionStatus.connected,
         fetchedAt: DateTime.now(),
         accountLabel: reading.email,
-        usageUnavailableReason:
-            'No usage has been reported for this account yet. Run Claude Code '
-            'once to refresh it.',
+        usageUnavailableReason: reading.hasUsage
+            ? 'Claude Code’s cached usage is for a window that has already '
+                  'reset, so it is no longer this window’s figure. '
+                  '${fallbackNote ?? 'Run Claude Code once to refresh it.'}'
+            : 'No usage has been reported for this account yet. Run Claude '
+                  'Code once to refresh it.',
       );
     }
 
@@ -395,7 +411,7 @@ class ClaudeUsageProvider implements UsageProvider {
     return UsageData(
       providerId: id,
       providerName: displayName,
-      windows: reading.windows,
+      windows: current,
       connection: ConnectionStatus.connected,
       fetchedAt: observedAt ?? DateTime.now(),
       accountLabel: reading.email,

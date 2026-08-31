@@ -57,6 +57,26 @@ class UsageWindow {
     return DateTime.now().difference(at) > const Duration(minutes: 15);
   }
 
+  /// True when this window's own reset time has already passed.
+  ///
+  /// A figure only describes the window it was measured in. Once that window
+  /// rolls over the count starts again from zero, so the old number is not
+  /// merely old — it is about a period that has ended, and showing it as the
+  /// current figure states something false.
+  ///
+  /// This is what a cached reading looks like after a rollover: the app read
+  /// "66% used, resets 9:40" at 9:37, and at 11:03 it was still showing 66%
+  /// beside a reset time an hour and a half in the past. The reset time it was
+  /// already displaying is what proves the figure dead, so it is checked rather
+  /// than trusted.
+  ///
+  /// Distinct from [isStale], which is about *when it was measured*. A window
+  /// can be freshly measured and still have rolled over since.
+  bool get hasReset {
+    final at = resetsAt;
+    return at != null && DateTime.now().isAfter(at);
+  }
+
   /// Provenance of these specific numbers.
   final UsageSource source;
 
