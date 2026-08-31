@@ -295,7 +295,7 @@ class ClaudeUsageProvider implements UsageProvider {
 
     try {
       final local = await _local.load(const AppSettings());
-      return _resolveSessions(local);
+      return await _resolveSessions(local);
     } on FileSystemException catch (e) {
       _log.warn('local session scan failed: ${e.osError?.message}');
       return const [];
