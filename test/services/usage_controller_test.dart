@@ -506,12 +506,12 @@ void main() {
       await controller.start();
 
       await controller.assignSlot(0, 'claude');
-      await controller.assignSlot(3, 'claude');
+      await controller.assignSlot(2, 'claude');
 
       // One provider, one ring. Two would refresh the same account twice and
       // draw it as though it were two.
       expect(controller.slots[0], isNull);
-      expect(controller.slots[3]?.id, 'claude');
+      expect(controller.slots[2]?.id, 'claude');
     });
 
     test('the picker offers only what is not already on the rail', () async {
