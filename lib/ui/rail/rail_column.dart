@@ -174,7 +174,9 @@ class _RailSlot extends StatelessWidget {
                       child: ProviderGlyph(
                         providerId: state.id,
                         isEmpty: isEmpty,
-                        color: isEmpty ? palette.textTertiary : Colors.white,
+                        color: isEmpty
+                            ? palette.textTertiary
+                            : palette.textPrimary,
                         size: isEmpty ? 11 : 15,
                         useBrandColor: false,
                       ),
