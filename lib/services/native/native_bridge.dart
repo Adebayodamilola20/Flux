@@ -364,6 +364,19 @@ class NativeBridge {
     };
   }
 
+  /// When Claude Code last wrote its stored session, or null when there is
+  /// none.
+  ///
+  /// Cheap and silent: it reads the item's attributes, never its data, so it
+  /// does not raise the approval dialog and can be called on every poll. A
+  /// moved timestamp is how the app notices the user ran `claude /login` and
+  /// signed in as somebody else.
+  Future<DateTime?> claudeCodeCredentialsChangedAt() async {
+    final raw = await _invoke<int>('keychain.claudeCodeModified');
+    if (raw == null) return null;
+    return DateTime.fromMillisecondsSinceEpoch(raw);
+  }
+
   /// Lists running processes matching [executableNames].
   Future<List<NativeProcessInfo>> findProcesses(
     List<String> executableNames,

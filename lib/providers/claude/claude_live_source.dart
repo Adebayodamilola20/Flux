@@ -15,6 +15,14 @@ import '../../services/native/native_bridge.dart';
 /// one in the native layer.
 typedef KeychainCredentialReader = Future<ClaudeCodeCredentialAccess> Function();
 
+/// Reads *when* Claude Code last wrote that session, without reading it.
+///
+/// Injected for the same reason as [KeychainCredentialReader]. Kept separate
+/// because the two calls differ in the way that matters: this one touches only
+/// the item's attributes, so it never raises the approval dialog and can be
+/// asked on every poll.
+typedef KeychainStampReader = Future<DateTime?> Function();
+
 /// The result of a live usage fetch.
 class ClaudeLiveReading {
   const ClaudeLiveReading({
@@ -90,9 +98,11 @@ class ClaudeLiveUsageSource {
     http.Client? client,
     Logger? logger,
     KeychainCredentialReader? keychainReader,
+    KeychainStampReader? keychainStampReader,
   })  : _home = homeDirectory ?? Platform.environment['HOME'] ?? '',
         _client = client ?? http.Client(),
         _keychain = keychainReader,
+        _stamp = keychainStampReader,
         _log = logger ?? const Logger('claude.live');
 
   /// Anthropic's own usage endpoint — the one Claude Code calls.
@@ -114,18 +124,45 @@ class ClaudeLiveUsageSource {
   /// answer, and it is respected for a while.
   static const Duration keychainBackoff = Duration(minutes: 30);
 
+  /// How long a token is trusted without re-checking the store behind it.
+  ///
+  /// The stamp check below is the real mechanism; this is the backstop for when
+  /// there is no stamp to read — an older macOS, or a build without the native
+  /// call. Without it, "held for its lifetime" means a token read before a
+  /// sign-in can go on answering for the previous account for hours.
+  static const Duration tokenHold = Duration(minutes: 5);
+
   final String _home;
   final http.Client _client;
   final KeychainCredentialReader? _keychain;
+  final KeychainStampReader? _stamp;
   final Logger _log;
 
-  /// The last token read, held for its lifetime.
+  /// The last token read, held until the store behind it changes.
   ///
-  /// Reading the Keychain is not free — it is an inter-process call that can
-  /// raise a dialog — and the token does not change between refreshes. Keeping
-  /// it in memory is what makes a thirty-second poll cost one HTTP request
-  /// rather than a Keychain round trip as well.
+  /// Reading the Keychain's *data* is not free — it is an inter-process call
+  /// that can raise a dialog — so the token is kept in memory and re-read only
+  /// when there is reason to. Reading the *stamp* is free and silent, and it is
+  /// what supplies the reason.
   _AccessToken? _token;
+
+  /// The credential's modification date as of the last time the store was
+  /// consulted — whatever came of it.
+  ///
+  /// When the current stamp no longer matches this, the stored session has been
+  /// replaced: the user signed in again, possibly as somebody else. Anything
+  /// decided last time is then out of date — both a held token, which now
+  /// answers for an account they have left, and a refusal, which was an answer
+  /// about a session that no longer exists.
+  ///
+  /// Recorded on a refusal too, deliberately. Only recording it alongside a
+  /// successful read would mean a user who declined the prompt could never be
+  /// noticed signing in again, which is the one case where asking once more is
+  /// obviously right.
+  DateTime? _seenStamp;
+
+  /// When [_token] was read, for the [tokenHold] backstop.
+  DateTime? _tokenReadAt;
 
   /// When the Keychain last refused, so it is not asked again immediately.
   DateTime? _deniedAt;
@@ -188,11 +225,24 @@ class ClaudeLiveUsageSource {
   /// entry is the normal state of a current install, and stopping at the file
   /// is what makes the rail show a stale figure.
   Future<(_AccessToken?, ClaudeLiveFailure?)> _accessToken() async {
-    // A token already in hand is reused until it expires. Claude Code rotates
-    // it on its own schedule; when it does, this goes stale and the stores are
-    // consulted again.
+    // Has the stored session been replaced since the held token was read? This
+    // is the question a signed-in-again user is really asking, and it is
+    // answered without touching the secret or raising a dialog.
+    final stamp = await _currentStamp();
+    if (stamp != null && _seenStamp != null && stamp != _seenStamp) {
+      _log.info('Claude Code’s stored session changed; re-reading it');
+      _token = null;
+      // A new sign-in is a new question, so an earlier refusal is not held
+      // against it. The user who declined once and has now signed in again
+      // should not have to wait out the back-off to see their own account.
+      _deniedAt = null;
+    }
+
+    // A token already in hand is reused while the store behind it is unchanged
+    // and it has not expired. Claude Code also rotates it on its own schedule;
+    // when it does, this goes stale and the stores are consulted again.
     final held = _token;
-    if (held != null && !held.isExpired) return (held, null);
+    if (held != null && !held.isExpired && !_isHeldTooLong) return (held, null);
     _token = null;
 
     var denied = false;
@@ -205,6 +255,8 @@ class ClaudeLiveUsageSource {
     final read = _keychain;
     if (read != null && !_isInKeychainBackoff) {
       final access = await read();
+      // The store has now been consulted at this stamp, whatever it said.
+      _seenStamp = stamp;
       if (access.isDenied) {
         denied = true;
         _deniedAt = DateTime.now();
@@ -216,7 +268,7 @@ class ClaudeLiveUsageSource {
         final token = _parseToken(blob);
         if (token != null) {
           if (!token.isExpired) {
-            _token = token;
+            _hold(token, stamp);
             return (token, null);
           }
           expired ??= token;
@@ -237,7 +289,7 @@ class ClaudeLiveUsageSource {
       final token = _parseToken(contents);
       if (token != null) {
         if (!token.isExpired) {
-          _token = token;
+          _hold(token, stamp);
           return (token, null);
         }
         expired ??= token;
@@ -254,6 +306,34 @@ class ClaudeLiveUsageSource {
     return at != null && DateTime.now().difference(at) < keychainBackoff;
   }
 
+  bool get _isHeldTooLong {
+    final at = _tokenReadAt;
+    return at == null || DateTime.now().difference(at) >= tokenHold;
+  }
+
+  /// Keeps a token, and the state of the store it came from.
+  void _hold(_AccessToken token, DateTime? stamp) {
+    _token = token;
+    _seenStamp = stamp;
+    _tokenReadAt = DateTime.now();
+  }
+
+  /// The credential's modification date, or null when it cannot be read.
+  ///
+  /// A failure here is not treated as "unchanged" — it simply leaves the
+  /// [tokenHold] backstop to decide, so a build that cannot read the stamp
+  /// still notices a sign-in, just a few minutes later rather than at once.
+  Future<DateTime?> _currentStamp() async {
+    final read = _stamp;
+    if (read == null) return null;
+    try {
+      return await read();
+    } catch (e) {
+      _log.debug('could not read the credential stamp: ${e.runtimeType}');
+      return null;
+    }
+  }
+
   /// Forgets the held token and any refusal, so the next fetch consults the
   /// Keychain again.
   ///
@@ -262,6 +342,8 @@ class ClaudeLiveUsageSource {
   /// out [keychainBackoff] to try again.
   void reset() {
     _token = null;
+    _seenStamp = null;
+    _tokenReadAt = null;
     _deniedAt = null;
   }
 

@@ -147,4 +147,55 @@ enum ClaudeCodeCredentials {
         // to the cached figures rather than failing the refresh outright.
         return lastStatus == errSecItemNotFound ? .absent : .denied
     }
+
+    /// When the stored credential was last written, or nil when there is none.
+    ///
+    /// This is the signal that the user signed in again — `claude /login`
+    /// replaces the item, and its modification date moves. Without it the app
+    /// keeps using a token it read before the switch, which is still valid and
+    /// still answers for the *previous* account, so the rail goes on reporting
+    /// an account the user has left.
+    ///
+    /// **This does not raise the approval dialog.** The Keychain ACL guards an
+    /// item's *data*, not its attributes, so a query that asks for attributes
+    /// and explicitly declines the data is answered without prompting. That is
+    /// what makes it safe to call on every poll: it costs no dialog and reads
+    /// no secret. Only when the date has moved is the guarded read done again.
+    static func modifiedAt() -> Date? {
+        let base: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecReturnAttributes as String: true,
+            // Stated rather than merely omitted: asking for the data is what
+            // would turn this into a prompt.
+            kSecReturnData as String: false,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+
+        var queries = [base]
+        queries.insert(
+            base.merging([kSecAttrAccount as String: NSUserName()]) { current, _ in current },
+            at: 0
+        )
+
+        for query in queries {
+            var item: CFTypeRef?
+            guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+                  let attributes = item as? [String: Any]
+            else {
+                continue
+            }
+            if let modified = attributes[kSecAttrModificationDate as String] as? Date {
+                return modified
+            }
+            // The item exists but reports no modification date. Its creation
+            // date still moves when the item is replaced, so it answers the
+            // same question.
+            if let created = attributes[kSecAttrCreationDate as String] as? Date {
+                return created
+            }
+        }
+
+        return nil
+    }
 }

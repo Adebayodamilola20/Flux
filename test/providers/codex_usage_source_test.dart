@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:ai_usage_monitor/models/usage_source.dart';
+import 'package:ai_usage_monitor/providers/chatgpt/codex_account_source.dart';
 import 'package:ai_usage_monitor/providers/chatgpt/codex_usage_source.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -173,6 +177,101 @@ void _staleness() {
       );
 
       expect(reading.windows.single.isStale, isFalse);
+    });
+  });
+
+  _accountSwitch();
+}
+
+/// Switching to a different ChatGPT account.
+///
+/// A transcript records no account, so the figures from a previous sign-in look
+/// exactly like the current one's. What separates them is when they were
+/// written, and the account file is what says when the account changed.
+void _accountSwitch() {
+  group('telling one account from another', () {
+    test('reads the signed-in account without touching its tokens', () {
+      final account = CodexAccountSource.parse(jsonEncode({
+        'auth_mode': 'chatgpt',
+        'tokens': {
+          'id_token': 'ey.secret',
+          'access_token': 'ey.secret',
+          'refresh_token': 'rt.secret',
+          'account_id': '3b3e572f-4a03-49ad-af98-e330872c8d65',
+        },
+      }));
+
+      expect(account.accountId, '3b3e572f-4a03-49ad-af98-e330872c8d65');
+      expect(account.authMode, 'chatgpt');
+      expect(account.isSignedIn, isTrue);
+    });
+
+    test('a signed-out Codex reports no account', () {
+      final account = CodexAccountSource.parse(
+        jsonEncode({'auth_mode': 'chatgpt', 'tokens': null}),
+      );
+
+      expect(account.isSignedIn, isFalse);
+      expect(account.isInstalled, isTrue);
+    });
+
+    test('ignores an allowance recorded before the account changed', () async {
+      final home = Directory.systemTemp.createTempSync('codex_switch_test');
+      addTearDown(() => home.deleteSync(recursive: true));
+
+      final day = Directory('${home.path}/.codex/sessions/2026/08/29')
+        ..createSync(recursive: true);
+
+      // The account the user left, sitting at its limit.
+      File('${day.path}/rollout-old.jsonl').writeAsStringSync(
+        jsonEncode({
+          'timestamp': '2026-08-29T10:00:00.000Z',
+          'type': 'event_msg',
+          'payload': {
+            'type': 'token_count',
+            'rate_limits': rateLimits(usedPercent: 100),
+          },
+        }),
+      );
+
+      final source = CodexUsageSource(homeDirectory: home.path);
+
+      // Without a cut-off it is the best figure there is, and is reported.
+      expect((await source.read()).windows.single.percentUsed, 100);
+
+      // After a switch, it is the previous account's figure and nothing else
+      // has been recorded yet. Reporting 100% here is what made the app claim
+      // a brand-new account was exhausted.
+      final switched = await source.read(
+        notBefore: DateTime.parse('2026-08-30T00:00:00Z'),
+      );
+      expect(switched.hasUsage, isFalse);
+    });
+
+    test('reports an allowance recorded since the account changed', () async {
+      final home = Directory.systemTemp.createTempSync('codex_switch_test');
+      addTearDown(() => home.deleteSync(recursive: true));
+
+      final day = Directory('${home.path}/.codex/sessions/2026/08/31')
+        ..createSync(recursive: true);
+
+      File('${day.path}/rollout-new.jsonl').writeAsStringSync(
+        jsonEncode({
+          'timestamp': '2026-08-31T10:00:00.000Z',
+          'type': 'event_msg',
+          'payload': {
+            'type': 'token_count',
+            'rate_limits': rateLimits(usedPercent: 2, planType: 'free'),
+          },
+        }),
+      );
+
+      final reading = await CodexUsageSource(homeDirectory: home.path).read(
+        notBefore: DateTime.parse('2026-08-30T00:00:00Z'),
+      );
+
+      expect(reading.windows.single.percentUsed, 2);
+      expect(reading.planType, 'free');
     });
   });
 }

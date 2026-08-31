@@ -210,6 +210,17 @@ final class NativeChannel {
                 }
             }
 
+        case "keychain.claudeCodeModified":
+            // Attributes only, so this never prompts — see
+            // ClaudeCodeCredentials.modifiedAt. Still off the main thread,
+            // because a Keychain query is an inter-process call.
+            DispatchQueue.global(qos: .utility).async {
+                let modified = ClaudeCodeCredentials.modifiedAt()
+                DispatchQueue.main.async {
+                    result(modified.map { Int($0.timeIntervalSince1970 * 1000) })
+                }
+            }
+
         case "process.find":
             guard let names = args["names"] as? [String] else {
                 result(NativeChannel.badArguments("names"))
