@@ -10,12 +10,10 @@ import 'package:flutter_test/flutter_test.dart';
 import '../support/fake_provider.dart';
 
 void main() {
-  /// Two non-Claude slots. Only codex ships unimplemented now that
-  /// Antigravity has a real integration, so the other is a stand-in.
-  List<UsageProvider> reserved() => [
-    ReservedProvider(ProviderCatalog.reserved),
-    FakeProvider(id: 'antigravity', displayName: 'Antigravity'),
-    FakeProvider(id: 'openrouter', displayName: 'OpenRouter'),
+  List<UsageProvider> railProviders() => [
+    FakeProvider(id: 'claude', displayName: 'Claude'),
+    FakeProvider(id: 'chatgpt', displayName: 'Codex'),
+    FakeProvider(id: 'gemini', displayName: 'Gemini'),
   ];
 
   group('ProviderCatalog', () {
@@ -32,7 +30,7 @@ void main() {
       final implemented = ProviderCatalog.slots
           .where((s) => s.isImplemented)
           .map((s) => s.id);
-      expect(implemented, containsAll(<String>['claude', 'antigravity']));
+      expect(implemented, ['claude', 'chatgpt', 'gemini']);
     });
 
     test('a slot is reserved only while it has no integration', () {
@@ -51,14 +49,11 @@ void main() {
 
   group('ProviderRegistry', () {
     test('accepts the full set of slots', () {
-      final registry = ProviderRegistry([
-        FakeProvider(id: 'claude'),
-        ...reserved(),
-      ]);
+      final registry = ProviderRegistry(railProviders());
 
       expect(registry.all, hasLength(ProviderCatalog.slotCount));
       expect(registry.primary.id, 'claude');
-      expect(registry.byId('antigravity'), isNotNull);
+      expect(registry.byId('gemini'), isNotNull);
       expect(registry.byId('nope'), isNull);
     });
 
@@ -85,12 +80,16 @@ void main() {
     test('lists only the slots with a real integration', () {
       final registry = ProviderRegistry([
         FakeProvider(id: 'claude'),
-        ...reserved(),
+        ReservedProvider(ProviderCatalog.reserved),
+        FakeProvider(id: 'gemini', displayName: 'Gemini'),
       ]);
 
       // FakeProvider declares itself implemented; only the genuinely reserved
-      // codex slot is filtered out.
-      expect(registry.implemented.map((p) => p.id), isNot(contains('reserved')));
+      // slot is filtered out.
+      expect(
+        registry.implemented.map((p) => p.id),
+        isNot(contains('reserved')),
+      );
     });
   });
 

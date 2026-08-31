@@ -76,7 +76,7 @@ class _RailShellState extends State<RailShell>
     });
 
     final metrics = shell.metrics;
-    final states = usage.states;
+    final states = usage.states.take(3).toList(growable: false);
     final onRight = settings.railEdge == RailEdge.right;
 
     final hovered = _hoveredId == null
@@ -227,10 +227,50 @@ class _CalloutLayer extends StatelessWidget {
             parent: animation,
             curve: const Interval(0.35, 1, curve: Curves.easeOut),
           ),
-          child: AnimatedSwitcher(
-            duration: AppMetrics.fadeAnimation,
-            switchInCurve: Curves.easeOut,
-            child: child,
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.96, end: 1).animate(
+              CurvedAnimation(
+                parent: animation,
+                curve: const Interval(0.35, 1, curve: Curves.easeOutCubic),
+              ),
+            ),
+            alignment: onRight ? Alignment.centerRight : Alignment.centerLeft,
+            child: SlideTransition(
+              position:
+                  Tween<Offset>(
+                    begin: Offset(onRight ? 0.04 : -0.04, 0),
+                    end: Offset.zero,
+                  ).animate(
+                    CurvedAnimation(
+                      parent: animation,
+                      curve: const Interval(
+                        0.35,
+                        1,
+                        curve: Curves.easeOutCubic,
+                      ),
+                    ),
+                  ),
+              child: AnimatedSwitcher(
+                duration: AppMetrics.fadeAnimation,
+                switchInCurve: Curves.easeOutCubic,
+                switchOutCurve: Curves.easeInCubic,
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: ScaleTransition(
+                      scale: Tween<double>(begin: 0.98, end: 1).animate(
+                        CurvedAnimation(
+                          parent: animation,
+                          curve: Curves.easeOutCubic,
+                        ),
+                      ),
+                      child: child,
+                    ),
+                  );
+                },
+                child: child,
+              ),
+            ),
           ),
         ),
       ),

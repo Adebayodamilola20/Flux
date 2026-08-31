@@ -5,7 +5,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
 import 'core/logger.dart';
-import 'providers/antigravity/antigravity_usage_provider.dart';
 import 'providers/api/chatgpt_provider.dart';
 import 'providers/claude/claude_usage_provider.dart';
 import 'providers/gemini/gemini_usage_provider.dart';
@@ -43,18 +42,17 @@ Future<void> main() async {
   // tool that is already signed in on this Mac.
   final oauthRegistry = OAuthRegistry(preferences: preferences);
 
-  // The four slots, in rail order.
+  // The three slots, in rail order.
   //
   // None of them asks the user to sign in. Each reads a tool that is already
-  // installed and already authenticated on this Mac — Claude Code, Codex, the
-  // Antigravity CLI, the Gemini CLI — because for these providers an account
-  // link would grant the app nothing the local tool does not already have.
+  // installed and already authenticated on this Mac -- Claude Code, Codex, or
+  // the Gemini CLI -- because for these providers an account link would grant
+  // the app nothing the local tool does not already have.
   // Slots adopt themselves on first run; see each provider's `restore`.
   final registry = ProviderRegistry([
-    GeminiUsageProvider(native: native, connectionStore: connectionStore),
-    ChatGptProvider(native: native, connectionStore: connectionStore),
-    AntigravityUsageProvider(native: native, connectionStore: connectionStore),
     ClaudeUsageProvider(native: native, connectionStore: connectionStore),
+    ChatGptProvider(native: native, connectionStore: connectionStore),
+    GeminiUsageProvider(native: native, connectionStore: connectionStore),
   ]);
 
   final usageController = UsageController(

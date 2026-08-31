@@ -36,20 +36,24 @@ class RailColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final visibleStates = states.take(3).toList(growable: false);
+
     return NotchShape(
       // The rail is a hardware-like edge notch, not a themed panel.
       fill: const Color(0xFF000000),
-      borderColor: const Color(0xFF000000),
       shadowColor: const Color(0x99000000),
       onRightEdge: onRightEdge,
+      cornerRadius: 20,
+      filletRadius: 13,
       child: SizedBox(
         width: metrics.collapsedWidth,
         // Sized from what is actually rendered, not from the slot count the
         // metrics were built with. The two can drift — a provider added to the
         // catalog without the native side agreeing — and the symptom is a
         // clipped ring rather than anything that names the cause.
-        height: metrics.collapsedVerticalPadding * 2 +
-            states.length * metrics.slotHeight,
+        height:
+            metrics.collapsedVerticalPadding * 2 +
+            visibleStates.length * metrics.slotHeight,
         child: Padding(
           padding: EdgeInsets.symmetric(
             vertical: metrics.collapsedVerticalPadding,
@@ -57,7 +61,7 @@ class RailColumn extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              for (final state in states)
+              for (final state in visibleStates)
                 _RailSlot(
                   state: state,
                   height: metrics.slotHeight,
@@ -144,7 +148,7 @@ class _RailSlot extends StatelessWidget {
                         color: isLive
                             ? palette.textPrimary
                             : palette.textTertiary,
-                        size: isEmpty ? 11 : 13,
+                        size: isEmpty ? 11 : 15,
                       ),
                     ),
                   ),
@@ -161,10 +165,10 @@ class _RailSlot extends StatelessWidget {
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 12,
                     height: 1,
                     fontWeight: FontWeight.w700,
-                    letterSpacing: -0.1,
+                    letterSpacing: 0,
                     color: palette.textPrimary,
                   ),
                 ),

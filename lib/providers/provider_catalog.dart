@@ -50,7 +50,8 @@ abstract final class ProviderCatalog {
     authMethod: ProviderAuthMethod.consoleApiKey,
     accent: 0xFF6467F2,
     isImplemented: true,
-    connectNote: 'Opens openrouter.ai so you can create a key. It reports '
+    connectNote:
+        'Opens openrouter.ai so you can create a key. It reports '
         'credits used and your limit.',
     credentialHint: 'sk-or-v1-…',
   );
@@ -116,14 +117,9 @@ abstract final class ProviderCatalog {
   );
 
   /// Slot order, top to bottom in the rail.
-  static const List<ProviderDescriptor> slots = [
-    gemini,
-    chatgpt,
-    antigravity,
-    claude,
-  ];
+  static const List<ProviderDescriptor> slots = [claude, chatgpt, gemini];
 
   /// The product's fixed slot count. Asserted by [ProviderRegistry] so a
   /// mismatch is caught at startup rather than by a broken layout.
-  static const int slotCount = 4;
+  static const int slotCount = 3;
 }

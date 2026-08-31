@@ -50,12 +50,8 @@ class NativeProcessInfo {
 /// app should quietly use cached figures instead of nagging.
 class ClaudeCodeCredentialAccess {
   const ClaudeCodeCredentialAccess.found(String this.blob) : isDenied = false;
-  const ClaudeCodeCredentialAccess.absent()
-      : blob = null,
-        isDenied = false;
-  const ClaudeCodeCredentialAccess.denied()
-      : blob = null,
-        isDenied = true;
+  const ClaudeCodeCredentialAccess.absent() : blob = null, isDenied = false;
+  const ClaudeCodeCredentialAccess.denied() : blob = null, isDenied = true;
 
   /// The stored credential JSON, or null when there is none to read.
   final String? blob;
@@ -124,15 +120,15 @@ class RailMetrics {
   /// Used before native replies, and under `flutter test` where there is no
   /// native side at all. Matches the Swift defaults.
   static const RailMetrics fallback = RailMetrics(
-    collapsedWidth: 62,
-    expandedWidth: 296,
-    slotHeight: 66,
-    collapsedVerticalPadding: 14,
+    collapsedWidth: 52,
+    expandedWidth: 280,
+    slotHeight: 58,
+    collapsedVerticalPadding: 16,
     shadowPadding: 26,
-    edgeInset: 6,
-    windowWidth: 348,
-    windowHeight: 520,
-    slots: 4,
+    edgeInset: 0,
+    windowWidth: 332,
+    windowHeight: 292,
+    slots: 3,
   );
 
   double get collapsedHeight =>

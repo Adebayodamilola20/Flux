@@ -46,10 +46,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
     textSecondary: Color(0x8CFFFFFF),
     textTertiary: Color(0x59FFFFFF),
     track: Color(0x1FFFFFFF),
-    accentNormal: Color(0xFF4ADE80),
-    accentWarning: Color(0xFFD9F04B),
-    accentCritical: Color(0xFFFF6B5E),
-    accentPositive: Color(0xFF4ADE80),
+    accentNormal: Color(0xFF00E58A),
+    accentWarning: Color(0xFFD7FF2F),
+    accentCritical: Color(0xFFFF5A1F),
+    accentPositive: Color(0xFF00E58A),
     shadow: Color(0x99000000),
   );
 
@@ -62,10 +62,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
     textSecondary: Color(0x99000000),
     textTertiary: Color(0x66000000),
     track: Color(0x14000000),
-    accentNormal: Color(0xFF16A34A),
-    accentWarning: Color(0xFF9AA80B),
-    accentCritical: Color(0xFFDC2626),
-    accentPositive: Color(0xFF16A34A),
+    accentNormal: Color(0xFF059669),
+    accentWarning: Color(0xFF8A9908),
+    accentCritical: Color(0xFFD84A16),
+    accentPositive: Color(0xFF059669),
     shadow: Color(0x2E000000),
   );
 
@@ -74,8 +74,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
   /// pressure actually feels.
   Color accentFor(double? fraction) {
     if (fraction == null) return textTertiary;
-    if (fraction >= 0.85) return accentCritical;
-    if (fraction >= 0.5) return accentWarning;
+    if (fraction >= 0.7) return accentCritical;
+    if (fraction >= 0.45) return accentWarning;
     return accentNormal;
   }
 
@@ -148,10 +148,10 @@ abstract final class AppMetrics {
   static const double cardRadius = 16;
 
   /// Diameter of a provider's usage ring.
-  static const double ringDiameter = 30;
+  static const double ringDiameter = 32;
 
   /// Stroke width of that ring.
-  static const double ringStroke = 2.5;
+  static const double ringStroke = 2.8;
 
   /// The collapsed state: a sliver against the screen edge, small enough to
   /// forget about and large enough to find. Anything bigger stops being a hint
@@ -180,8 +180,9 @@ abstract final class AppTheme {
   static const String _fontFamily = '.AppleSystemUIFont';
 
   static ThemeData of(Brightness brightness) {
-    final palette =
-        brightness == Brightness.dark ? AppPalette.dark : AppPalette.light;
+    final palette = brightness == Brightness.dark
+        ? AppPalette.dark
+        : AppPalette.light;
 
     final base = ThemeData(
       brightness: brightness,

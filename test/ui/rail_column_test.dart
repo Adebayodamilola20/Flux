@@ -82,8 +82,9 @@ void main() {
     expect(find.textContaining('%'), findsNothing);
   });
 
-  testWidgets('a connected slot shows its mark and its percentage',
-      (tester) async {
+  testWidgets('a connected slot shows its mark and its percentage', (
+    tester,
+  ) async {
     await pumpRail(tester, [
       slot(id: 'claude', status: ConnectionStatus.connected, percent: 27),
     ]);
@@ -98,11 +99,10 @@ void main() {
     await pumpRail(tester, [
       slot(id: 'gemini'),
       slot(id: 'chatgpt', status: ConnectionStatus.connected, percent: 100),
-      slot(id: 'antigravity', status: ConnectionStatus.connected),
       slot(id: 'claude', status: ConnectionStatus.connected, percent: 27),
     ]);
 
-    for (final id in ['gemini', 'chatgpt', 'antigravity', 'claude']) {
+    for (final id in ['gemini', 'chatgpt', 'claude']) {
       final isPlus = drewPlus(tester, id);
       final state = tester
           .widgetList<ProviderGlyph>(find.byType(ProviderGlyph))
@@ -123,26 +123,26 @@ void main() {
     }
   });
 
-  testWidgets('a connected slot with no figure yet still shows its mark',
-      (tester) async {
+  testWidgets('a connected slot with no figure yet still shows its mark', (
+    tester,
+  ) async {
     // Connected but awaiting first fetch: it is not an empty slot, so it must
     // not offer the "add this" plus.
     await pumpRail(tester, [
-      slot(id: 'antigravity', status: ConnectionStatus.connected),
+      slot(id: 'chatgpt', status: ConnectionStatus.connected),
     ]);
 
-    expect(drewPlus(tester, 'antigravity'), isFalse);
+    expect(drewPlus(tester, 'chatgpt'), isFalse);
     expect(find.textContaining('%'), findsNothing);
   });
 
   testWidgets('renders one slot per provider', (tester) async {
     await pumpRail(tester, [
-      slot(id: 'gemini'),
-      slot(id: 'chatgpt'),
-      slot(id: 'antigravity'),
       slot(id: 'claude'),
+      slot(id: 'chatgpt'),
+      slot(id: 'gemini'),
     ]);
 
-    expect(find.byType(ProviderGlyph), findsNWidgets(4));
+    expect(find.byType(ProviderGlyph), findsNWidgets(3));
   });
 }

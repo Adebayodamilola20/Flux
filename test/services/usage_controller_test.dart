@@ -3,7 +3,6 @@ import 'package:ai_usage_monitor/models/connection_status.dart';
 import 'package:ai_usage_monitor/models/usage_failure.dart';
 import 'package:ai_usage_monitor/providers/provider_catalog.dart';
 import 'package:ai_usage_monitor/providers/provider_registry.dart';
-import 'package:ai_usage_monitor/providers/reserved_provider.dart';
 import 'package:ai_usage_monitor/services/history_service.dart';
 import 'package:ai_usage_monitor/services/settings_service.dart';
 import 'package:ai_usage_monitor/services/usage_controller.dart';
@@ -30,7 +29,7 @@ void main() {
 
   tearDown(() => native.dispose());
 
-  /// A registry with one controllable provider and two reserved slots — the
+  /// A registry with one controllable provider and the other two rail slots --
   /// shape this build actually ships.
   ({UsageController controller, FakeProvider primary}) buildController({
     FakeProvider? provider,
@@ -40,9 +39,8 @@ void main() {
         provider ?? FakeProvider(id: 'claude', displayName: 'Claude');
     final registry = ProviderRegistry([
       primary,
-      ReservedProvider(ProviderCatalog.reserved),
-      FakeProvider(id: 'antigravity', displayName: 'Antigravity'),
-      FakeProvider(id: 'openrouter', displayName: 'OpenRouter'),
+      FakeProvider(id: 'chatgpt', displayName: 'Codex'),
+      FakeProvider(id: 'gemini', displayName: 'Gemini'),
     ]);
 
     // Applied before the controller reads it, so its first schedule already
@@ -67,8 +65,8 @@ void main() {
   /// Waits out [UsageController.changeDebounce], plus enough slack for the
   /// fetch it schedules to run.
   Future<void> afterDebounce() => Future<void>.delayed(
-        UsageController.changeDebounce + const Duration(milliseconds: 60),
-      );
+    UsageController.changeDebounce + const Duration(milliseconds: 60),
+  );
 
   group('slots', () {
     test('exposes one state per slot before anything is fetched', () {
@@ -84,13 +82,13 @@ void main() {
       );
     });
 
-    test('reports reserved slots as unsupported, never as an error', () {
+    test('reports disconnected slots as not connected before fetch', () {
       final (controller: controller, primary: _) = buildController();
-      final reserved = controller.stateFor('reserved');
+      final codex = controller.stateFor('chatgpt');
 
-      expect(reserved.status, ConnectionStatus.unsupported);
-      expect(reserved.percent, isNull);
-      expect(reserved.failure, isNull);
+      expect(codex.status, ConnectionStatus.notConnected);
+      expect(codex.percent, isNull);
+      expect(codex.failure, isNull);
     });
   });
 

@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 
 import '../../core/formatting.dart';
 import '../../models/active_session.dart';
@@ -35,27 +35,35 @@ class RailCallout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final palette = context.palette;
-
-    return CalloutShape(
-      fill: palette.surface,
-      borderColor: palette.border,
-      shadowColor: palette.shadow,
-      tailOnRight: onRightEdge,
-      child: SizedBox(
-        width: AppMetrics.calloutWidth,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _Header(state: state),
-              const SizedBox(height: 9),
-              ..._buildBody(context),
-            ],
-          ),
-        ),
+    return Theme(
+      data: AppTheme.of(Brightness.dark),
+      child: Builder(
+        builder: (context) {
+          return CalloutShape(
+            fill: const Color(0xFF050506),
+            borderColor: const Color(0xFF171719),
+            shadowColor: const Color(0xCC000000),
+            tailOnRight: onRightEdge,
+            radius: 14,
+            tailWidth: 12,
+            tailHeight: 18,
+            child: SizedBox(
+              width: AppMetrics.calloutWidth,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(11, 10, 11, 10),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _Header(state: state),
+                    const SizedBox(height: 9),
+                    ..._buildBody(context),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -416,8 +424,8 @@ class _ConnectButtonState extends State<_ConnectButton> {
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
               color: !enabled
-                ? palette.textTertiary
-                : (_hovered ? palette.surface : palette.textPrimary),
+                  ? palette.textTertiary
+                  : (_hovered ? palette.surface : palette.textPrimary),
             ),
           ),
         ),

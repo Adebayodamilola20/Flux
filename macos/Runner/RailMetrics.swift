@@ -39,9 +39,9 @@ enum RailMetrics {
     static let nubHotZoneWidth: CGFloat = 16
     static let nubHotZoneHeight: CGFloat = 120
 
-    /// Height of the open rail at its tallest. The window is sized for the
-    /// worst case so it never has to resize mid-animation.
-    static let expandedHeight: CGFloat = 468
+    /// Height of the open rail at its tallest. Sized for the three-slot rail
+    /// plus enough room for the hover card to breathe.
+    static let expandedHeight: CGFloat = 240
 
     /// Height of the open rail for a given number of provider slots.
     static func collapsedHeight(slots: Int) -> CGFloat {

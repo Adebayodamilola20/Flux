@@ -1,7 +1,5 @@
 import 'package:ai_usage_monitor/models/rail_placement.dart';
-import 'package:ai_usage_monitor/providers/provider_catalog.dart';
 import 'package:ai_usage_monitor/providers/provider_registry.dart';
-import 'package:ai_usage_monitor/providers/reserved_provider.dart';
 import 'package:ai_usage_monitor/services/history_service.dart';
 import 'package:ai_usage_monitor/services/settings_service.dart';
 import 'package:ai_usage_monitor/services/shell_controller.dart';
@@ -34,9 +32,8 @@ void main() {
     usage = UsageController(
       registry: ProviderRegistry([
         provider,
-        ReservedProvider(ProviderCatalog.reserved),
-        FakeProvider(id: 'antigravity', displayName: 'Antigravity'),
-        FakeProvider(id: 'openrouter', displayName: 'OpenRouter'),
+        FakeProvider(id: 'chatgpt', displayName: 'Codex'),
+        FakeProvider(id: 'gemini', displayName: 'Gemini'),
       ]),
       settingsService: settings,
       historyService: HistoryService(preferences: preferences),
@@ -91,8 +88,8 @@ void main() {
       await boot();
       await shell.start();
 
-      expect(shell.metrics.slots, 4);
-      expect(shell.metrics.collapsedWidth, 62);
+      expect(shell.metrics.slots, 3);
+      expect(shell.metrics.collapsedWidth, 52);
     });
 
     test('loads the display list for the monitor picker', () async {
