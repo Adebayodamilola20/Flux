@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' show ThemeMode;
 
+import '../providers/provider_catalog.dart';
 import 'rail_placement.dart';
 
 /// User preferences, persisted locally. Contains no secrets — provider
@@ -29,7 +30,14 @@ class AppSettings {
   /// The default deliberately: the product does not decide which tools matter
   /// to a person, and a rail that fills itself with everything it detects is
   /// making that decision for them. Each position starts as a plus.
-  static const List<String?> emptySlots = [null, null, null, null];
+  ///
+  /// One entry per rail position, so this must stay [ProviderCatalog.slotCount]
+  /// long: the rail window is laid out for exactly that many positions on the
+  /// native side, and an extra entry here drew a plus the window had no room
+  /// for. It is a literal only because a default parameter value has to be
+  /// const, and `List.filled` is not — `settings_slots_test.dart` holds the two
+  /// to each other.
+  static const List<String?> emptySlots = [null, null, null];
 
   /// Starting points for local estimation, not published limits — Anthropic
   /// does not publish plan limits as token counts, so there is no authoritative
@@ -204,7 +212,10 @@ class AppSettings {
         'railAppearance': railAppearance.name,
       };
 
-  static AppSettings fromJson(Map<String, dynamic> json, {int slotCount = 4}) {
+  static AppSettings fromJson(
+    Map<String, dynamic> json, {
+    int slotCount = ProviderCatalog.slotCount,
+  }) {
     const fallback = AppSettings();
     final seconds = json['refreshIntervalSeconds'];
     final offset = json['railOffset'];
