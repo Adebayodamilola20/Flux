@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/logger.dart';
 import '../models/app_settings.dart';
+import '../models/rail_placement.dart';
 import 'native/native_bridge.dart';
 import 'settings_service.dart';
 import 'usage_controller.dart';
@@ -231,6 +232,7 @@ class ShellController extends ChangeNotifier {
   Future<void> _applyPlacement({bool force = false}) async {
     final s = _settings;
     final changed = force ||
+        s.railAppearance != _lastAppliedPlacement.railAppearance ||
         s.railEdge != _lastAppliedPlacement.railEdge ||
         s.railOffset != _lastAppliedPlacement.railOffset ||
         s.screenId != _lastAppliedPlacement.screenId ||
@@ -246,6 +248,7 @@ class ShellController extends ChangeNotifier {
       screenId: s.screenId,
     );
     await _native.setRailPinnedOpen(!s.railExpansion.autoCollapses);
+    await _native.setRailGlass(s.railAppearance == RailAppearance.glass);
 
     if (_surface == ShellSurface.rail) {
       s.railVisible

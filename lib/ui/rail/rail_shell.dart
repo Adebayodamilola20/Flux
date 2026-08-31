@@ -106,6 +106,7 @@ class _RailShellState extends State<RailShell>
                     metrics: metrics,
                     hoveredId: _hoveredId,
                     onRightEdge: onRight,
+                    appearance: settings.railAppearance,
                     onHoverSlot: (id) => setState(() => _hoveredId = id),
                     onOpenDetail: (id) => shell.openPanel(
                       ShellSurface.providerDetail,

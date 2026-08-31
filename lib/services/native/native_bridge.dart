@@ -337,6 +337,14 @@ class NativeBridge {
         false;
   }
 
+  /// Turns the frosted material behind the rail on or off.
+  ///
+  /// Native because the blur samples the desktop the window sits on, which
+  /// only AppKit can see — a Flutter `BackdropFilter` would blur the inside of
+  /// a transparent window, which is nothing.
+  Future<void> setRailGlass(bool enabled) =>
+      _invoke<void>('rail.setGlass', {'enabled': enabled});
+
   /// Reads the credential blob Claude Code keeps in the login Keychain.
   ///
   /// Used for one thing: asking Anthropic for the account's current usage, so

@@ -21,6 +21,7 @@ class AppSettings {
     this.sessionTokenBudget = defaultSessionTokenBudget,
     this.weeklyTokenBudget = defaultWeeklyTokenBudget,
     this.slots = emptySlots,
+    this.railAppearance = RailAppearance.solid,
   });
 
   /// A rail with nothing on it yet.
@@ -95,6 +96,9 @@ class AppSettings {
     return List.unmodifiable(out);
   }
 
+  /// Solid or frosted.
+  final RailAppearance railAppearance;
+
   /// How often usage is refreshed automatically.
   final Duration refreshInterval;
 
@@ -159,6 +163,7 @@ class AppSettings {
     int? sessionTokenBudget,
     int? weeklyTokenBudget,
     List<String?>? slots,
+    RailAppearance? railAppearance,
   }) {
     return AppSettings(
       refreshInterval: refreshInterval ?? this.refreshInterval,
@@ -176,6 +181,7 @@ class AppSettings {
       sessionTokenBudget: sessionTokenBudget ?? this.sessionTokenBudget,
       weeklyTokenBudget: weeklyTokenBudget ?? this.weeklyTokenBudget,
       slots: slots ?? this.slots,
+      railAppearance: railAppearance ?? this.railAppearance,
     );
   }
 
@@ -195,6 +201,7 @@ class AppSettings {
         'sessionTokenBudget': sessionTokenBudget,
         'weeklyTokenBudget': weeklyTokenBudget,
         'slots': slots,
+        'railAppearance': railAppearance.name,
       };
 
   static AppSettings fromJson(Map<String, dynamic> json, {int slotCount = 4}) {
@@ -226,6 +233,10 @@ class AppSettings {
         orElse: () => fallback.railExpansion,
       ),
       railVisible: json['railVisible'] as bool? ?? fallback.railVisible,
+      railAppearance: RailAppearance.values.firstWhere(
+        (a) => a.name == json['railAppearance'],
+        orElse: () => fallback.railAppearance,
+      ),
       screenId: json['screenId'] as String?,
       themeMode: ThemeMode.values.firstWhere(
         (m) => m.name == json['themeMode'],
@@ -271,6 +282,7 @@ class AppSettings {
       other.onboardingComplete == onboardingComplete &&
       other.sessionTokenBudget == sessionTokenBudget &&
       other.weeklyTokenBudget == weeklyTokenBudget &&
+      other.railAppearance == railAppearance &&
       _sameSlots(other.slots, slots);
 
   @override
@@ -291,6 +303,7 @@ class AppSettings {
           sessionTokenBudget,
           weeklyTokenBudget,
           Object.hashAll(slots),
+          railAppearance,
         ),
       );
 

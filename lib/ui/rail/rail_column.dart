@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/connection_status.dart';
+import '../../models/rail_placement.dart';
 import '../../services/native/native_bridge.dart';
 import '../../services/usage_controller.dart';
 import '../theme/app_theme.dart';
@@ -23,6 +24,7 @@ class RailColumn extends StatelessWidget {
     required this.onOpenDetail,
     required this.onAddToSlot,
     required this.onRightEdge,
+    this.appearance = RailAppearance.solid,
   });
 
   /// What each rail position holds. A null entry is an empty slot, drawn as a
@@ -40,13 +42,29 @@ class RailColumn extends StatelessWidget {
   final ValueChanged<int> onAddToSlot;
   final bool onRightEdge;
 
+  /// Solid or frosted. Glass thins the fill so the material behind it — drawn
+  /// natively, because only AppKit can blur the desktop — actually shows.
+  final RailAppearance appearance;
+
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
+    final isGlass = appearance == RailAppearance.glass;
+
     return NotchShape(
-      // The rail is a hardware-like edge notch, not a themed panel.
-      fill: const Color(0xFF000000),
-      borderColor: const Color(0xFF000000),
-      shadowColor: const Color(0x99000000),
+      // Denser than a floating panel — the rail sits flush against the bezel
+      // and reads as part of the display — but still themed. A black bar on a
+      // light desktop reads as a bug.
+      // Glass keeps a thin wash of the theme colour over the frost. Fully
+      // transparent would leave the rings floating on a blur with nothing to
+      // separate them from a busy desktop.
+      fill: isGlass
+          ? palette.railFill.withValues(alpha: 0.28)
+          : palette.railFill,
+      borderColor: isGlass
+          ? palette.textTertiary.withValues(alpha: 0.28)
+          : palette.railBorder,
+      shadowColor: palette.railShadow,
       onRightEdge: onRightEdge,
       child: SizedBox(
         width: metrics.collapsedWidth,
@@ -215,7 +233,7 @@ class RailNub extends StatelessWidget {
       width: AppMetrics.nubWidth,
       height: AppMetrics.nubHeight,
       decoration: BoxDecoration(
-        color: const Color(0xFF000000),
+        color: context.palette.railFill,
         // Rounded on the inward side only; the edge side is flat against the
         // bezel, the same rule the full rail follows.
         borderRadius: BorderRadius.horizontal(

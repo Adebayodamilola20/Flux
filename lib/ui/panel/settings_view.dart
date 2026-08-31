@@ -474,6 +474,18 @@ class _AppearanceSection extends StatelessWidget {
                 v == null ? null : onUpdate(settings.copyWith(themeMode: v)),
           ),
         ),
+        SettingsRow(
+          label: 'Rail surface',
+          description: settings.railAppearance.description,
+          control: SettingsDropdown<RailAppearance>(
+            value: settings.railAppearance,
+            items: RailAppearance.values,
+            labelBuilder: (a) => a.label,
+            onChanged: (v) => v == null
+                ? null
+                : onUpdate(settings.copyWith(railAppearance: v)),
+          ),
+        ),
       ],
     );
   }
