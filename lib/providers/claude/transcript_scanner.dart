@@ -7,6 +7,7 @@ class TranscriptEvent {
     required this.id,
     required this.timestamp,
     required this.tokens,
+    this.cacheReadTokens = 0,
     this.model,
     this.workingDirectory,
   });
@@ -15,8 +16,19 @@ class TranscriptEvent {
   final String id;
   final DateTime timestamp;
 
-  /// Total tokens for the turn: input + cache creation + cache read + output.
+  /// Tokens of actual work for the turn: input, cache writes, and output.
+  ///
+  /// **Cache reads are excluded**, and that omission is the whole point.
+  /// Replaying a large cached context can register tens of millions of cache
+  /// reads in an afternoon, so folding them in produced a "usage" figure in the
+  /// hundreds of millions that bore no relation to anything the user
+  /// recognises. Cache reads are counted separately in [cacheReadTokens] for
+  /// anyone who wants them.
   final int tokens;
+
+  /// Tokens served from the prompt cache. Large, cheap, and reported apart
+  /// from [tokens] so it can never inflate the headline number.
+  final int cacheReadTokens;
   final String? model;
 
   /// The directory the session was working in, used to name the active session.
@@ -193,16 +205,20 @@ TranscriptEvent? _parseLine(String line) {
     _ => '${decoded['requestId']}',
   };
 
+  final cacheRead = _int(usage['cache_read_input_tokens']);
   final tokens = _int(usage['input_tokens']) +
       _int(usage['cache_creation_input_tokens']) +
-      _int(usage['cache_read_input_tokens']) +
       _int(usage['output_tokens']);
-  if (tokens <= 0) return null;
+
+  // A turn that was served entirely from cache still happened, so it is kept
+  // rather than dropped for having no fresh tokens.
+  if (tokens <= 0 && cacheRead <= 0) return null;
 
   return TranscriptEvent(
     id: id,
     timestamp: timestamp,
     tokens: tokens,
+    cacheReadTokens: cacheRead,
     model: message['model'] as String?,
     workingDirectory: decoded['cwd'] as String?,
   );

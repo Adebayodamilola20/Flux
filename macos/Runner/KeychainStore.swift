@@ -64,3 +64,87 @@ enum KeychainStore {
         ]
     }
 }
+
+/// Reads the session Claude Code already holds, so this app can ask Anthropic
+/// for the current usage figure instead of showing a cached one.
+///
+/// Claude Code used to keep its OAuth tokens in `~/.claude/.credentials.json`.
+/// On macOS it now keeps them in the login Keychain, and leaves the old file
+/// behind unmaintained — which is why reading that file yields a token that
+/// expired months ago, and why usage read through it is always the stale copy
+/// from `~/.claude.json` rather than the live number.
+///
+/// Deliberately narrow. This is not a general "read any Keychain item" call:
+///
+///  * the service name is a constant here, not a parameter, so nothing on the
+///    Dart side can point it at another application's secrets,
+///  * the token is used for exactly one request — Anthropic's own usage
+///    endpoint — and is never written anywhere, logged, or persisted,
+///  * it is only ever read, never updated or refreshed. Refreshing would
+///    rotate the token and sign the user out of their own CLI.
+///
+/// macOS asks the user to approve the first read, because the item belongs to
+/// another application. That prompt is the correct gate and this code does not
+/// try to avoid it.
+enum ClaudeCodeCredentials {
+
+    /// The service name Claude Code files its credentials under.
+    private static let service = "Claude Code-credentials"
+
+    enum Outcome {
+        /// The stored credential blob, verbatim JSON.
+        case found(String)
+        /// Claude Code has not signed in on this Mac.
+        case absent
+        /// The user declined the Keychain prompt, or macOS refused.
+        case denied
+    }
+
+    /// Reads the credential blob.
+    ///
+    /// Blocks while the approval dialog is up, so callers must keep this off
+    /// the main thread.
+    static func read() -> Outcome {
+        let base: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+
+        // Claude Code files the item under the macOS short user name. Trying
+        // that first keeps the query specific; the service-only query is the
+        // fallback so a differently-filed item is still found rather than
+        // reported as "not signed in".
+        var queries = [base]
+        queries.insert(
+            base.merging([kSecAttrAccount as String: NSUserName()]) { current, _ in current },
+            at: 0
+        )
+
+        var lastStatus = errSecItemNotFound
+        for query in queries {
+            var item: CFTypeRef?
+            let status = SecItemCopyMatching(query as CFDictionary, &item)
+            lastStatus = status
+
+            if status == errSecSuccess {
+                guard let data = item as? Data,
+                      let value = String(data: data, encoding: .utf8),
+                      !value.isEmpty
+                else {
+                    return .absent
+                }
+                return .found(value)
+            }
+            // Only a genuine miss is worth retrying with a wider query. A
+            // refusal will refuse again, and asking twice means two dialogs.
+            if status != errSecItemNotFound { break }
+        }
+
+        // errSecUserCanceled, errSecAuthFailed, errSecInteractionNotAllowed all
+        // mean the same thing to the caller: no token this time, so fall back
+        // to the cached figures rather than failing the refresh outright.
+        return lastStatus == errSecItemNotFound ? .absent : .denied
+    }
+}

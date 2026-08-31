@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/formatting.dart';
+import '../../models/connection_status.dart';
 import '../../models/usage_snapshot.dart';
 import '../../models/usage_window.dart';
 import '../../services/history_service.dart';
@@ -47,19 +48,31 @@ class ProviderDetailView extends StatelessWidget {
               style: TextStyle(fontSize: 11, color: palette.textTertiary),
             ),
           ),
-          PillButton(
-            label: state.isRefreshing ? 'Refreshing…' : 'Refresh',
-            emphasised: true,
-            onPressed:
-                state.isRefreshing ? null : () => usage.refresh(providerId),
-          ),
-          const SizedBox(width: 8),
-          PillButton(
-            label: 'Disconnect',
-            onPressed: state.connection.isConnected
-                ? () => usage.disconnect(providerId)
-                : null,
-          ),
+          // An unconnected slot gets one action, and it is the only one that
+          // does anything: Refresh would just fail again, and Disconnect has
+          // nothing to disconnect. Offering them here was a dead end — the
+          // panel said "not connected" and gave no way to fix it.
+          if (!state.connection.isConnected)
+            PillButton(
+              label: 'Connect ${state.displayName}',
+              emphasised: true,
+              onPressed: state.status == ConnectionStatus.unsupported
+                  ? null
+                  : () => shell.openPanel(ShellSurface.onboarding),
+            )
+          else ...[
+            PillButton(
+              label: state.isRefreshing ? 'Refreshing…' : 'Refresh',
+              emphasised: true,
+              onPressed:
+                  state.isRefreshing ? null : () => usage.refresh(providerId, manual: true),
+            ),
+            const SizedBox(width: 8),
+            PillButton(
+              label: 'Disconnect',
+              onPressed: () => usage.disconnect(providerId),
+            ),
+          ],
         ],
       ),
       child: ListView(
@@ -85,7 +98,12 @@ class ProviderDetailView extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          if (state.failure != null)
+          // "Not connected" is a starting point, not a fault, so it is
+          // explained rather than shown in a red error box.
+          if (!state.connection.isConnected &&
+              state.status != ConnectionStatus.unsupported)
+            _NotConnectedBlock(state: state)
+          else if (state.failure != null)
             _FailureBlock(
               message: state.failure!.message,
               hint: state.failure!.hint,
@@ -379,4 +397,80 @@ class _FailureBlock extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Explains what connecting this provider will and will not do.
+///
+/// The distinction matters most for Claude, where two different things share a
+/// name: the *account* usage a connection unlocks, and the local Claude Code
+/// *activity* that is detected with no connection at all. Someone looking for
+/// their Claude Code session limits here should be told plainly that connecting
+/// will not produce them.
+class _NotConnectedBlock extends StatelessWidget {
+  const _NotConnectedBlock({required this.state});
+
+  final ProviderState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final method = state.descriptor.authMethod;
+
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: palette.surfaceRaised,
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: palette.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Not connected yet',
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: palette.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            method.explanation,
+            style: TextStyle(
+              fontSize: 11.5,
+              height: 1.4,
+              color: palette.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 9),
+          Text(
+            _scopeNote(state.id),
+            style: TextStyle(
+              fontSize: 11,
+              height: 1.4,
+              color: palette.textTertiary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// What the resulting numbers will actually cover.
+  static String _scopeNote(String providerId) => switch (providerId) {
+        'claude' =>
+          'Connecting reports Anthropic API usage for your account. Anthropic '
+              'publishes no API for Claude or Claude Code plan limits, so those '
+              'are not shown here. Claude Code sessions running on this Mac are '
+              'still detected without connecting — they appear as activity, not '
+              'as usage.',
+        'gemini' =>
+          'Connecting uses the session your Gemini CLI already holds and reads '
+              'the quota panel it draws for that account.',
+        'antigravity' =>
+          'Connecting uses the session your Antigravity CLI already holds and '
+              'reads the quota panel it draws for that account.',
+        _ => 'Connecting lets this provider report usage for your account.',
+      };
 }

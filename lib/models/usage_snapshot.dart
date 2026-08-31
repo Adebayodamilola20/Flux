@@ -67,10 +67,7 @@ class UsageSnapshot {
       consumed: (json['consumed'] as num?) ?? 0,
       limit: json['limit'] as num?,
       percent: json['percent'] as int?,
-      source: UsageSource.values.firstWhere(
-        (s) => s.name == json['source'],
-        orElse: () => UsageSource.unavailable,
-      ),
+      source: UsageSource.fromName(json['source']),
     );
   }
 

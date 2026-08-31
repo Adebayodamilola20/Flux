@@ -34,8 +34,9 @@ void main() {
     usage = UsageController(
       registry: ProviderRegistry([
         provider,
-        ReservedProvider(ProviderCatalog.codex),
-        ReservedProvider(ProviderCatalog.antigravity),
+        ReservedProvider(ProviderCatalog.reserved),
+        FakeProvider(id: 'antigravity', displayName: 'Antigravity'),
+        FakeProvider(id: 'openrouter', displayName: 'OpenRouter'),
       ]),
       settingsService: settings,
       historyService: HistoryService(preferences: preferences),
@@ -90,7 +91,7 @@ void main() {
       await boot();
       await shell.start();
 
-      expect(shell.metrics.slots, 3);
+      expect(shell.metrics.slots, 4);
       expect(shell.metrics.collapsedWidth, 62);
     });
 

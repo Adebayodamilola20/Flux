@@ -3,6 +3,8 @@ import 'package:flutter/widgets.dart';
 import '../../core/formatting.dart';
 import '../../models/active_session.dart';
 import '../../models/connection_status.dart';
+import '../../models/provider_connection.dart';
+import '../../models/usage_failure.dart';
 import '../../models/usage_window.dart';
 import '../../services/usage_controller.dart';
 import '../theme/app_theme.dart';
@@ -21,11 +23,15 @@ class RailCallout extends StatelessWidget {
     required this.state,
     required this.onRightEdge,
     required this.onConnect,
+    required this.onRetry,
   });
 
   final ProviderState state;
   final bool onRightEdge;
   final VoidCallback onConnect;
+
+  /// Re-runs the fetch for this provider.
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -68,19 +74,89 @@ class RailCallout extends StatelessWidget {
     }
 
     if (!state.connection.isConnected) {
+      final noSignIn =
+          state.descriptor.authMethod == ProviderAuthMethod.localActivityOnly;
+
       return [
         _Note(
-          text: 'Sign in to ${state.displayName} to see your usage.',
+          text: noSignIn
+              // Nothing to connect, so do not invite the user to try.
+              ? 'No account sign-in is available for ${state.displayName}.'
+              : 'Sign in to ${state.displayName} to see your usage.',
           color: palette.textSecondary,
         ),
-        const SizedBox(height: 9),
-        _ConnectButton(label: 'Connect ${state.displayName}', onTap: onConnect),
+        if (state.sessions.isNotEmpty) ...[
+          const SizedBox(height: 9),
+          Container(height: 1, color: palette.divider),
+          const SizedBox(height: 8),
+          _SessionRow(session: state.sessions.first),
+        ] else if (noSignIn) ...[
+          const SizedBox(height: 5),
+          _Note(
+            text: 'Nothing running right now.',
+            color: palette.textTertiary,
+          ),
+        ],
+        if (!noSignIn) ...[
+          const SizedBox(height: 9),
+          _ConnectButton(
+            label: 'Connect ${state.displayName}',
+            onTap: onConnect,
+          ),
+        ],
       ];
     }
 
-    if (state.failure != null) {
+    // Connected, but the provider has no quota to give. Not an error: the sign-in
+    // worked and there is nothing for the user to fix, so it is stated plainly
+    // and local activity is still shown underneath.
+    if (state.isUsageUnavailable) {
+      final sessions = state.sessions;
       return [
-        _Note(text: state.failure!.message, color: palette.accentCritical),
+        _Note(text: 'Usage unavailable', color: palette.textSecondary),
+        if (state.usageUnavailableReason != null) ...[
+          const SizedBox(height: 4),
+          _Note(
+            text: state.usageUnavailableReason!,
+            color: palette.textTertiary,
+          ),
+        ],
+        if (sessions.isNotEmpty) ...[
+          const SizedBox(height: 9),
+          Container(height: 1, color: palette.divider),
+          const SizedBox(height: 8),
+          _SessionRow(session: sessions.first),
+        ],
+        if (state.canRetryUsage) ...[
+          const SizedBox(height: 9),
+          _ConnectButton(
+            label: state.isRefreshing ? 'Checking…' : 'Retry',
+            onTap: onRetry,
+            enabled: !state.isRefreshing,
+          ),
+        ],
+      ];
+    }
+
+    final failure = state.failure;
+    if (failure != null) {
+      // A stale credential is the user's problem to fix, and retrying will not
+      // fix it — so that case gets Reconnect, everything else gets Retry.
+      final needsReauth = failure.kind == UsageFailureKind.authentication;
+
+      return [
+        _Note(
+          text: needsReauth ? 'Authentication required' : 'Usage unavailable',
+          color: palette.accentCritical,
+        ),
+        const SizedBox(height: 4),
+        // The reason, always. "Unavailable" on its own tells the user nothing
+        // about whether to wait, retry, or go and sign in again.
+        _Note(text: failure.message, color: palette.textSecondary),
+        if (failure.hint != null) ...[
+          const SizedBox(height: 3),
+          _Note(text: failure.hint!, color: palette.textTertiary),
+        ],
         if (state.lastUpdated != null) ...[
           const SizedBox(height: 5),
           _Note(
@@ -88,6 +164,14 @@ class RailCallout extends StatelessWidget {
             color: palette.textTertiary,
           ),
         ],
+        const SizedBox(height: 9),
+        _ConnectButton(
+          label: needsReauth
+              ? 'Reconnect ${state.displayName}'
+              : (state.isRefreshing ? 'Retrying…' : 'Retry'),
+          onTap: needsReauth ? onConnect : onRetry,
+          enabled: !state.isRefreshing,
+        ),
       ];
     }
 
@@ -99,6 +183,10 @@ class RailCallout extends StatelessWidget {
               : 'No usage reported yet.',
           color: palette.textTertiary,
         ),
+        if (!state.isRefreshing) ...[
+          const SizedBox(height: 9),
+          _ConnectButton(label: 'Retry', onTap: onRetry),
+        ],
       ];
     }
 
@@ -107,11 +195,11 @@ class RailCallout extends StatelessWidget {
         _WindowRow(window: window),
         if (window != data.windows.last) const SizedBox(height: 9),
       ],
-      if (data.sessions.isNotEmpty) ...[
+      if (state.sessions.isNotEmpty) ...[
         const SizedBox(height: 9),
         Container(height: 1, color: palette.divider),
         const SizedBox(height: 8),
-        _SessionRow(session: data.sessions.first),
+        _SessionRow(session: state.sessions.first),
       ],
     ];
   }
@@ -284,10 +372,15 @@ class _Note extends StatelessWidget {
 }
 
 class _ConnectButton extends StatefulWidget {
-  const _ConnectButton({required this.label, required this.onTap});
+  const _ConnectButton({
+    required this.label,
+    required this.onTap,
+    this.enabled = true,
+  });
 
   final String label;
   final VoidCallback onTap;
+  final bool enabled;
 
   @override
   State<_ConnectButton> createState() => _ConnectButtonState();
@@ -300,12 +393,14 @@ class _ConnectButtonState extends State<_ConnectButton> {
   Widget build(BuildContext context) {
     final palette = context.palette;
 
+    final enabled = widget.enabled;
+
     return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      onEnter: (_) => setState(() => _hovered = true),
+      cursor: enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
+      onEnter: (_) => setState(() => _hovered = enabled),
       onExit: (_) => setState(() => _hovered = false),
       child: GestureDetector(
-        onTap: widget.onTap,
+        onTap: enabled ? widget.onTap : null,
         behavior: HitTestBehavior.opaque,
         child: AnimatedContainer(
           duration: AppMetrics.fadeAnimation,
@@ -320,7 +415,9 @@ class _ConnectButtonState extends State<_ConnectButton> {
             style: TextStyle(
               fontSize: 10.5,
               fontWeight: FontWeight.w600,
-              color: _hovered ? palette.surface : palette.textPrimary,
+              color: !enabled
+                ? palette.textTertiary
+                : (_hovered ? palette.surface : palette.textPrimary),
             ),
           ),
         ),

@@ -11,7 +11,7 @@ class MainFlutterWindow: RailWindow {
     /// Number of provider slots the rail is laid out for. Mirrors
     /// `ProviderCatalog.slotCount` in Dart; the registry asserts the Dart side
     /// matches, and the rail's height is derived from it here.
-    static let slotCount = 3
+    static let slotCount = 4
 
     private var statusItemController: StatusItemController?
     private var railController: RailWindowController?

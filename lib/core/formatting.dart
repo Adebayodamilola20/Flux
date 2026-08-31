@@ -44,9 +44,27 @@ abstract final class Format {
 
   /// "12.4K of 8.0M tokens" — the detail line under a progress bar.
   static String consumption(num consumed, num? limit, String unit) {
+    // A percentage reads as what is left, not as "21.58 of 100 %".
+    //
+    // Worth stating explicitly rather than leaving to arithmetic: the CLIs and
+    // dashboards these figures come from mostly report what *remains*, while a
+    // ring has to fill as you consume. Showing "22%" beside a CLI saying "78%
+    // remaining" looks like a disagreement until you do the subtraction, so the
+    // card does it.
+    final left = remaining(consumed, limit, unit);
+    if (left != null) return left;
+
     final used = compactNumber(consumed);
     if (limit == null) return '$used $unit';
     return '$used of ${compactNumber(limit)} $unit';
+  }
+
+  /// What is left of a window measured as a percentage, or null when the window
+  /// is measured in something else.
+  static String? remaining(num consumed, num? limit, String unit) {
+    if (unit != '%' || limit == null || limit <= 0) return null;
+    final left = (limit - consumed).clamp(0, limit);
+    return '${left.round()}% left';
   }
 
   /// A refresh interval as a short label: "5 min", "1 hour".

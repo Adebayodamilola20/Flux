@@ -102,15 +102,15 @@ void main() {
 
     test('reports provider-reported only when every window is', () {
       final d = data([
-        window(source: UsageSource.providerReported),
-        window(id: 'weekly', source: UsageSource.providerReported),
+        window(source: UsageSource.officialApi),
+        window(id: 'weekly', source: UsageSource.officialApi),
       ]);
-      expect(d.source, UsageSource.providerReported);
+      expect(d.source, UsageSource.officialApi);
     });
 
     test('degrades to local tracking when sources are mixed', () {
       final d = data([
-        window(source: UsageSource.providerReported),
+        window(source: UsageSource.officialApi),
         window(id: 'weekly', source: UsageSource.localTracking),
       ]);
       expect(d.source, UsageSource.localTracking,
@@ -174,12 +174,12 @@ void main() {
         consumed: 10,
         limit: 100,
         percent: 10,
-        source: UsageSource.providerReported,
+        source: UsageSource.officialApi,
       );
       final restored = UsageSnapshot.fromJson(snapshot.toJson())!;
       expect(restored.takenAt, snapshot.takenAt);
       expect(restored.percent, 10);
-      expect(restored.source, UsageSource.providerReported);
+      expect(restored.source, UsageSource.officialApi);
     });
 
     test('rejects malformed records instead of throwing', () {

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import '../../core/formatting.dart';
 import '../../core/logger.dart';
 import '../../models/active_session.dart';
 import '../../models/app_settings.dart';
@@ -7,12 +8,13 @@ import '../../models/connection_status.dart';
 import '../../models/provider_connection.dart';
 import '../../models/usage_data.dart';
 import '../../models/usage_failure.dart';
-import '../../models/usage_window.dart';
 import '../../services/connection_store.dart';
 import '../../services/native/native_bridge.dart';
 import '../provider_catalog.dart';
 import '../usage_provider.dart';
+import 'claude_account_source.dart';
 import 'claude_admin_api_source.dart';
+import 'claude_live_source.dart';
 import 'claude_local_source.dart';
 
 /// Claude usage, assembled from every legitimate source available.
@@ -39,9 +41,16 @@ class ClaudeUsageProvider implements UsageProvider {
     required ConnectionStore connectionStore,
     ClaudeLocalSource? localSource,
     ClaudeAdminApiSource? apiSource,
+    ClaudeAccountSource? accountSource,
+    ClaudeLiveUsageSource? liveSource,
     Logger? logger,
   })  : _native = native,
         _connections = connectionStore,
+        _account = accountSource ?? ClaudeAccountSource(),
+        _live = liveSource ??
+            ClaudeLiveUsageSource(
+              keychainReader: native.readClaudeCodeCredentials,
+            ),
         _local = localSource ?? ClaudeLocalSource(),
         _api = apiSource ?? ClaudeAdminApiSource(),
         _log = logger ?? const Logger('claude'),
@@ -52,14 +61,19 @@ class ClaudeUsageProvider implements UsageProvider {
 
   /// Where the user creates that key. Opened in their default browser so they
   /// authenticate with Anthropic directly, never through this app.
+  /// Anthropic's current console host. `console.anthropic.com` still works but
+  /// redirects here, and landing on a redirect makes an already-unfamiliar
+  /// destination look like the app sent the user somewhere wrong.
   static final Uri consoleUrl =
-      Uri.parse('https://console.anthropic.com/settings/admin-keys');
+      Uri.parse('https://platform.claude.com/settings/admin-keys');
 
   /// Executable names that indicate an active Claude CLI session.
   static const List<String> _processNames = ['claude'];
 
   final NativeBridge _native;
   final ConnectionStore _connections;
+  final ClaudeAccountSource _account;
+  final ClaudeLiveUsageSource _live;
   final ClaudeLocalSource _local;
   final ClaudeAdminApiSource _api;
   final Logger _log;
@@ -83,23 +97,52 @@ class ClaudeUsageProvider implements UsageProvider {
   @override
   ProviderConnection get connection => _connection;
 
-  /// Deliberately false.
+  /// True when Claude Code has signed in on this Mac.
   ///
-  /// This provider will not report a usage figure the user has not signed in
-  /// for. Counting tokens out of local Claude Code transcripts produces a
-  /// number, but it is this app's arithmetic against a budget the user typed
-  /// in — not what Anthropic says the account has consumed — and showing it on
-  /// the rail next to a percentage invites it to be read as the latter.
-  ///
-  /// Local session detection is still used, but only to report that a process
-  /// is running. That is an observation, not a usage claim.
+  /// Anthropic publishes no OAuth flow a third party can register for, so
+  /// there is no browser step to offer. What there is instead is a session
+  /// Claude Code already established, and the account it belongs to.
   @override
-  bool get supportsLocalOnly => false;
+  bool get supportsLocalOnly => _account.isAvailable;
 
   // MARK: - Connection lifecycle
 
+  /// Re-reads as soon as Claude Code rewrites its config, so the rail shows
+  /// the newest figures Anthropic has reported rather than waiting for the
+  /// next scheduled refresh.
+  @override
+  Stream<void>? get changes => _account.watch();
+
+  /// Claude usage moves with every prompt, and reading it is one small GET
+  /// against Anthropic's own endpoint. Polling it on the user's general
+  /// interval — five minutes by default — means the rail disagrees with
+  /// `claude /usage` for most of every five minutes, which is the whole
+  /// complaint. The file watch catches Claude Code's own refreshes within a
+  /// couple of seconds; this covers the rest.
+  @override
+  Duration? get preferredRefreshInterval => const Duration(seconds: 30);
+
+  /// Lets a user who has just approved the Keychain prompt — or just signed in
+  /// to Claude Code — get a live figure now, instead of waiting out the
+  /// back-off that stops a declined dialog from reappearing every poll.
+  @override
+  void invalidateCaches() => _live.reset();
+
   @override
   Future<void> restore() async {
+    // Never set up, and Claude Code is signed in here: adopt the slot rather
+    // than showing a Connect button for an account that is already available.
+    // A deliberate disconnect leaves a record, so it is not undone by this.
+    if (!_connections.isDismissed(id) && !_connections.load(id).isConnected) {
+      if (supportsLocalOnly) {
+        _log.info('adopting claude: Claude Code is signed in here');
+        await enableLocalOnly();
+        return;
+      }
+      _connection = ProviderConnection.notConnected(id);
+      return;
+    }
+
     final stored = _connections.load(id);
 
     // A stored "connected" state is only meaningful if the key is still in the
@@ -181,17 +224,31 @@ class ClaudeUsageProvider implements UsageProvider {
 
   @override
   Future<ProviderConnection> enableLocalOnly() async {
-    // No unsigned-in path: usage comes from Anthropic or it is not shown.
-    return _update(_connection.copyWith(
-      status: ConnectionStatus.error,
-      message: 'Claude usage requires signing in to your Anthropic account.',
+    final reading = await _account.read();
+
+    if (!reading.isSignedIn) {
+      return _update(_connection.copyWith(
+        status: ConnectionStatus.error,
+        message: 'No signed-in Claude account was found on this Mac. '
+            'Sign in to Claude Code, then connect again.',
+      ));
+    }
+
+    // `connected`, because these are Anthropic's own figures for a real
+    // account — not an estimate this app produced.
+    return _update(ProviderConnection(
+      providerId: id,
+      status: ConnectionStatus.connected,
+      connectedAt: DateTime.now(),
+      accountLabel: reading.email,
     ));
   }
 
   @override
   Future<void> disconnect() async {
     await _native.writeSecret(adminKeyKeychainId, null);
-    await _connections.clear(id);
+    // A record, not an erasure — see ConnectionStore.markDisconnected.
+    await _connections.markDisconnected(id);
     _connection = ProviderConnection.notConnected(id);
   }
 
@@ -213,73 +270,141 @@ class ClaudeUsageProvider implements UsageProvider {
     return await _adminKey() != null;
   }
 
+  /// Claude Code sessions running on this Mac.
+  ///
+  /// Needs no connection, no key, and no account: it is a process scan plus the
+  /// working directory of the most recent local transcript. This is what makes
+  /// Claude useful on the rail even though Anthropic offers no account sign-in
+  /// for usage.
+  @override
+  Future<List<ActiveSession>> detectActivity() async {
+    if (!_local.isAvailable) {
+      // No transcripts to name a project from, but a running process is still
+      // worth reporting.
+      final processes = await _native.findProcesses(_processNames);
+      return [
+        for (final process in processes)
+          ActiveSession(
+            title: displayName,
+            host: process.host,
+            command: 'Claude Code',
+            pid: process.pid,
+          ),
+      ];
+    }
+
+    try {
+      final local = await _local.load(const AppSettings());
+      return _resolveSessions(local);
+    } on FileSystemException catch (e) {
+      _log.warn('local session scan failed: ${e.osError?.message}');
+      return const [];
+    }
+  }
+
   @override
   Future<UsageData> fetchUsage(AppSettings settings) async {
-    if (_connection.status == ConnectionStatus.notConnected) {
+    if (!_connection.isConnected) {
       throw const UsageFailure(
         UsageFailureKind.notConfigured,
         'Claude is not connected.',
-        hint: 'Connect Claude to start tracking usage.',
+        hint: 'Connect Claude to see your subscription usage.',
       );
     }
 
-    // Every usage figure this provider reports comes from Anthropic. Without a
-    // key there is nothing legitimate to show, and the rail says "not
-    // connected" rather than filling the gap with local arithmetic.
-    final adminKey = await _adminKey();
-    if (adminKey == null) {
+    final reading = await _account.read();
+
+    if (!reading.isSignedIn) {
+      await _update(_connection.copyWith(
+        status: ConnectionStatus.notConnected,
+        message: 'The Claude account on this Mac is signed out.',
+      ));
       throw const UsageFailure(
         UsageFailureKind.authentication,
-        'Sign in to Anthropic to see your Claude usage.',
-        hint: 'Connect Claude to add an Admin API key from your account.',
+        'The Claude account on this Mac is signed out.',
+        hint: 'Sign in to Claude Code, then reconnect.',
       );
     }
 
-    final windows = <UsageWindow>[];
-    final apiWindow = await _api.fetchDailyUsage(adminKey: adminKey);
-    if (apiWindow != null) windows.add(apiWindow);
+    if (reading.email != _connection.accountLabel) {
+      await _update(_connection.copyWith(accountLabel: reading.email));
+    }
 
-    if (windows.isEmpty) {
-      throw const UsageFailure(
-        UsageFailureKind.notConfigured,
-        'Anthropic reported no usage for this account yet.',
+    final plan = ClaudeAccountSource.planLabel(reading.plan);
+
+    // Live first. `~/.claude.json` is a cache Claude Code last wrote; the live
+    // endpoint returns the same server-computed figure, current now, using the
+    // session Claude Code already holds. Prefer it, and fall back to the cache
+    // only when the token cannot be used without disturbing Claude Code's own
+    // login (expired) or the call cannot be made (offline).
+    final (live, failure) = await _live.fetch();
+    if (live != null && live.hasUsage) {
+      return UsageData(
+        providerId: id,
+        providerName: displayName,
+        windows: live.windows,
+        connection: ConnectionStatus.connected,
+        fetchedAt: live.fetchedAt ?? DateTime.now(),
+        accountLabel: reading.email,
+        notes: [
+          if (plan != null) plan,
+          'Live from Anthropic, just now.',
+        ],
+      );
+    }
+    if (failure != null) {
+      _log.info('live usage unavailable (${failure.name}); using cache');
+    }
+
+    // Why the cached figure is being shown, when there is a reason worth
+    // telling the user. Without this the card shows a number that lags the
+    // CLI with no explanation, which reads as the app being wrong.
+    final fallbackNote = switch (failure) {
+      ClaudeLiveFailure.keychainDenied =>
+        'Allow access to “Claude Code-credentials” in your Keychain to read '
+            'live usage. Showing the last figure Claude Code cached.',
+      ClaudeLiveFailure.tokenExpired || ClaudeLiveFailure.unauthorized =>
+        'Claude Code’s stored session could not be used for a live reading. '
+            'Showing the last figure it cached.',
+      ClaudeLiveFailure.network =>
+        'Anthropic could not be reached. Showing the last cached figure.',
+      _ => null,
+    };
+
+    if (!reading.hasUsage) {
+      // Signed in, but neither the live call nor the cache has a figure yet.
+      // Stated as unavailable rather than backfilled with a number of our own.
+      return UsageData(
+        providerId: id,
+        providerName: displayName,
+        windows: const [],
+        connection: ConnectionStatus.connected,
+        fetchedAt: DateTime.now(),
+        accountLabel: reading.email,
+        usageUnavailableReason:
+            'No usage has been reported for this account yet. Run Claude Code '
+            'once to refresh it.',
       );
     }
 
-    // Local session detection is an observation about this machine — which
-    // project is open, whether the process is busy — never a usage figure.
-    var sessions = const <ActiveSession>[];
-    if (_local.isAvailable) {
-      try {
-        final local = await _local.load(settings);
-        sessions = await _resolveSessions(local);
-      } on FileSystemException catch (e) {
-        // Losing the session row must not lose the usage the user signed in
-        // for, so this degrades silently.
-        _log.warn('local session scan failed: ${e.osError?.message}');
-      }
-    }
-
-    const notes = <String>[
-      'Figures reported by the Anthropic API for your account.',
-    ];
-    const status = ConnectionStatus.connected;
-
-    // Keep the persisted link in step with what the fetch actually achieved,
-    // so the connect screen never claims more than the rail is showing.
-    if (_connection.status != status) {
-      await _update(_connection.copyWith(status: status));
-    }
+    final observedAt = reading.fetchedAt;
 
     return UsageData(
       providerId: id,
       providerName: displayName,
-      windows: windows,
-      connection: status,
-      fetchedAt: DateTime.now(),
-      sessions: sessions,
-      accountLabel: _connection.accountLabel,
-      notes: notes,
+      windows: reading.windows,
+      connection: ConnectionStatus.connected,
+      fetchedAt: observedAt ?? DateTime.now(),
+      accountLabel: reading.email,
+      notes: [
+        if (plan != null) plan,
+        // The figures are Anthropic's, but they arrive through a cache Claude
+        // Code refreshes rather than a live call, and the card says so instead
+        // of implying the number is current to the second.
+        if (observedAt != null)
+          'Reported by Anthropic, as of ${Format.relativeTime(observedAt)}.',
+        if (fallbackNote != null) fallbackNote,
+      ],
     );
   }
 
@@ -336,5 +461,6 @@ class ClaudeUsageProvider implements UsageProvider {
   @override
   Future<void> dispose() async {
     _api.close();
+    _live.close();
   }
 }

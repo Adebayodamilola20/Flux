@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../core/logger.dart';
+import '../models/active_session.dart';
 import '../models/app_settings.dart';
 import '../models/connection_status.dart';
 import '../models/provider_connection.dart';
@@ -28,6 +29,7 @@ class ProviderState {
     this.failure,
     this.isRefreshing = false,
     this.lastUpdated,
+    this.sessions = const [],
   });
 
   final ProviderDescriptor descriptor;
@@ -44,6 +46,13 @@ class ProviderState {
   final bool isRefreshing;
   final DateTime? lastUpdated;
 
+  /// Tools of this provider's running on this Mac right now.
+  ///
+  /// Kept outside [data] because it is observed without any account link and
+  /// must survive a provider that is not connected, has no usage, or failed
+  /// its last fetch.
+  final List<ActiveSession> sessions;
+
   String get id => descriptor.id;
   String get displayName => descriptor.displayName;
 
@@ -56,16 +65,62 @@ class ProviderState {
   /// user would read as "I have used nothing".
   int? get percent => data?.primaryPercent;
 
-  ActivityStatus get activity => data?.activity ?? ActivityStatus.unknown;
+  ActivityStatus get activity {
+    if (descriptor.isImplemented == false) return ActivityStatus.unknown;
+    if (sessions.isEmpty) return ActivityStatus.idle;
+    return sessions.any((s) => s.isBusy)
+        ? ActivityStatus.working
+        : ActivityStatus.waiting;
+  }
 
   /// What the rail should say about this slot right now.
+  ///
+  /// Account state and usage availability are separate questions. A connected
+  /// account whose quota could not be read is still **connected** — the user
+  /// signed in successfully and has nothing to fix — so only an authentication
+  /// failure is allowed to downgrade it. Reporting "Disconnected" because a
+  /// provider has no quota endpoint would send the user to re-authorise
+  /// something that was never broken.
   ConnectionStatus get status {
     if (connection.status == ConnectionStatus.unsupported) {
       return ConnectionStatus.unsupported;
     }
     if (isRefreshing && data == null) return ConnectionStatus.connecting;
-    if (failure != null) return ConnectionStatus.error;
-    return data?.connection ?? connection.status;
+
+    final kind = failure?.kind;
+    if (kind == UsageFailureKind.authentication) return ConnectionStatus.error;
+
+    if (connection.isConnected) {
+      return data?.connection ?? connection.status;
+    }
+    return failure != null ? ConnectionStatus.error : connection.status;
+  }
+
+  /// True when the account is linked but there is no quota to show.
+  bool get isUsageUnavailable {
+    if (!connection.isConnected) return false;
+    if (data?.isUsageUnavailable ?? false) return true;
+
+    // A non-auth failure against a connected account is also "no usage to
+    // show" rather than "your account is broken".
+    final kind = failure?.kind;
+    return kind != null && kind != UsageFailureKind.authentication;
+  }
+
+  /// Why usage is missing, when it is.
+  String? get usageUnavailableReason =>
+      data?.usageUnavailableReason ?? failure?.message;
+
+  /// Whether trying again could plausibly change the answer.
+  ///
+  /// False when the provider simply publishes no such data — pressing Retry
+  /// against an endpoint that does not exist produces the same result every
+  /// time, which is how a button becomes noise.
+  bool get canRetryUsage {
+    if (data?.usageUnavailableIsPermanent ?? false) return false;
+    final f = failure;
+    if (f != null) return f.isRetryable;
+    return true;
   }
 
   /// True when this slot has been connected and should appear in the rail with
@@ -79,6 +134,7 @@ class ProviderState {
     bool clearFailure = false,
     bool? isRefreshing,
     DateTime? lastUpdated,
+    List<ActiveSession>? sessions,
   }) {
     return ProviderState(
       descriptor: descriptor,
@@ -87,6 +143,7 @@ class ProviderState {
       failure: clearFailure ? null : (failure ?? this.failure),
       isRefreshing: isRefreshing ?? this.isRefreshing,
       lastUpdated: lastUpdated ?? this.lastUpdated,
+      sessions: sessions ?? this.sessions,
     );
   }
 }
@@ -127,6 +184,24 @@ class UsageController extends ChangeNotifier {
 
   late Map<String, ProviderState> _states;
   Timer? _timer;
+
+  /// Extra timers for providers that want polling faster than the user's
+  /// interval. Keyed by provider id so rescheduling replaces cleanly.
+  final Map<String, Timer> _fastTimers = {};
+
+  /// Collapses bursts of change events into one refresh.
+  ///
+  /// A provider's tool can rewrite its state file several times in a second —
+  /// once per streamed response, say. Without this, each write would start its
+  /// own fetch and the rail would spend more time refreshing than showing a
+  /// number.
+  final Map<String, Timer> _debounces = {};
+
+  /// How long to wait for a change burst to settle. Short enough to feel
+  /// immediate, long enough that a multi-write update fetches once.
+  static const Duration changeDebounce = Duration(milliseconds: 400);
+
+  final List<StreamSubscription<void>> _watchers = [];
   bool _disposed = false;
 
   AppSettings get _settings => _settingsService.settings;
@@ -183,26 +258,92 @@ class UsageController extends ChangeNotifier {
     }
     _safeNotify();
 
+    _watchProviders();
     _scheduleTimer();
     await refreshAll();
   }
 
-  /// Fetches every connected slot.
+  /// Subscribes to providers that can tell us when their data changed.
+  ///
+  /// A timer alone means a figure can sit up to one refresh interval out of
+  /// date; this closes that gap for the providers that can signal.
+  void _watchProviders() {
+    for (final provider in _registry.all) {
+      final changes = provider.changes;
+      if (changes == null) continue;
+      _watchers.add(
+        changes.listen(
+          (_) => _onProviderChanged(provider),
+          onError: (Object e) =>
+              _log.debug('watch failed for ${provider.id}: ${e.runtimeType}'),
+        ),
+      );
+    }
+  }
+
+  /// Re-fetches a provider whose underlying data just changed.
+  ///
+  /// Debounced, and deliberately not gated on the refresh timer: the whole
+  /// point of a change signal is that it beats the next scheduled poll.
+  void _onProviderChanged(UsageProvider provider) {
+    if (_disposed) return;
+    if (!provider.connection.isConnected) return;
+
+    _debounces[provider.id]?.cancel();
+    _debounces[provider.id] = Timer(changeDebounce, () {
+      _debounces.remove(provider.id);
+      if (_disposed) return;
+      unawaited(refresh(provider.id));
+    });
+  }
+
+  /// Fetches every connected slot, and observes local activity for all of them.
+  ///
+  /// Activity is not gated on being connected: a Claude Code session running on
+  /// this Mac is worth showing whether or not the user has linked an account,
+  /// and for providers with no account sign-in at all it is the only thing
+  /// there is to show.
   Future<void> refreshAll() async {
     await Future.wait([
+      refreshActivity(),
       for (final provider in _registry.all)
         if (provider.connection.isConnected) refresh(provider.id),
     ]);
   }
 
+  /// Re-scans for locally running tools across every slot.
+  Future<void> refreshActivity() async {
+    await Future.wait([
+      for (final provider in _registry.all) _detect(provider),
+    ]);
+    _safeNotify();
+  }
+
+  Future<void> _detect(UsageProvider provider) async {
+    try {
+      final sessions = await provider.detectActivity();
+      _states[provider.id] = _states[provider.id]!.copyWith(sessions: sessions);
+    } catch (e) {
+      // Activity is a nicety; failing to observe it must never break a refresh.
+      _log.debug('activity scan failed for ${provider.id}: ${e.runtimeType}');
+    }
+  }
+
   /// Fetches one slot. Concurrent calls for the same slot collapse into the
   /// in-flight one.
-  Future<void> refresh(String providerId) async {
+  ///
+  /// [manual] marks a refresh the user asked for, which lets a provider drop
+  /// caches a scheduled poll would rightly keep — the difference between "check
+  /// again on the timer" and "I have just fixed the thing you complained about,
+  /// try now".
+  Future<void> refresh(String providerId, {bool manual = false}) async {
     final provider = _registry.byId(providerId);
     if (provider == null) return;
 
     final state = _states[providerId]!;
     if (state.isRefreshing) return;
+
+    if (manual) provider.invalidateCaches();
 
     _states[providerId] = state.copyWith(isRefreshing: true);
     _safeNotify();
@@ -335,9 +476,32 @@ class UsageController extends ChangeNotifier {
     unawaited(_syncMenuBar());
   }
 
+  /// Rebuilds the polling schedule: one shared timer, plus a faster one for
+  /// each provider that asked for it.
+  ///
+  /// A provider's preference is only honoured when it is *shorter* than the
+  /// user's interval. The setting stays a ceiling — a user who chose one hour
+  /// still gets hourly polling for everything that does not opt in, and nothing
+  /// can use this to poll less often than they asked.
   void _scheduleTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(_settings.refreshInterval, (_) => refreshAll());
+
+    for (final timer in _fastTimers.values) {
+      timer.cancel();
+    }
+    _fastTimers.clear();
+
+    for (final provider in _registry.all) {
+      final preferred = provider.preferredRefreshInterval;
+      if (preferred == null || preferred >= _settings.refreshInterval) continue;
+
+      _fastTimers[provider.id] = Timer.periodic(preferred, (_) {
+        if (_disposed) return;
+        if (!provider.connection.isConnected) return;
+        unawaited(refresh(provider.id));
+      });
+    }
   }
 
   void _safeNotify() {
@@ -348,6 +512,15 @@ class UsageController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _timer?.cancel();
+    for (final timer in [..._fastTimers.values, ..._debounces.values]) {
+      timer.cancel();
+    }
+    _fastTimers.clear();
+    _debounces.clear();
+    for (final watcher in _watchers) {
+      unawaited(watcher.cancel());
+    }
+    _watchers.clear();
     _settingsService.removeListener(_onSettingsChanged);
     unawaited(_registry.disposeAll());
     super.dispose();

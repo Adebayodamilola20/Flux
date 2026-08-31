@@ -4,14 +4,18 @@ import 'package:ai_usage_monitor/models/usage_failure.dart';
 import 'package:ai_usage_monitor/providers/provider_catalog.dart';
 import 'package:ai_usage_monitor/providers/provider_registry.dart';
 import 'package:ai_usage_monitor/providers/reserved_provider.dart';
+import 'package:ai_usage_monitor/providers/usage_provider.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fake_provider.dart';
 
 void main() {
-  List<ReservedProvider> reserved() => [
-    ReservedProvider(ProviderCatalog.codex),
-    ReservedProvider(ProviderCatalog.antigravity),
+  /// Two non-Claude slots. Only codex ships unimplemented now that
+  /// Antigravity has a real integration, so the other is a stand-in.
+  List<UsageProvider> reserved() => [
+    ReservedProvider(ProviderCatalog.reserved),
+    FakeProvider(id: 'antigravity', displayName: 'Antigravity'),
+    FakeProvider(id: 'openrouter', displayName: 'OpenRouter'),
   ];
 
   group('ProviderCatalog', () {
@@ -24,12 +28,24 @@ void main() {
       expect(ids, hasLength(ProviderCatalog.slotCount));
     });
 
-    test('ships exactly one implemented slot in this build', () {
+    test('names the slots that have a real integration', () {
       final implemented = ProviderCatalog.slots
           .where((s) => s.isImplemented)
-          .toList();
-      expect(implemented, hasLength(1));
-      expect(implemented.single.id, 'claude');
+          .map((s) => s.id);
+      expect(implemented, containsAll(<String>['claude', 'antigravity']));
+    });
+
+    test('a slot is reserved only while it has no integration', () {
+      // Guards the pairing the composition root depends on: standing a
+      // ReservedProvider in front of an implemented slot would silently
+      // disable it.
+      for (final slot in ProviderCatalog.slots) {
+        if (slot.isImplemented) {
+          expect(() => ReservedProvider(slot), throwsA(isA<AssertionError>()));
+        } else {
+          expect(() => ReservedProvider(slot), returnsNormally);
+        }
+      }
     });
   });
 
@@ -72,19 +88,21 @@ void main() {
         ...reserved(),
       ]);
 
-      expect(registry.implemented.map((p) => p.id), ['claude']);
+      // FakeProvider declares itself implemented; only the genuinely reserved
+      // codex slot is filtered out.
+      expect(registry.implemented.map((p) => p.id), isNot(contains('reserved')));
     });
   });
 
   group('ReservedProvider', () {
     test('reports itself as unsupported rather than disconnected', () {
-      final provider = ReservedProvider(ProviderCatalog.codex);
+      final provider = ReservedProvider(ProviderCatalog.reserved);
       expect(provider.connection.status, ConnectionStatus.unsupported);
       expect(provider.connection.status.isReserved, isTrue);
     });
 
     test('refuses to fetch instead of returning a fabricated figure', () {
-      final provider = ReservedProvider(ProviderCatalog.antigravity);
+      final provider = ReservedProvider(ProviderCatalog.reserved);
       expect(
         () => provider.fetchUsage(const AppSettings()),
         throwsA(
@@ -98,7 +116,7 @@ void main() {
     });
 
     test('does not open a browser for a flow that cannot complete', () async {
-      final provider = ReservedProvider(ProviderCatalog.codex);
+      final provider = ReservedProvider(ProviderCatalog.reserved);
       var launched = 0;
 
       final result = await provider.connect(

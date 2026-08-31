@@ -70,7 +70,7 @@ void main() {
       expect(result.cursors, isEmpty);
     });
 
-    test('sums every token category for an assistant turn', () async {
+    test('counts work tokens and keeps cache reads apart', () async {
       final at = DateTime.now().subtract(const Duration(minutes: 5));
       await writeTranscript('a.jsonl', [
         assistantLine(uuid: 'a', timestamp: at),
@@ -78,7 +78,12 @@ void main() {
 
       final result = await scanTranscripts(request());
       expect(result.events, hasLength(1));
-      expect(result.events.single.tokens, 100); // 10 + 20 + 30 + 40
+
+      // input + cache creation + output. Cache reads are excluded, because
+      // replaying a large cached context registers tens of millions of them
+      // and would swamp any figure they were folded into.
+      expect(result.events.single.tokens, 70); // 10 + 20 + 40
+      expect(result.events.single.cacheReadTokens, 30);
       expect(result.events.single.model, 'claude-opus-5');
       expect(result.events.single.workingDirectory, '/Users/test/project');
     });

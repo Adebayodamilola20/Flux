@@ -1,3 +1,4 @@
+import '../models/active_session.dart';
 import '../models/app_settings.dart';
 import '../models/connection_status.dart';
 import '../models/provider_connection.dart';
@@ -64,6 +65,21 @@ class ReservedProvider implements UsageProvider {
 
   @override
   Future<void> disconnect() async {}
+
+  /// Nothing local to watch: these figures come from a network call, so
+  /// the refresh timer is the only signal there is.
+  @override
+  Stream<void>? get changes => null;
+
+  /// Nothing to poll at all — this slot has no implementation behind it.
+  @override
+  Duration? get preferredRefreshInterval => null;
+
+  @override
+  void invalidateCaches() {}
+
+  @override
+  Future<List<ActiveSession>> detectActivity() async => const [];
 
   @override
   Future<UsageData> fetchUsage(AppSettings settings) {

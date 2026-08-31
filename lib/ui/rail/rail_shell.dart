@@ -128,6 +128,7 @@ class _RailShellState extends State<RailShell>
               state: hovered,
               onRightEdge: onRight,
               onConnect: () => shell.openPanel(ShellSurface.onboarding),
+              onRetry: () => usage.refresh(hovered.id, manual: true),
             ),
           ),
       ],
