@@ -76,7 +76,7 @@ class RailColumn extends StatelessWidget {
         // clipped ring rather than anything that names the cause.
         height:
             metrics.collapsedVerticalPadding * 2 +
-            visibleStates.length * metrics.slotHeight,
+            states.length * metrics.slotHeight,
         child: Padding(
           padding: EdgeInsets.symmetric(
             vertical: metrics.collapsedVerticalPadding,
