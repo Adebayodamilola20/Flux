@@ -34,6 +34,7 @@ void main() {
   ({UsageController controller, FakeProvider primary}) buildController({
     FakeProvider? provider,
     Duration? refreshInterval,
+    List<String?>? slots,
   }) {
     final primary =
         provider ?? FakeProvider(id: 'claude', displayName: 'Claude');
@@ -45,10 +46,11 @@ void main() {
 
     // Applied before the controller reads it, so its first schedule already
     // uses the interval the test asked for.
-    if (refreshInterval != null) {
-      settings.update(
-        settings.settings.copyWith(refreshInterval: refreshInterval),
-      );
+    if (refreshInterval != null || slots != null) {
+      settings.update(settings.settings.copyWith(
+        refreshInterval: refreshInterval,
+        slots: slots,
+      ));
     }
 
     return (
@@ -428,6 +430,8 @@ void main() {
       final provider = FakeProvider(id: 'claude', percent: 52)..seedConnected();
       final (controller: controller, primary: _) = buildController(
         provider: provider,
+        // The menu bar mirrors the rail, and the rail starts empty.
+        slots: const ['claude', null, null, null],
       );
 
       await controller.refresh('claude');
@@ -442,12 +446,100 @@ void main() {
         ..failure = const UsageFailure(UsageFailureKind.network, 'offline');
       final (controller: controller, primary: _) = buildController(
         provider: provider,
+        slots: const ['claude', null, null, null],
       );
 
       await controller.refresh('claude');
 
       expect(native.menuBarUpdates.last.isError, isTrue);
       expect(native.menuBarUpdates.last.percent, isNull);
+    });
+  });
+
+  group('the rail is the user\'s to arrange', () {
+    test('starts empty, so nothing appears uninvited', () {
+      final (controller: controller, primary: _) = buildController();
+
+      // Four positions, all plus signs. The product does not decide which
+      // tools matter to a person.
+      expect(controller.slots, hasLength(ProviderCatalog.slotCount));
+      expect(controller.slots, everyElement(isNull));
+      expect(controller.hasEmptyRail, isTrue);
+    });
+
+    test('adding puts a provider in the position chosen', () async {
+      final provider = FakeProvider(id: 'claude', percent: 30);
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+      );
+      await controller.start();
+
+      await controller.assignSlot(2, 'claude');
+
+      // Third position, not the one its catalog order would have given it.
+      expect(controller.slots[2]?.id, 'claude');
+      expect(controller.slots[0], isNull);
+      expect(controller.slotIndexOf('claude'), 2);
+    });
+
+    test('adding is the only click', () async {
+      final provider = FakeProvider(id: 'claude', percent: 30);
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+      );
+      await controller.start();
+      expect(provider.fetchCount, 0);
+
+      await controller.assignSlot(0, 'claude');
+
+      // Connected and fetched, with no separate Connect step: these providers
+      // read a tool that is already signed in.
+      expect(controller.slots[0]?.connection.isConnected, isTrue);
+      expect(provider.fetchCount, greaterThan(0));
+    });
+
+    test('moving a provider empties where it was', () async {
+      final provider = FakeProvider(id: 'claude', percent: 30);
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+      );
+      await controller.start();
+
+      await controller.assignSlot(0, 'claude');
+      await controller.assignSlot(3, 'claude');
+
+      // One provider, one ring. Two would refresh the same account twice and
+      // draw it as though it were two.
+      expect(controller.slots[0], isNull);
+      expect(controller.slots[3]?.id, 'claude');
+    });
+
+    test('the picker offers only what is not already on the rail', () async {
+      final (controller: controller, primary: _) = buildController();
+      await controller.start();
+
+      final before = controller.unassigned.map((s) => s.id).toList();
+      expect(before, contains('claude'));
+
+      await controller.assignSlot(1, 'claude');
+
+      expect(controller.unassigned.map((s) => s.id), isNot(contains('claude')));
+    });
+
+    test('removing from the rail does not disconnect the account', () async {
+      final provider = FakeProvider(id: 'claude', percent: 30);
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+      );
+      await controller.start();
+      await controller.assignSlot(0, 'claude');
+
+      await controller.clearSlot(0);
+
+      // "Not on my rail" and "forget my account" are different requests, and
+      // only the second one is destructive.
+      expect(controller.slots[0], isNull);
+      expect(controller.stateFor('claude').connection.isConnected, isTrue);
     });
   });
 }

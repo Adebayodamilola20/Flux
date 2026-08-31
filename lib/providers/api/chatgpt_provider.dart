@@ -47,22 +47,6 @@ class ChatGptProvider extends ApiKeyUsageProvider {
   @override
   bool get supportsLocalOnly => _codex.isAvailable;
 
-  /// Turns the slot on by itself when Codex is set up here.
-  ///
-  /// Codex is already signed in and has already recorded an allowance; making
-  /// the user press a button to acknowledge that is a step with no decision in
-  /// it. A deliberate disconnect is remembered, so this never overrides one.
-  @override
-  Future<void> restore() async {
-    await super.restore();
-    if (connection.isConnected) return;
-    if (connectionsHaveRecordFor(id)) return;
-    if (!_codex.isAvailable) return;
-
-    log.info('adopting chatgpt: Codex has recorded an allowance here');
-    await enableLocalOnly();
-  }
-
   /// Adopts the ChatGPT account Codex is signed in as.
   ///
   /// No browser step: OpenAI publishes no sign-in a third-party app can

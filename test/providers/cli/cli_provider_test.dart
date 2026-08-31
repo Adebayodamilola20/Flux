@@ -66,30 +66,47 @@ void main() {
       final provider = buildAntigravity();
 
       await provider.restore();
+      // Nothing is adopted automatically now — the rail starts empty and the
+      // user decides what goes on it. Adding is what connects.
+      expect(provider.connection.isConnected, isFalse);
 
-      // The whole point: no Connect button, no browser, no Google consent
-      // screen. The CLI is here and signed in, so the slot works.
+      await provider.enableLocalOnly();
+
+      // And adding is the only click: no browser, no Google consent screen.
       expect(provider.connection.status, ConnectionStatus.connected);
       expect(native.openedUrls, isEmpty);
     });
 
-    test('stays off when the CLI is not installed', () async {
+    test('refuses to connect when the CLI is not installed', () async {
       final provider = buildAntigravity();
 
       await provider.restore();
+      await provider.enableLocalOnly();
 
       expect(provider.connection.isConnected, isFalse);
     });
 
-    test('does not undo a deliberate disconnect', () async {
+    test('remembers being connected across a restart', () async {
       installAgy();
 
       final first = buildAntigravity();
       await first.restore();
+      await first.enableLocalOnly();
+
+      final second = buildAntigravity();
+      await second.restore();
+
+      expect(second.connection.isConnected, isTrue);
+    });
+
+    test('stays off after a deliberate disconnect', () async {
+      installAgy();
+
+      final first = buildAntigravity();
+      await first.restore();
+      await first.enableLocalOnly();
       await first.disconnect();
 
-      // A slot that switches itself back on at the next launch is a bug, not a
-      // convenience.
       final second = buildAntigravity();
       await second.restore();
 
@@ -102,6 +119,7 @@ void main() {
       installAgy();
       final provider = buildAntigravity();
       await provider.restore();
+      await provider.enableLocalOnly();
 
       final data = await provider.fetchUsage(const AppSettings());
 
@@ -133,6 +151,7 @@ void main() {
       installAgy(output: 'You are currently not signed in.\n');
       final provider = buildAntigravity();
       await provider.restore();
+      await provider.enableLocalOnly();
 
       final data = await provider.fetchUsage(const AppSettings());
 
@@ -156,6 +175,7 @@ void main() {
       );
       final provider = buildAntigravity();
       await provider.restore();
+      await provider.enableLocalOnly();
 
       final data = await provider.fetchUsage(const AppSettings());
 
@@ -171,6 +191,7 @@ void main() {
       installAgy();
       final provider = buildAntigravity();
       await provider.restore();
+      await provider.enableLocalOnly();
       await provider.fetchUsage(const AppSettings());
 
       final probe = native.probes.single;
@@ -245,6 +266,7 @@ void main() {
 
       final provider = buildGemini(handler: quotaHandler);
       await provider.restore();
+      await provider.enableLocalOnly();
       final data = await provider.fetchUsage(const AppSettings());
 
       expect(data.isUsageUnavailable, isFalse);
@@ -261,6 +283,7 @@ void main() {
 
       final provider = buildGemini(handler: quotaHandler);
       await provider.restore();
+      await provider.enableLocalOnly();
       await provider.fetchUsage(const AppSettings());
 
       // Starting the CLI for half a minute would tell us nothing the request
@@ -276,6 +299,7 @@ void main() {
         handler: (_) => http.Response('{}', 200),
       );
       await provider.restore();
+      await provider.enableLocalOnly();
       final data = await provider.fetchUsage(const AppSettings());
 
       // Actionable, and true: signing in is what makes the figure appear.

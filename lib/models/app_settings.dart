@@ -20,7 +20,16 @@ class AppSettings {
     this.onboardingComplete = false,
     this.sessionTokenBudget = defaultSessionTokenBudget,
     this.weeklyTokenBudget = defaultWeeklyTokenBudget,
+    this.slots = emptySlots,
+    this.railAppearance = RailAppearance.solid,
   });
+
+  /// A rail with nothing on it yet.
+  ///
+  /// The default deliberately: the product does not decide which tools matter
+  /// to a person, and a rail that fills itself with everything it detects is
+  /// making that decision for them. Each position starts as a plus.
+  static const List<String?> emptySlots = [null, null, null, null];
 
   /// Starting points for local estimation, not published limits — Anthropic
   /// does not publish plan limits as token counts, so there is no authoritative
@@ -39,6 +48,56 @@ class AppSettings {
     Duration(minutes: 30),
     Duration(hours: 1),
   ];
+
+  /// Which provider occupies each rail position, by id.
+  ///
+  /// Positional, and nullable per entry: any provider can sit in any slot, and
+  /// an empty entry draws the plus. The list is always [ProviderCatalog
+  /// .slotCount] long — [normaliseSlots] guarantees it, so nothing downstream
+  /// has to bounds-check.
+  final List<String?> slots;
+
+  /// Slot indices that have nothing in them.
+  Iterable<int> get emptySlotIndices sync* {
+    for (var i = 0; i < slots.length; i++) {
+      if (slots[i] == null) yield i;
+    }
+  }
+
+  /// True when this provider is on the rail somewhere.
+  bool hasSlotFor(String providerId) => slots.contains(providerId);
+
+  /// The slot [providerId] occupies, or null.
+  int? slotIndexOf(String providerId) {
+    final index = slots.indexOf(providerId);
+    return index == -1 ? null : index;
+  }
+
+  /// Forces a stored list to the right length, dropping duplicates.
+  ///
+  /// Stored preferences outlive the code that wrote them: a build with more
+  /// slots, a hand-edited plist, or a provider that no longer exists all reach
+  /// here. One provider appearing in two slots would draw two rings for one
+  /// account and refresh it twice, so the later copy is dropped.
+  static List<String?> normaliseSlots(List<String?> raw, int length) {
+    final seen = <String>{};
+    final out = <String?>[];
+
+    for (final id in raw.take(length)) {
+      if (id == null || id.isEmpty || !seen.add(id)) {
+        out.add(null);
+      } else {
+        out.add(id);
+      }
+    }
+    while (out.length < length) {
+      out.add(null);
+    }
+    return List.unmodifiable(out);
+  }
+
+  /// Solid or frosted.
+  final RailAppearance railAppearance;
 
   /// How often usage is refreshed automatically.
   final Duration refreshInterval;
@@ -103,6 +162,8 @@ class AppSettings {
     bool? onboardingComplete,
     int? sessionTokenBudget,
     int? weeklyTokenBudget,
+    List<String?>? slots,
+    RailAppearance? railAppearance,
   }) {
     return AppSettings(
       refreshInterval: refreshInterval ?? this.refreshInterval,
@@ -119,6 +180,8 @@ class AppSettings {
       onboardingComplete: onboardingComplete ?? this.onboardingComplete,
       sessionTokenBudget: sessionTokenBudget ?? this.sessionTokenBudget,
       weeklyTokenBudget: weeklyTokenBudget ?? this.weeklyTokenBudget,
+      slots: slots ?? this.slots,
+      railAppearance: railAppearance ?? this.railAppearance,
     );
   }
 
@@ -137,13 +200,22 @@ class AppSettings {
         'onboardingComplete': onboardingComplete,
         'sessionTokenBudget': sessionTokenBudget,
         'weeklyTokenBudget': weeklyTokenBudget,
+        'slots': slots,
+        'railAppearance': railAppearance.name,
       };
 
-  static AppSettings fromJson(Map<String, dynamic> json) {
+  static AppSettings fromJson(Map<String, dynamic> json, {int slotCount = 4}) {
     const fallback = AppSettings();
     final seconds = json['refreshIntervalSeconds'];
     final offset = json['railOffset'];
+    final storedSlots = json['slots'];
     return AppSettings(
+      slots: normaliseSlots(
+        storedSlots is List
+            ? [for (final e in storedSlots) e is String ? e : null]
+            : const [],
+        slotCount,
+      ),
       refreshInterval: seconds is int && seconds >= 30
           ? Duration(seconds: seconds)
           : fallback.refreshInterval,
@@ -161,6 +233,10 @@ class AppSettings {
         orElse: () => fallback.railExpansion,
       ),
       railVisible: json['railVisible'] as bool? ?? fallback.railVisible,
+      railAppearance: RailAppearance.values.firstWhere(
+        (a) => a.name == json['railAppearance'],
+        orElse: () => fallback.railAppearance,
+      ),
       screenId: json['screenId'] as String?,
       themeMode: ThemeMode.values.firstWhere(
         (m) => m.name == json['themeMode'],
@@ -205,7 +281,9 @@ class AppSettings {
       other.showMenuBarPercent == showMenuBarPercent &&
       other.onboardingComplete == onboardingComplete &&
       other.sessionTokenBudget == sessionTokenBudget &&
-      other.weeklyTokenBudget == weeklyTokenBudget;
+      other.weeklyTokenBudget == weeklyTokenBudget &&
+      other.railAppearance == railAppearance &&
+      _sameSlots(other.slots, slots);
 
   @override
   int get hashCode => Object.hash(
@@ -221,6 +299,19 @@ class AppSettings {
         showMenuBarIcon,
         showMenuBarPercent,
         onboardingComplete,
-        Object.hash(sessionTokenBudget, weeklyTokenBudget),
+        Object.hash(
+          sessionTokenBudget,
+          weeklyTokenBudget,
+          Object.hashAll(slots),
+          railAppearance,
+        ),
       );
+
+  static bool _sameSlots(List<String?> a, List<String?> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 }

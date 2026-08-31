@@ -206,20 +206,112 @@ class UsageController extends ChangeNotifier {
 
   AppSettings get _settings => _settingsService.settings;
 
-  /// Slot states in rail order.
+  /// Every provider's state, in catalog order.
+  ///
+  /// What the *rail* shows is [slots]; this is the full set, used by the
+  /// settings screen and by anything that needs a provider regardless of
+  /// whether the user has put it on the rail.
   List<ProviderState> get states => [
     for (final p in _registry.all) _states[p.id]!,
   ];
 
+  /// What each rail position holds, or null where it holds nothing.
+  ///
+  /// The rail is positional and the assignment is the user's: any provider can
+  /// sit in any slot, and an empty entry draws a plus. Derived from settings
+  /// rather than from registry order, so adding a provider to the build does
+  /// not silently push itself onto anyone's rail.
+  List<ProviderState?> get slots => [
+    for (final id in _settings.slots) id == null ? null : _states[id],
+  ];
+
+  /// Providers not currently on the rail — what the picker offers.
+  List<ProviderState> get unassigned => [
+    for (final p in _registry.all)
+      if (!_settings.hasSlotFor(p.id) && p.descriptor.isImplemented)
+        _states[p.id]!,
+  ];
+
+  /// Which rail position holds [providerId], or null when it is not on the
+  /// rail at all.
+  int? slotIndexOf(String providerId) => _settings.slotIndexOf(providerId);
+
+  /// Puts [providerId] in slot [index] and connects it.
+  ///
+  /// Adding is the only click: these providers read a tool that is already
+  /// signed in on this Mac, so a separate Connect step would ask the user to
+  /// confirm something the app can simply do.
+  Future<void> assignSlot(
+    int index,
+    String providerId, {
+    bool connect = true,
+  }) async {
+    if (index < 0 || index >= _settings.slots.length) return;
+
+    final next = [..._settings.slots];
+    // A provider can only be in one place; moving it empties where it was.
+    final existing = next.indexOf(providerId);
+    if (existing != -1) next[existing] = null;
+    next[index] = providerId;
+
+    await _settingsService.update(_settings.copyWith(slots: next));
+    _safeNotify();
+
+    if (!connect) return;
+
+    final provider = _registry.byId(providerId);
+    if (provider == null) return;
+
+    if (!provider.connection.isConnected) {
+      final result = await provider.enableLocalOnly();
+      _applyConnection(providerId, result);
+    }
+    await refresh(providerId);
+  }
+
+  /// Connects a provider from its own connect screen.
+  ///
+  /// The same work [assignSlot] does when adding, exposed on its own for the
+  /// screen that asks first — a provider already on the rail but switched off,
+  /// or one the user wants to see the result for before committing.
+  Future<void> connectLocally(String providerId) async {
+    final provider = _registry.byId(providerId);
+    if (provider == null) return;
+
+    final result = await provider.enableLocalOnly();
+    _applyConnection(providerId, result);
+    if (result.isConnected) await refresh(providerId);
+  }
+
+  /// Empties slot [index].
+  ///
+  /// Takes the provider off the rail without disconnecting it: "I do not want
+  /// this on screen" and "forget my account" are different requests, and the
+  /// second one has its own button.
+  Future<void> clearSlot(int index) async {
+    if (index < 0 || index >= _settings.slots.length) return;
+
+    final next = [..._settings.slots];
+    next[index] = null;
+    await _settingsService.update(_settings.copyWith(slots: next));
+    _safeNotify();
+  }
+
   ProviderState stateFor(String providerId) => _states[providerId]!;
 
-  /// The slot that drives the menu-bar fallback: the first one with a figure,
-  /// else the first slot.
-  ProviderState get primary {
-    for (final state in states) {
-      if (state.percent != null) return state;
+  /// What drives the menu-bar fallback: the first slot with a figure.
+  ///
+  /// Null when the rail is empty, which is the starting state — the menu bar
+  /// then shows the icon alone rather than a percentage for something the user
+  /// has not added.
+  ProviderState? get primary {
+    for (final state in slots) {
+      if (state?.percent != null) return state;
     }
-    return states.first;
+    for (final state in slots) {
+      if (state != null) return state;
+    }
+    return null;
   }
 
   /// True while any slot is fetching.
@@ -236,6 +328,9 @@ class UsageController extends ChangeNotifier {
   /// the connect screen on first launch.
   bool get hasAnyConnection =>
       _states.values.any((s) => s.connection.isConnected);
+
+  /// True when the user has put nothing on the rail yet.
+  bool get hasEmptyRail => _settings.slots.every((id) => id == null);
 
   DateTime? get lastUpdated {
     DateTime? newest;
@@ -466,8 +561,8 @@ class UsageController extends ChangeNotifier {
     await _native.updateMenuBar(
       showIcon: _settings.effectiveShowMenuBarIcon,
       showPercent: _settings.showMenuBarPercent,
-      percent: state.percent,
-      isError: state.failure != null,
+      percent: state?.percent,
+      isError: state?.failure != null,
     );
   }
 

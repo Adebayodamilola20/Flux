@@ -76,12 +76,12 @@ class _RailShellState extends State<RailShell>
     });
 
     final metrics = shell.metrics;
-    final states = usage.states.take(3).toList(growable: false);
+    final states = usage.slots;
     final onRight = settings.railEdge == RailEdge.right;
 
     final hovered = _hoveredId == null
         ? null
-        : states.where((s) => s.id == _hoveredId).firstOrNull;
+        : states.nonNulls.where((s) => s.id == _hoveredId).firstOrNull;
 
     return Stack(
       children: [
@@ -106,10 +106,15 @@ class _RailShellState extends State<RailShell>
                     metrics: metrics,
                     hoveredId: _hoveredId,
                     onRightEdge: onRight,
+                    appearance: settings.railAppearance,
                     onHoverSlot: (id) => setState(() => _hoveredId = id),
                     onOpenDetail: (id) => shell.openPanel(
                       ShellSurface.providerDetail,
                       providerId: id,
+                    ),
+                    onAddToSlot: (index) => shell.openPanel(
+                      ShellSurface.slotPicker,
+                      slotIndex: index,
                     ),
                   ),
                 ),
@@ -127,7 +132,10 @@ class _RailShellState extends State<RailShell>
               key: ValueKey(hovered.id),
               state: hovered,
               onRightEdge: onRight,
-              onConnect: () => shell.openPanel(ShellSurface.onboarding),
+              onConnect: () => shell.openPanel(
+                ShellSurface.connectProvider,
+                providerId: hovered.id,
+              ),
               onRetry: () => usage.refresh(hovered.id, manual: true),
             ),
           ),

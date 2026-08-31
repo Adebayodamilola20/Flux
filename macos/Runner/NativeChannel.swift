@@ -185,6 +185,14 @@ final class NativeChannel {
                 result(KeychainStore.delete(key: key))
             }
 
+        case "rail.setGlass":
+            guard let enabled = args["enabled"] as? Bool else {
+                result(NativeChannel.badArguments("enabled"))
+                return
+            }
+            rail.glass.setEnabled(enabled)
+            result(nil)
+
         case "keychain.claudeCode":
             // Reading another application's item can put an approval dialog on
             // screen, which would deadlock the main thread the channel runs on.

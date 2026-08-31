@@ -21,6 +21,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
     required this.accentCritical,
     required this.accentPositive,
     required this.shadow,
+    required this.railFill,
+    required this.railBorder,
+    required this.railShadow,
+    required this.accentSystem,
   });
 
   final Color surface;
@@ -37,6 +41,22 @@ class AppPalette extends ThemeExtension<AppPalette> {
   final Color accentPositive;
   final Color shadow;
 
+  /// The rail's own surface.
+  ///
+  /// Separate from [surface] because the rail is not a panel: it sits flush
+  /// against the bezel and reads as part of the display, so it is denser and
+  /// more opaque than anything floating above the desktop. It still follows
+  /// the theme — a black bar on a light desktop reads as a bug, which is
+  /// exactly how it was reported.
+  final Color railFill;
+  final Color railBorder;
+  final Color railShadow;
+
+  /// macOS system blue — what a native switch, a selected segment and a
+  /// focused field use. Not one of the quota accents: those mean "how close to
+  /// the limit", and reusing one here would make a toggle look like a warning.
+  final Color accentSystem;
+
   static const AppPalette dark = AppPalette(
     surface: Color(0xFF121214),
     surfaceRaised: Color(0xFF1B1B1F),
@@ -51,6 +71,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
     accentCritical: Color(0xFFFF5A1F),
     accentPositive: Color(0xFF00E58A),
     shadow: Color(0x99000000),
+    railFill: Color(0xFF000000),
+    railBorder: Color(0xFF000000),
+    railShadow: Color(0x99000000),
+    accentSystem: Color(0xFF0A84FF),
   );
 
   static const AppPalette light = AppPalette(
@@ -67,6 +91,12 @@ class AppPalette extends ThemeExtension<AppPalette> {
     accentCritical: Color(0xFFD84A16),
     accentPositive: Color(0xFF059669),
     shadow: Color(0x2E000000),
+    // Not pure white: the rail needs to separate from a light desktop the way
+    // the black one separates from a dark desktop.
+    railFill: Color(0xFFF7F7F9),
+    railBorder: Color(0x14000000),
+    railShadow: Color(0x38000000),
+    accentSystem: Color(0xFF007AFF),
   );
 
   /// Accent for a usage fraction. Thresholds are chosen so a mid-range value
@@ -94,6 +124,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
     Color? accentCritical,
     Color? accentPositive,
     Color? shadow,
+    Color? railFill,
+    Color? railBorder,
+    Color? railShadow,
+    Color? accentSystem,
   }) {
     return AppPalette(
       surface: surface ?? this.surface,
@@ -109,6 +143,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
       accentCritical: accentCritical ?? this.accentCritical,
       accentPositive: accentPositive ?? this.accentPositive,
       shadow: shadow ?? this.shadow,
+      railFill: railFill ?? this.railFill,
+      railBorder: railBorder ?? this.railBorder,
+      railShadow: railShadow ?? this.railShadow,
+      accentSystem: accentSystem ?? this.accentSystem,
     );
   }
 
@@ -130,6 +168,10 @@ class AppPalette extends ThemeExtension<AppPalette> {
       accentCritical: mix(accentCritical, other.accentCritical),
       accentPositive: mix(accentPositive, other.accentPositive),
       shadow: mix(shadow, other.shadow),
+      railFill: mix(railFill, other.railFill),
+      railBorder: mix(railBorder, other.railBorder),
+      railShadow: mix(railShadow, other.railShadow),
+      accentSystem: mix(accentSystem, other.accentSystem),
     );
   }
 }

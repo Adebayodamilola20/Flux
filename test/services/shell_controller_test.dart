@@ -54,13 +54,15 @@ void main() {
   });
 
   group('startup surface', () {
-    test('shows the connect screen on a first run', () async {
+    test('goes straight to the rail on a first run', () async {
+      // There is nothing to set up: the rail opens empty and each position is
+      // a plus. A connect wall in front of that asks for the same decision in
+      // a worse place to make it.
       await boot();
       await shell.start();
 
-      expect(shell.surface, ShellSurface.onboarding);
-      expect(native.isPanelVisible, isTrue);
-      expect(native.panelSizes.last, ShellController.onboardingSize);
+      expect(shell.surface, ShellSurface.rail);
+      expect(native.isPanelVisible, isFalse);
     });
 
     test('goes straight to the rail once onboarding is done', () async {
@@ -215,15 +217,19 @@ void main() {
       expect(shell.detailProviderId, isNull);
     });
 
-    test('finishing onboarding records it so it is not shown again', () async {
+    test('connecting one app opens that app alone', () async {
       await boot();
       await shell.start();
-      expect(settings.settings.onboardingComplete, isFalse);
 
-      await shell.finishOnboarding();
+      await shell.openPanel(
+        ShellSurface.connectProvider,
+        providerId: 'claude',
+      );
 
-      expect(settings.settings.onboardingComplete, isTrue);
-      expect(shell.surface, ShellSurface.rail);
+      // Not a grid of every provider: the user has already said which one.
+      expect(shell.surface, ShellSurface.connectProvider);
+      expect(shell.detailProviderId, 'claude');
+      expect(native.panelSizes.last, ShellController.connectSize);
     });
   });
 

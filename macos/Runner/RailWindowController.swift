@@ -26,6 +26,9 @@ final class RailWindowController {
     private var collapseWorkItem: DispatchWorkItem?
 
     private(set) var isExpanded = false
+
+    /// Frosted material behind the rail, when the user asks for it.
+    let glass = RailGlass()
     private(set) var isRailVisible = false
 
     private var edge: RailEdge = .right
@@ -109,6 +112,13 @@ final class RailWindowController {
             display: true,
             animate: false
         )
+
+        // The frost follows the rail: same rectangle, same edge, recomputed
+        // whenever the window moves or the edge changes.
+        if let contentView = window.contentView {
+            glass.attach(to: contentView)
+        }
+        glass.layout(windowSize: size, edge: edge, slots: slotCount)
     }
 
     @objc private func screensChanged() {
@@ -129,12 +139,14 @@ final class RailWindowController {
         isRailVisible = true
 
         setExpanded(pinnedOpen, notify: true, force: true)
+        glass.setVisible(true)
         installMonitors()
     }
 
     func hideRail() {
         guard isRailVisible else { return }
         isRailVisible = false
+        glass.setVisible(false)
         removeMonitors()
         window.orderOut(nil)
         window.isPresentationAllowed = false
@@ -164,6 +176,9 @@ final class RailWindowController {
         cancelPendingCollapse()
         removeMonitors()
         isRailVisible = false
+        // The panel draws its own background; frost sized to the rail would
+        // sit in the middle of it.
+        glass.setVisible(false)
 
         window.apply(mode: .panel)
         window.ignoresMouseEvents = false

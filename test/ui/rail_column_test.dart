@@ -18,7 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 /// test could see: the ring drew the "empty slot" plus while the label beneath
 /// it showed a percentage, because the two read different fields. Nothing was
 /// wrong with either value on its own.
-Future<void> pumpRail(WidgetTester tester, List<ProviderState> states) async {
+Future<void> pumpRail(WidgetTester tester, List<ProviderState?> states) async {
   await tester.pumpWidget(
     MaterialApp(
       theme: AppTheme.of(Brightness.dark),
@@ -30,6 +30,7 @@ Future<void> pumpRail(WidgetTester tester, List<ProviderState> states) async {
           onRightEdge: true,
           onHoverSlot: (_) {},
           onOpenDetail: (_) {},
+          onAddToSlot: (_) {},
         ),
       ),
     ),

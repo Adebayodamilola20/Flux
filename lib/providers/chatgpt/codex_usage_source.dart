@@ -223,21 +223,27 @@ class CodexUsageSource {
     Map<String, dynamic> limits, {
     String? timestamp,
   }) {
+    final observedAt =
+        timestamp == null ? null : DateTime.tryParse(timestamp)?.toLocal();
     final windows = <UsageWindow>[];
 
     for (final key in const ['primary', 'secondary']) {
-      final window = _window(limits[key], key: key);
+      final window = _window(limits[key], key: key, observedAt: observedAt);
       if (window != null) windows.add(window);
     }
 
     return CodexUsageReading(
       windows: windows,
       planType: limits['plan_type'] as String?,
-      observedAt: timestamp == null ? null : DateTime.tryParse(timestamp)?.toLocal(),
+      observedAt: observedAt,
     );
   }
 
-  static UsageWindow? _window(Object? bucket, {required String key}) {
+  static UsageWindow? _window(
+    Object? bucket, {
+    required String key,
+    DateTime? observedAt,
+  }) {
     if (bucket is! Map<String, dynamic>) return null;
 
     final used = bucket['used_percent'];
@@ -257,6 +263,9 @@ class CodexUsageSource {
       resetsAt: resets is num
           ? DateTime.fromMillisecondsSinceEpoch(resets.toInt() * 1000)
           : null,
+      // When OpenAI measured this, not when we read the file. A free-plan
+      // allowance sitting at 100% since yesterday must not read as current.
+      observedAt: observedAt,
       // OpenAI computed this for the account; it reaches us through Codex's
       // own transcript rather than a call this app made.
       source: UsageSource.officialApi,
