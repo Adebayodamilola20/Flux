@@ -120,14 +120,14 @@ class RailMetrics {
   /// Used before native replies, and under `flutter test` where there is no
   /// native side at all. Matches the Swift defaults.
   static const RailMetrics fallback = RailMetrics(
-    collapsedWidth: 52,
+    collapsedWidth: 46,
     expandedWidth: 280,
-    slotHeight: 58,
-    collapsedVerticalPadding: 16,
+    slotHeight: 66,
+    collapsedVerticalPadding: 28,
     shadowPadding: 26,
     edgeInset: 0,
     windowWidth: 332,
-    windowHeight: 292,
+    windowHeight: 312,
     slots: 3,
   );
 

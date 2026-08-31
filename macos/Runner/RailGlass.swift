@@ -17,7 +17,7 @@ final class RailGlass {
 
     /// Matches `NotchShape.cornerRadius` in Dart. The two shapes have to agree
     /// or the frost shows outside the card's edge.
-    private static let cornerRadius: CGFloat = 18
+    private static let cornerRadius: CGFloat = 20
 
     private let effect = NSVisualEffectView()
 

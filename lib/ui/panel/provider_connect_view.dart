@@ -18,9 +18,13 @@ import 'panel_chrome.dart';
 /// putting three accounts they did not ask about on screen while they are
 /// trying to connect one.
 ///
-/// The whole screen is: this app's mark, its name, and a button. Pressing it
-/// looks on this Mac for the tool's own session, and what comes back is the
-/// figure itself — not a tick and a promise that something happened elsewhere.
+/// The whole screen is: this app's mark, its name, and what was found. The
+/// look-up starts as soon as the screen opens — there is no credential to
+/// enter and nothing to confirm first, so asking the user to press Connect
+/// before anything happens only delays the answer they came for. A button
+/// appears once there is something to dismiss: Done, when the session was
+/// found. When it was not, the reason is the whole answer, and a Connect
+/// button that would repeat the same failed look-up is not offered.
 class ProviderConnectView extends StatefulWidget {
   const ProviderConnectView({super.key, required this.providerId});
 
@@ -33,6 +37,20 @@ class ProviderConnectView extends StatefulWidget {
 class _ProviderConnectViewState extends State<ProviderConnectView> {
   bool _working = false;
   bool _attempted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Deferred by one frame: the look-up reads an inherited controller, and
+    // notifying listeners during the first build would rebuild mid-frame.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final usage = context.read<UsageController>();
+      if (!usage.stateFor(widget.providerId).connection.isConnected) {
+        _connect(usage);
+      }
+    });
+  }
 
   Future<void> _connect(UsageController usage) async {
     setState(() {
@@ -58,23 +76,18 @@ class _ProviderConnectViewState extends State<ProviderConnectView> {
     return PanelChrome(
       title: 'Connect ${state.displayName}',
       onClose: shell.showRail,
-      footer: Row(
-        mainAxisAlignment: MainAxisAlignment.end,
-        children: [
-          if (!isConnected)
-            PillButton(
-              label: _working ? 'Looking…' : 'Connect',
-              emphasised: true,
-              onPressed: _working ? null : () => _connect(usage),
+      footer: isConnected
+          ? Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                PillButton(
+                  label: 'Done',
+                  emphasised: true,
+                  onPressed: shell.showRail,
+                ),
+              ],
             )
-          else
-            PillButton(
-              label: 'Done',
-              emphasised: true,
-              onPressed: shell.showRail,
-            ),
-        ],
-      ),
+          : null,
       child: ListView(
         children: [
           const SizedBox(height: 8),
@@ -152,7 +165,7 @@ class _ProviderConnectViewState extends State<ProviderConnectView> {
             )
           else
             _Status(
-              icon: null,
+              icon: Icons.info_outline_rounded,
               text: state.descriptor.connectNote ??
                   'No sign-in needed. This reads the session '
                       '${state.displayName} already holds on this Mac.',

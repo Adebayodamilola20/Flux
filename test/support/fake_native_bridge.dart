@@ -169,14 +169,14 @@ class _FakeNativeState {
     switch (call.method) {
       case 'rail.metrics':
         return <String, Object?>{
-          'collapsedWidth': 52.0,
+          'collapsedWidth': 46.0,
           'expandedWidth': 280.0,
-          'slotHeight': 58.0,
-          'collapsedVerticalPadding': 16.0,
+          'slotHeight': 66.0,
+          'collapsedVerticalPadding': 28.0,
           'shadowPadding': 26.0,
           'edgeInset': 0.0,
           'windowWidth': 332.0,
-          'windowHeight': 292.0,
+          'windowHeight': 312.0,
           'slots': 3,
         };
 

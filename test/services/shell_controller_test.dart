@@ -91,7 +91,7 @@ void main() {
       await shell.start();
 
       expect(shell.metrics.slots, 3);
-      expect(shell.metrics.collapsedWidth, 52);
+      expect(shell.metrics.collapsedWidth, 46);
     });
 
     test('loads the display list for the monitor picker', () async {

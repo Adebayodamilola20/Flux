@@ -44,7 +44,7 @@ void main() {
       expect(metrics.slots, 3);
       expect(metrics.expandedWidth, 280);
       // Derived, not sent: one slot height per slot, plus padding at both ends.
-      expect(metrics.collapsedHeight, 3 * 58 + 16 * 2);
+      expect(metrics.collapsedHeight, 3 * 66 + 28 * 2);
     });
 
     test('falls back to declared geometry when native says nothing', () async {

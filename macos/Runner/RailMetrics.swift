@@ -10,17 +10,17 @@ import Foundation
 enum RailMetrics {
 
     /// Width of the rail once it is open.
-    static let collapsedWidth: CGFloat = 52
+    static let collapsedWidth: CGFloat = 46
 
     /// Width of the open rail plus its hover card.
     static let expandedWidth: CGFloat = 280
 
     /// Vertical space each provider slot occupies.
-    static let slotHeight: CGFloat = 58
+    static let slotHeight: CGFloat = 66
 
     /// Padding above and below the stack of slots. Large enough to clear the
     /// reverse curves the rail's outline makes where it meets the screen edge.
-    static let collapsedVerticalPadding: CGFloat = 16
+    static let collapsedVerticalPadding: CGFloat = 28
 
     /// Room reserved around the card for its shadow. The window must be larger
     /// than the card or the shadow is clipped at the window edge.
@@ -41,7 +41,7 @@ enum RailMetrics {
 
     /// Height of the open rail at its tallest. Sized for the three-slot rail
     /// plus enough room for the hover card to breathe.
-    static let expandedHeight: CGFloat = 240
+    static let expandedHeight: CGFloat = 260
 
     /// Height of the open rail for a given number of provider slots.
     static func collapsedHeight(slots: Int) -> CGFloat {
