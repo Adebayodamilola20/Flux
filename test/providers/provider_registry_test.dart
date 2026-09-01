@@ -13,31 +13,45 @@ void main() {
   List<UsageProvider> railProviders() => [
     FakeProvider(id: 'claude', displayName: 'Claude'),
     FakeProvider(id: 'chatgpt', displayName: 'Codex'),
-    FakeProvider(id: 'gemini', displayName: 'Gemini'),
+    FakeProvider(id: 'opencode', displayName: 'OpenCode'),
   ];
 
   group('ProviderCatalog', () {
-    test('declares exactly the number of slots the rail is built for', () {
-      expect(ProviderCatalog.slots, hasLength(ProviderCatalog.slotCount));
+    test('offers more providers than the rail has positions', () {
+      // The two numbers are deliberately different. Equal, every position
+      // would have a provider attached to it by default, which is what made
+      // an unfilled plus describe a provider the user had never chosen.
+      expect(
+        ProviderCatalog.available.length,
+        greaterThan(ProviderCatalog.slotCount),
+      );
     });
 
-    test('gives every slot a unique id', () {
-      final ids = ProviderCatalog.slots.map((s) => s.id).toSet();
-      expect(ids, hasLength(ProviderCatalog.slotCount));
+    test('gives every provider a unique id', () {
+      final ids = ProviderCatalog.available.map((s) => s.id).toSet();
+      expect(ids, hasLength(ProviderCatalog.available.length));
     });
 
-    test('names the slots that have a real integration', () {
-      final implemented = ProviderCatalog.slots
+    test('names the providers that have a real integration', () {
+      final implemented = ProviderCatalog.available
           .where((s) => s.isImplemented)
           .map((s) => s.id);
-      expect(implemented, ['claude', 'chatgpt', 'gemini']);
+      expect(implemented, [
+        'claude',
+        'chatgpt',
+        'opencode',
+        'kilocode',
+        'antigravity',
+        'hermes',
+        'openrouter',
+      ]);
     });
 
-    test('a slot is reserved only while it has no integration', () {
+    test('a provider is reserved only while it has no integration', () {
       // Guards the pairing the composition root depends on: standing a
       // ReservedProvider in front of an implemented slot would silently
       // disable it.
-      for (final slot in ProviderCatalog.slots) {
+      for (final slot in ProviderCatalog.available) {
         if (slot.isImplemented) {
           expect(() => ReservedProvider(slot), throwsA(isA<AssertionError>()));
         } else {
@@ -48,18 +62,21 @@ void main() {
   });
 
   group('ProviderRegistry', () {
-    test('accepts the full set of slots', () {
-      final registry = ProviderRegistry(railProviders());
+    test('accepts a build with more providers than rail positions', () {
+      final registry = ProviderRegistry([
+        ...railProviders(),
+        FakeProvider(id: 'hermes', displayName: 'Hermes'),
+      ]);
 
-      expect(registry.all, hasLength(ProviderCatalog.slotCount));
+      expect(registry.all, hasLength(ProviderCatalog.slotCount + 1));
       expect(registry.primary.id, 'claude');
-      expect(registry.byId('gemini'), isNotNull);
+      expect(registry.byId('opencode'), isNotNull);
       expect(registry.byId('nope'), isNull);
     });
 
-    test('rejects a build wired with the wrong number of slots', () {
-      // The rail's layout is designed around three rings; a mismatch should stop
-      // startup rather than render wrong.
+    test('rejects a build with too few to fill the rail', () {
+      // Fewer providers than positions would leave a plus that can never be
+      // filled, which should stop startup rather than render.
       expect(
         () => ProviderRegistry([FakeProvider(id: 'claude')]),
         throwsA(isA<AssertionError>()),
@@ -81,7 +98,7 @@ void main() {
       final registry = ProviderRegistry([
         FakeProvider(id: 'claude'),
         ReservedProvider(ProviderCatalog.reserved),
-        FakeProvider(id: 'gemini', displayName: 'Gemini'),
+        FakeProvider(id: 'opencode', displayName: 'OpenCode'),
       ]);
 
       // FakeProvider declares itself implemented; only the genuinely reserved

@@ -138,8 +138,9 @@ final class RailWindowController {
         window.orderFront(nil)
         isRailVisible = true
 
+        // Visibility is not set here: the frost belongs to the open rail, and
+        // `setExpanded` is what knows whether that is what is on screen.
         setExpanded(pinnedOpen, notify: true, force: true)
-        glass.setVisible(true)
         installMonitors()
     }
 
@@ -308,6 +309,11 @@ final class RailWindowController {
         guard force || expanded != isExpanded else { return }
         let changed = expanded != isExpanded
         isExpanded = expanded
+
+        // The frost is sized to the *open* rail. While collapsed, Flutter draws
+        // only the nub, so leaving the material up put a full-height pane of
+        // blurred desktop against the bezel with nothing drawn on it.
+        glass.setVisible(expanded && isRailVisible)
 
         // Give the transparent part of the window back to whatever is beneath
         // it while collapsed, so the widget never eats a click meant for the

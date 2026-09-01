@@ -33,7 +33,7 @@ void main() {
       registry: ProviderRegistry([
         provider,
         FakeProvider(id: 'chatgpt', displayName: 'Codex'),
-        FakeProvider(id: 'gemini', displayName: 'Gemini'),
+        FakeProvider(id: 'opencode', displayName: 'OpenCode'),
       ]),
       settingsService: settings,
       historyService: HistoryService(preferences: preferences),

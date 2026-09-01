@@ -46,8 +46,8 @@ void main() {
 
   group('client configuration', () {
     test('is unconfigured until a client is set', () {
-      expect(registry.isConfigured('gemini'), isFalse);
-      expect(registry.configFor('gemini')!.isConfigured, isFalse);
+      expect(registry.isConfigured('antigravity'), isFalse);
+      expect(registry.configFor('antigravity')!.isConfigured, isFalse);
     });
 
     test('has no OAuth definition for providers that do not use it', () {
@@ -60,23 +60,23 @@ void main() {
     test('accepts a Desktop app client', () async {
       final id = await registry.importGoogleClientFile(
         _installedClient(),
-        'gemini',
+        'antigravity',
       );
 
       expect(id, '937871002031-abc.apps.googleusercontent.com');
-      expect(registry.isConfigured('gemini'), isTrue);
-      expect(registry.configFor('gemini')!.clientSecret, 'GOCSPX-example');
+      expect(registry.isConfigured('antigravity'), isTrue);
+      expect(registry.configFor('antigravity')!.clientSecret, 'GOCSPX-example');
     });
 
     test('rejects a Web client with an explanation', () async {
       final contents = _webClient();
 
-      final id = await registry.importGoogleClientFile(contents, 'gemini');
+      final id = await registry.importGoogleClientFile(contents, 'antigravity');
 
       // A web client cannot use the loopback redirect, and accepting it would
       // fail later as an opaque redirect_uri_mismatch in the browser.
       expect(id, isNull);
-      expect(registry.isConfigured('gemini'), isFalse);
+      expect(registry.isConfigured('antigravity'), isFalse);
       expect(
         OAuthRegistry.importRejectionReason(contents),
         contains('Desktop app'),
@@ -85,7 +85,7 @@ void main() {
 
     test('rejects a file that is not JSON', () async {
       expect(
-        await registry.importGoogleClientFile('not json', 'gemini'),
+        await registry.importGoogleClientFile('not json', 'antigravity'),
         isNull,
       );
       expect(
@@ -96,7 +96,7 @@ void main() {
 
     test('rejects JSON that is not a client file', () async {
       expect(
-        await registry.importGoogleClientFile('{"hello":true}', 'gemini'),
+        await registry.importGoogleClientFile('{"hello":true}', 'antigravity'),
         isNull,
       );
     });
@@ -104,24 +104,27 @@ void main() {
     test('accepts a client with no secret', () async {
       final id = await registry.importGoogleClientFile(
         _installedClient(secret: null),
-        'gemini',
+        'antigravity',
       );
 
       expect(id, isNotNull);
-      expect(registry.configFor('gemini')!.clientSecret, isNull);
+      expect(registry.configFor('antigravity')!.clientSecret, isNull);
     });
 
-    test('keeps providers independent', () async {
-      await registry.importGoogleClientFile(_installedClient(), 'gemini');
+    test('configures only the provider it was imported for', () async {
+      await registry.importGoogleClientFile(_installedClient(), 'antigravity');
 
-      expect(registry.isConfigured('gemini'), isTrue);
-      expect(registry.isConfigured('antigravity'), isFalse);
+      expect(registry.isConfigured('antigravity'), isTrue);
+      // A provider with no OAuth definition is unaffected by any import —
+      // these are per-provider clients, not one shared credential.
+      expect(registry.supports('opencode'), isFalse);
+      expect(registry.isConfigured('opencode'), isFalse);
     });
   });
 
   group('scopes', () {
     test('asks only for what the app actually calls', () {
-      final scopes = registry.configFor('gemini')!.scopes;
+      final scopes = registry.configFor('antigravity')!.scopes;
 
       // Requesting a broad scope the app never uses drags the user through
       // Google's unverified-app warning for nothing.
@@ -130,7 +133,7 @@ void main() {
     });
 
     test('requests offline access so the link survives an hour', () {
-      final extra = registry.configFor('gemini')!.extraAuthParameters;
+      final extra = registry.configFor('antigravity')!.extraAuthParameters;
       expect(extra['access_type'], 'offline');
     });
   });

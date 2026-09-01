@@ -123,6 +123,14 @@ class ProviderDetailView extends StatelessWidget {
               message: state.failure!.message,
               hint: state.failure!.hint,
             )
+          // Connected, nothing to show, and nothing broken. This is where a
+          // user ends up after adding a tool they have not used yet, so it has
+          // to answer "what do I do" rather than restate the problem.
+          else if (data != null && data.isUsageUnavailable)
+            _NothingToShowBlock(
+              reason: data.usageUnavailableReason!,
+              steps: data.fixItSteps,
+            )
           else if (data == null || data.windows.isEmpty)
             Text(
               'No usage has been recorded for this provider yet.',
@@ -137,58 +145,6 @@ class ProviderDetailView extends StatelessWidget {
               ),
               const SizedBox(height: 18),
             ],
-          ],
-          if (data != null && data.sessions.isNotEmpty) ...[
-            Text(
-              'ACTIVE SESSIONS',
-              style: TextStyle(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.6,
-                color: palette.textTertiary,
-              ),
-            ),
-            const SizedBox(height: 8),
-            for (final session in data.sessions)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            session.command ?? session.title,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: palette.textPrimary,
-                            ),
-                          ),
-                          Text(
-                            session.subtitle(session.title),
-                            style: TextStyle(
-                              fontSize: 10.5,
-                              color: palette.textTertiary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      session.isBusy ? 'Working' : 'Waiting',
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                        color: session.isBusy
-                            ? palette.accentPositive
-                            : palette.textTertiary,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            const SizedBox(height: 16),
           ],
           if (data != null && data.notes.isNotEmpty)
             for (final note in data.notes)
@@ -423,6 +379,97 @@ class _FailureBlock extends StatelessWidget {
 /// *activity* that is detected with no connection at all. Someone looking for
 /// their Claude Code session limits here should be told plainly that connecting
 /// will not produce them.
+/// Connected, but with nothing to report yet — and what to do about it.
+///
+/// The rail's card has room for the reason and no more, which left a Retry
+/// button as the only thing to press and nothing to learn from pressing it.
+/// This is the surface with room for the answer, so the answer goes here: one
+/// sentence of cause, then short numbered steps.
+class _NothingToShowBlock extends StatelessWidget {
+  const _NothingToShowBlock({required this.reason, required this.steps});
+
+  final String reason;
+  final List<String> steps;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+
+    return Container(
+      padding: const EdgeInsets.all(13),
+      decoration: BoxDecoration(
+        color: palette.textTertiary.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Nothing to show yet',
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: palette.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 5),
+          Text(
+            reason,
+            style: TextStyle(
+              fontSize: 11.5,
+              height: 1.4,
+              color: palette.textSecondary,
+            ),
+          ),
+          if (steps.isNotEmpty) ...[
+            const SizedBox(height: 11),
+            Text(
+              'WHAT TO DO',
+              style: TextStyle(
+                fontSize: 9.5,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.6,
+                color: palette.textTertiary,
+              ),
+            ),
+            const SizedBox(height: 6),
+            for (var i = 0; i < steps.length; i++)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 5),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 16,
+                      child: Text(
+                        '${i + 1}.',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: FontWeight.w600,
+                          color: palette.textTertiary,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Text(
+                        steps[i],
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          height: 1.4,
+                          color: palette.textPrimary,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _NotConnectedBlock extends StatelessWidget {
   const _NotConnectedBlock({required this.state});
 
@@ -482,9 +529,13 @@ class _NotConnectedBlock extends StatelessWidget {
               'are not shown here. Claude Code sessions running on this Mac are '
               'still detected without connecting — they appear as activity, not '
               'as usage.',
-        'gemini' =>
-          'Connecting uses the session your Gemini CLI already holds and reads '
-              'the quota panel it draws for that account.',
+        'opencode' || 'kilocode' =>
+          'Adding this reads the session record the tool already keeps on this '
+              'Mac, for whichever model you are currently on. Switch models '
+              'and the figure follows you to the new one.',
+        'hermes' =>
+          'Adding this runs Hermes’s own insights report and reads the totals '
+              'for the model it is set to.',
         'antigravity' =>
           'Connecting uses the session your Antigravity CLI already holds and '
               'reads the quota panel it draws for that account.',

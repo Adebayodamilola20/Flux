@@ -44,7 +44,7 @@ ProviderState slot({
   int? percent,
 }) {
   return ProviderState(
-    descriptor: ProviderCatalog.slots.firstWhere((s) => s.id == id),
+    descriptor: ProviderCatalog.available.firstWhere((s) => s.id == id),
     connection: ProviderConnection(providerId: id, status: status),
     data: percent == null
         ? null
@@ -77,9 +77,9 @@ bool drewPlus(WidgetTester tester, String providerId) {
 
 void main() {
   testWidgets('an empty slot shows a plus and no percentage', (tester) async {
-    await pumpRail(tester, [slot(id: 'gemini')]);
+    await pumpRail(tester, [slot(id: 'opencode')]);
 
-    expect(drewPlus(tester, 'gemini'), isTrue);
+    expect(drewPlus(tester, 'opencode'), isTrue);
     expect(find.textContaining('%'), findsNothing);
   });
 
@@ -98,12 +98,12 @@ void main() {
     // The exact contradiction that reached the screen: a ring showing the
     // empty-slot plus with "27%" underneath it.
     await pumpRail(tester, [
-      slot(id: 'gemini'),
+      slot(id: 'opencode'),
       slot(id: 'chatgpt', status: ConnectionStatus.connected, percent: 100),
       slot(id: 'claude', status: ConnectionStatus.connected, percent: 27),
     ]);
 
-    for (final id in ['gemini', 'chatgpt', 'claude']) {
+    for (final id in ['opencode', 'chatgpt', 'claude']) {
       final isPlus = drewPlus(tester, id);
       final state = tester
           .widgetList<ProviderGlyph>(find.byType(ProviderGlyph))
@@ -141,7 +141,7 @@ void main() {
     await pumpRail(tester, [
       slot(id: 'claude'),
       slot(id: 'chatgpt'),
-      slot(id: 'gemini'),
+      slot(id: 'opencode'),
     ]);
 
     expect(find.byType(ProviderGlyph), findsNWidgets(3));

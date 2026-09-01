@@ -275,16 +275,16 @@ void main() {
       expect(ids, isNot(contains('seven_day_opus')));
     });
 
-    test('omits extra usage unless it is switched on', () {
-      final off = ClaudeAccountSource.parse(claudeConfig());
-      expect(off.windows.any((w) => w.id == 'extra_usage'), isFalse);
-
-      final on = ClaudeAccountSource.parse(
-        claudeConfig(extraEnabled: true),
-      );
-      final extra = on.windows.firstWhere((w) => w.id == 'extra_usage');
-      expect(extra.consumed, 4024);
-      expect(extra.limit, 4000);
+    test('reports the session and the week and nothing else', () {
+      // Extra usage is denominated in credits, not percent, so it never
+      // belonged beside two windows a person reads as "how much is left".
+      // It stays out even when the account has it switched on.
+      for (final enabled in [false, true]) {
+        final ids = ClaudeAccountSource.parse(
+          claudeConfig(extraEnabled: enabled),
+        ).windows.map((w) => w.id);
+        expect(ids, ['five_hour', 'seven_day']);
+      }
     });
 
     test('handles a config with no account', () {

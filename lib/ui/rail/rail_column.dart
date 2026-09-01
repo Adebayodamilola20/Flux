@@ -96,6 +96,11 @@ class RailColumn extends StatelessWidget {
                 else
                   _EmptySlot(
                     height: metrics.slotHeight,
+                    // Clears the card on the way in. An empty position has no
+                    // provider to describe, and without this the previous
+                    // ring's card stays up — so a plus appeared to be claimed
+                    // by whichever provider the pointer passed over last.
+                    onEnter: () => onHoverSlot(null),
                     onTap: () => onAddToSlot(index),
                   ),
             ],
@@ -296,10 +301,18 @@ class _ActivityDotState extends State<_ActivityDot>
 /// any provider can go in any position — a plus that always meant "connect the
 /// provider we chose for this row" would not be a choice.
 class _EmptySlot extends StatefulWidget {
-  const _EmptySlot({required this.height, required this.onTap});
+  const _EmptySlot({
+    required this.height,
+    required this.onTap,
+    required this.onEnter,
+  });
 
   final double height;
   final VoidCallback onTap;
+
+  /// Told when the pointer arrives, so the rail can drop whatever card it was
+  /// showing.
+  final VoidCallback onEnter;
 
   @override
   State<_EmptySlot> createState() => _EmptySlotState();
@@ -313,7 +326,10 @@ class _EmptySlotState extends State<_EmptySlot> {
     final palette = context.palette;
 
     return MouseRegion(
-      onEnter: (_) => setState(() => _hovered = true),
+      onEnter: (_) {
+        setState(() => _hovered = true);
+        widget.onEnter();
+      },
       onExit: (_) => setState(() => _hovered = false),
       cursor: SystemMouseCursors.click,
       child: GestureDetector(

@@ -168,6 +168,52 @@ void main() {
     );
   });
 
+  group('a link that never had a key', () {
+    // Codex is adopted from the account it is already signed in as, so there is
+    // no secret behind the connection. Restore used to test every stored link
+    // against the Keychain, find nothing, and write `notConnected` back to
+    // disk — which is why the slot emptied itself and had to be re-added by
+    // hand after every launch.
+    test('survives a restart with nothing in the Keychain', () async {
+      SharedPreferences.setMockInitialValues({
+        'flutter.connection.chatgpt':
+            '{"providerId":"chatgpt","status":"connected",'
+            '"usesStoredKey":false}',
+      });
+      preferences = await SharedPreferences.getInstance();
+
+      final provider = await build((_) => http.Response(_costs([1.0]), 200));
+
+      expect(native.secrets, isEmpty);
+      expect(provider.connection.status, ConnectionStatus.connected);
+    });
+
+    test('and is still dropped when it did have one', () async {
+      SharedPreferences.setMockInitialValues({
+        'flutter.connection.chatgpt':
+            '{"providerId":"chatgpt","status":"connected",'
+            '"usesStoredKey":true}',
+      });
+      preferences = await SharedPreferences.getInstance();
+
+      final provider = await build((_) => http.Response(_costs([1.0]), 200));
+
+      // The key this link rested on is gone, so the link really is broken.
+      expect(provider.connection.status, ConnectionStatus.notConnected);
+    });
+
+    test('connecting with a key records that it rests on one', () async {
+      SharedPreferences.setMockInitialValues({});
+      preferences = await SharedPreferences.getInstance();
+      final provider = await build((_) => http.Response(_costs([1.0]), 200));
+
+      final result = await provider.completeAuthentication('sk-abc');
+
+      expect(result.status, ConnectionStatus.connected);
+      expect(result.usesStoredKey, isTrue);
+    });
+  });
+
   test('opens OpenAI’s own key page on connect', () async {
     SharedPreferences.setMockInitialValues({});
     preferences = await SharedPreferences.getInstance();

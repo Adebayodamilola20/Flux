@@ -72,7 +72,6 @@ class ProviderGlyph extends StatelessWidget {
   /// a glance even before their colours register.
   static int _sidesFor(String providerId) => switch (providerId) {
     'codex' => 6,
-    'antigravity' => 4,
     _ => 5,
   };
 }

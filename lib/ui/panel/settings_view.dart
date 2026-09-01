@@ -652,28 +652,42 @@ class _ProviderPage extends StatelessWidget {
         SettingsSection(
           title: 'On the rail',
           children: [
-            SettingsRow(
-              label: slot == null
-                  ? 'Not on the rail'
-                  : 'Position ${slot + 1} of ${settings.slots.length}',
-              description: slot == null
-                  ? 'Add it to show its usage on the edge of your screen.'
-                  : 'Remove it to free the position for another app. Your '
-                      'account stays connected.',
-              control: PillButton(
-                label: slot == null ? 'Add to rail' : 'Remove',
-                emphasised: slot == null,
-                onPressed: () async {
-                  if (slot != null) {
-                    await usage.clearSlot(slot);
-                    return;
-                  }
-                  final free = settings.emptySlotIndices.firstOrNull;
-                  if (free == null) return;
-                  await usage.assignSlot(free, providerId);
-                },
+            if (slot != null)
+              SettingsRow(
+                label: 'Position ${slot + 1} of ${settings.slots.length}',
+                description: 'Remove it to free the position for another app. '
+                    'Your account stays connected.',
+                control: PillButton(
+                  label: 'Remove',
+                  onPressed: () => usage.clearSlot(slot),
+                ),
+              )
+            // The rail holds a fixed number of positions, and every one of
+            // them is taken. Adding used to be offered anyway and then do
+            // nothing at all when there was nowhere to put it — a button that
+            // looks live, is pressed, and leaves the user with no idea why.
+            else if (settings.emptySlotIndices.isEmpty)
+              SettingsRow(
+                label: 'Rail is full — '
+                    '${settings.slots.length} of ${settings.slots.length}',
+                description: 'Pick one to swap out, or remove one first. '
+                    'Whatever you swap out stays connected.',
+                control: _SwapIntoRailButton(providerId: providerId),
+              )
+            else
+              SettingsRow(
+                label: 'Not on the rail',
+                description: 'Add it to show its usage on the edge of your '
+                    'screen.',
+                control: PillButton(
+                  label: 'Add to rail',
+                  emphasised: true,
+                  onPressed: () async {
+                    final free = settings.emptySlotIndices.first;
+                    await usage.assignSlot(free, providerId);
+                  },
+                ),
               ),
-            ),
           ],
         ),
         const SizedBox(height: 20),
@@ -770,8 +784,9 @@ class _AboutPage extends StatelessWidget {
           title: 'What it reads',
           children: [
             for (final line in const [
-              'The session each tool has already established on this Mac — '
-                  'Claude Code, Codex, the Antigravity CLI, the Gemini CLI.',
+              'The session record each tool already keeps on this Mac — '
+                  'Claude Code, Codex, OpenCode, Kilo Code, the Antigravity '
+                  'CLI, Hermes.',
               'Those sessions are used to ask each provider for your own '
                   'usage, and for nothing else. No token is stored, logged, '
                   'or sent anywhere but to the provider it belongs to.',
@@ -792,6 +807,71 @@ class _AboutPage extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// Offered when every rail position is taken.
+///
+/// The rail is a fixed number of positions by design, so "add" has to become
+/// "swap" once they are all used. Naming what is currently there — and its
+/// position — is the part that matters: the user picks what to give up rather
+/// than being told to go and clear a slot somewhere else first.
+class _SwapIntoRailButton extends StatelessWidget {
+  const _SwapIntoRailButton({required this.providerId});
+
+  /// The provider that wants a position.
+  final String providerId;
+
+  @override
+  Widget build(BuildContext context) {
+    final usage = context.watch<UsageController>();
+    final palette = context.palette;
+    final occupants = usage.slots;
+
+    return PillButton(
+      label: 'Swap in…',
+      emphasised: true,
+      onPressed: () async {
+        final box = context.findRenderObject() as RenderBox?;
+        final overlay =
+            Overlay.of(context).context.findRenderObject() as RenderBox?;
+        if (box == null || overlay == null) return;
+
+        final origin = box.localToGlobal(Offset.zero, ancestor: overlay);
+        final chosen = await showMenu<int>(
+          context: context,
+          color: palette.surfaceRaised,
+          position: RelativeRect.fromLTRB(
+            origin.dx,
+            origin.dy + box.size.height + 4,
+            overlay.size.width - origin.dx - box.size.width,
+            0,
+          ),
+          items: [
+            for (var i = 0; i < occupants.length; i++)
+              if (occupants[i] case final occupant?)
+                PopupMenuItem<int>(
+                  value: i,
+                  height: 36,
+                  child: Text(
+                    'Replace ${occupant.displayName} '
+                    '(position ${i + 1})',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: palette.textPrimary,
+                    ),
+                  ),
+                ),
+          ],
+        );
+
+        if (chosen == null) return;
+        // Assigning over an occupied position replaces what is there. The
+        // provider that leaves keeps its connection — only its place on the
+        // rail is given up.
+        await usage.assignSlot(chosen, providerId);
+      },
     );
   }
 }

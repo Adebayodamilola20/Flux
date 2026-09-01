@@ -19,6 +19,7 @@ class UsageData {
     this.notes = const <String>[],
     this.usageUnavailableReason,
     this.usageUnavailableIsPermanent = false,
+    this.fixItSteps = const <String>[],
   });
 
   /// Stable provider key (`claude`).
@@ -64,6 +65,15 @@ class UsageData {
   /// structural one deserves an explanation. Offering Retry against an
   /// endpoint that does not exist just invites the user to press it forever.
   final bool usageUnavailableIsPermanent;
+
+  /// What the user can do about it, in order, when there is nothing to report.
+  ///
+  /// Separate from [notes], which are caveats about a figure that exists.
+  /// These are instructions for the case where no figure exists at all, and
+  /// they earn a place in the panel rather than grey text under it: a card
+  /// that says "unavailable" and offers only a Retry button that cannot help
+  /// leaves the user pressing it and learning nothing.
+  final List<String> fixItSteps;
 
   /// True when the provider is connected but had no quota to report.
   bool get isUsageUnavailable =>
@@ -139,6 +149,7 @@ class UsageData {
     List<String>? notes,
     String? usageUnavailableReason,
     bool? usageUnavailableIsPermanent,
+    List<String>? fixItSteps,
   }) {
     return UsageData(
       providerId: providerId,
@@ -154,6 +165,7 @@ class UsageData {
           usageUnavailableReason ?? this.usageUnavailableReason,
       usageUnavailableIsPermanent:
           usageUnavailableIsPermanent ?? this.usageUnavailableIsPermanent,
+      fixItSteps: fixItSteps ?? this.fixItSteps,
     );
   }
 
