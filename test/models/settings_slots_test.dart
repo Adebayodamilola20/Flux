@@ -25,11 +25,11 @@ void main() {
       // Preferences outlive the code that wrote them. The extra position is
       // dropped rather than carried into a rail that cannot draw it.
       final settings = AppSettings.fromJson({
-        'slots': ['claude', 'chatgpt', 'gemini', 'antigravity'],
+        'slots': ['claude', 'chatgpt', 'opencode', 'antigravity'],
       });
 
       expect(settings.slots, hasLength(ProviderCatalog.slotCount));
-      expect(settings.slots, ['claude', 'chatgpt', 'gemini']);
+      expect(settings.slots, ['claude', 'chatgpt', 'opencode']);
     });
 
     test('settings stored by a build with fewer slots are padded', () {

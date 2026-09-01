@@ -50,14 +50,14 @@ void main() {
 
   group('provider-specific copy lives on the descriptor', () {
     test('every implemented slot describes itself', () {
-      for (final slot in ProviderCatalog.slots) {
+      for (final slot in ProviderCatalog.available) {
         expect(slot.displayName, isNotEmpty);
         expect(slot.tagline, isNotEmpty);
       }
     });
 
     test('a key-based slot supplies its own hint and note', () {
-      final keyBased = ProviderCatalog.slots.where(
+      final keyBased = ProviderCatalog.available.where(
         (s) => s.authMethod == ProviderAuthMethod.consoleApiKey,
       );
 
@@ -73,7 +73,7 @@ void main() {
     });
 
     test('a slot with no sign-in offers no call to action', () {
-      final noSignIn = ProviderCatalog.slots.where(
+      final noSignIn = ProviderCatalog.available.where(
         (s) => s.authMethod == ProviderAuthMethod.localActivityOnly,
       );
 

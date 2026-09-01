@@ -141,7 +141,11 @@ class ClaudeUsageProvider implements UsageProvider {
 
     // A stored "connected" state is only meaningful if the key is still in the
     // Keychain — the user may have revoked it from Keychain Access directly.
-    if (stored.status == ConnectionStatus.connected &&
+    // Only for a link that was made with a key: adopting the account Claude
+    // Code is signed in as never involved one, and demanding it back would
+    // downgrade a connection that is working.
+    if (stored.usesStoredKey &&
+        stored.status == ConnectionStatus.connected &&
         await _adminKey() == null) {
       _log.warn('stored Claude connection has no key; downgrading');
       _connection = stored.copyWith(
@@ -213,6 +217,7 @@ class ClaudeUsageProvider implements UsageProvider {
       status: ConnectionStatus.connected,
       connectedAt: DateTime.now(),
       accountLabel: 'Anthropic admin key',
+      usesStoredKey: true,
     ));
   }
 

@@ -410,22 +410,6 @@ class ClaudeLiveUsageSource {
       if (window != null) windows.add(window);
     });
 
-    final extra = utilization['extra_usage'];
-    if (extra is Map<String, dynamic> && extra['is_enabled'] == true) {
-      final used = extra['used_credits'];
-      final limit = extra['monthly_limit'];
-      if (used is num && limit is num && limit > 0) {
-        windows.add(UsageWindow(
-          id: 'extra_usage',
-          label: 'Extra usage',
-          consumed: used,
-          limit: limit,
-          unit: 'credits',
-          source: UsageSource.officialApi,
-        ));
-      }
-    }
-
     if (windows.isEmpty) return null;
     return ClaudeLiveReading(windows: windows, fetchedAt: DateTime.now());
   }

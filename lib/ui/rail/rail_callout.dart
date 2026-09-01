@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../core/formatting.dart';
-import '../../models/active_session.dart';
 import '../../models/connection_status.dart';
 import '../../models/provider_connection.dart';
 import '../../models/usage_failure.dart';
@@ -93,12 +92,7 @@ class RailCallout extends StatelessWidget {
               : 'Sign in to ${state.displayName} to see your usage.',
           color: palette.textSecondary,
         ),
-        if (state.sessions.isNotEmpty) ...[
-          const SizedBox(height: 9),
-          Container(height: 1, color: palette.divider),
-          const SizedBox(height: 8),
-          _SessionRow(session: state.sessions.first),
-        ] else if (noSignIn) ...[
+        if (noSignIn) ...[
           const SizedBox(height: 5),
           _Note(
             text: 'Nothing running right now.',
@@ -119,7 +113,6 @@ class RailCallout extends StatelessWidget {
     // worked and there is nothing for the user to fix, so it is stated plainly
     // and local activity is still shown underneath.
     if (state.isUsageUnavailable) {
-      final sessions = state.sessions;
       return [
         _Note(text: 'Usage unavailable', color: palette.textSecondary),
         if (state.usageUnavailableReason != null) ...[
@@ -129,18 +122,21 @@ class RailCallout extends StatelessWidget {
             color: palette.textTertiary,
           ),
         ],
-        if (sessions.isNotEmpty) ...[
-          const SizedBox(height: 9),
-          Container(height: 1, color: palette.divider),
-          const SizedBox(height: 8),
-          _SessionRow(session: sessions.first),
-        ],
+        // Retry is offered only where retrying could change the answer. When
+        // the record is simply empty, pressing it re-reads the same nothing —
+        // so the card points at the panel, which has room for the steps.
         if (state.canRetryUsage) ...[
           const SizedBox(height: 9),
           _ConnectButton(
             label: state.isRefreshing ? 'Checking…' : 'Retry',
             onTap: onRetry,
             enabled: !state.isRefreshing,
+          ),
+        ] else if (data?.fixItSteps.isNotEmpty ?? false) ...[
+          const SizedBox(height: 5),
+          _Note(
+            text: 'Click for what to do.',
+            color: palette.textSecondary,
           ),
         ],
       ];
@@ -202,12 +198,6 @@ class RailCallout extends StatelessWidget {
       for (final window in data.windows) ...[
         _WindowRow(window: window),
         if (window != data.windows.last) const SizedBox(height: 9),
-      ],
-      if (state.sessions.isNotEmpty) ...[
-        const SizedBox(height: 9),
-        Container(height: 1, color: palette.divider),
-        const SizedBox(height: 8),
-        _SessionRow(session: state.sessions.first),
       ],
     ];
   }
@@ -307,65 +297,6 @@ class _WindowRow extends StatelessWidget {
             fontWeight: FontWeight.w600,
             color: palette.textSecondary,
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SessionRow extends StatelessWidget {
-  const _SessionRow({required this.session});
-
-  final ActiveSession session;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                session.title,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 10.5,
-                  fontWeight: FontWeight.w600,
-                  color: palette.textPrimary,
-                ),
-              ),
-            ),
-            Text(
-              session.isBusy ? 'working' : 'idle',
-              style: TextStyle(
-                fontSize: 9.5,
-                fontWeight: FontWeight.w600,
-                color: session.isBusy
-                    ? palette.accentPositive
-                    : palette.textTertiary,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 1),
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                session.subtitle(session.title),
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 9.5, color: palette.textTertiary),
-              ),
-            ),
-            if (session.lastActivity != null)
-              Text(
-                Format.relativeTime(session.lastActivity!),
-                style: TextStyle(fontSize: 9.5, color: palette.textTertiary),
-              ),
-          ],
         ),
       ],
     );

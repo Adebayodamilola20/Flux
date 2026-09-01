@@ -15,9 +15,11 @@ import Cocoa
 /// a blurred rectangle hanging in the middle of the screen.
 final class RailGlass {
 
-    /// Matches `NotchShape.cornerRadius` in Dart. The two shapes have to agree
-    /// or the frost shows outside the card's edge.
+    /// Both must match the values `RailColumn` passes to `NotchShape` in Dart.
+    /// The frost is drawn behind that outline, so any disagreement shows as a
+    /// second, differently-shaped panel sitting behind the rail.
     private static let cornerRadius: CGFloat = 20
+    private static let filletRadius: CGFloat = 13
 
     private let effect = NSVisualEffectView()
 
@@ -75,67 +77,74 @@ final class RailGlass {
         effect.isHidden = !(isEnabled && isVisible) || frame.isEmpty
     }
 
-    /// The rail's outline: rounded on the inward side, flat against the bezel.
+    /// The rail's outline, as a mask image.
     ///
-    /// Drawn at the exact size rather than as a resizable nine-part image,
-    /// because the two inward corners are rounded and the two outward ones are
-    /// not — a symmetric cap-inset image cannot express that.
+    /// Drawn at the exact size rather than as a resizable nine-part image: the
+    /// two inward corners are rounded, the two outward ones are not, and the
+    /// outline curves *back* into the screen edge at top and bottom. A
+    /// symmetric cap-inset image cannot express any of that.
     private static func mask(for size: NSSize, onRightEdge: Bool) -> NSImage? {
         guard size.width > 0, size.height > 0 else { return nil }
 
-        let radius = min(cornerRadius, min(size.width, size.height) / 2)
-
         return NSImage(size: size, flipped: false) { rect in
-            let path = NSBezierPath()
-            let minX = rect.minX, maxX = rect.maxX
-            let minY = rect.minY, maxY = rect.maxY
-
-            if onRightEdge {
-                // Flat right edge, rounded left.
-                path.move(to: NSPoint(x: maxX, y: minY))
-                path.line(to: NSPoint(x: minX + radius, y: minY))
-                path.appendArc(
-                    withCenter: NSPoint(x: minX + radius, y: minY + radius),
-                    radius: radius,
-                    startAngle: 270,
-                    endAngle: 180,
-                    clockwise: true
-                )
-                path.line(to: NSPoint(x: minX, y: maxY - radius))
-                path.appendArc(
-                    withCenter: NSPoint(x: minX + radius, y: maxY - radius),
-                    radius: radius,
-                    startAngle: 180,
-                    endAngle: 90,
-                    clockwise: true
-                )
-                path.line(to: NSPoint(x: maxX, y: maxY))
-            } else {
-                // Flat left edge, rounded right.
-                path.move(to: NSPoint(x: minX, y: minY))
-                path.line(to: NSPoint(x: maxX - radius, y: minY))
-                path.appendArc(
-                    withCenter: NSPoint(x: maxX - radius, y: minY + radius),
-                    radius: radius,
-                    startAngle: 270,
-                    endAngle: 0,
-                    clockwise: false
-                )
-                path.line(to: NSPoint(x: maxX, y: maxY - radius))
-                path.appendArc(
-                    withCenter: NSPoint(x: maxX - radius, y: maxY - radius),
-                    radius: radius,
-                    startAngle: 0,
-                    endAngle: 90,
-                    clockwise: false
-                )
-                path.line(to: NSPoint(x: minX, y: maxY))
+            guard let context = NSGraphicsContext.current?.cgContext else {
+                return false
             }
-
-            path.close()
-            NSColor.black.setFill()
-            path.fill()
+            context.addPath(notchPath(in: rect, onRightEdge: onRightEdge))
+            context.setFillColor(NSColor.black.cgColor)
+            context.fillPath()
             return true
         }
+    }
+
+    /// A direct port of `NotchPathBuilder.build` in `rail_shapes.dart`.
+    ///
+    /// Kept structurally identical to the Dart — same clamps, same order, same
+    /// control points — because the two are drawn on top of each other and the
+    /// difference between this and a rounded rectangle is the entire design.
+    /// The shape is symmetric about its horizontal axis, so it needs no
+    /// adjustment for AppKit's upward Y.
+    private static func notchPath(in rect: NSRect, onRightEdge: Bool) -> CGPath {
+        let w = rect.width
+        let h = rect.height
+
+        // The reverse curves eat into the top and bottom, so they cannot be
+        // larger than half the height, and the inward corners cannot exceed
+        // what is left.
+        let f = min(max(filletRadius, 0), h / 2)
+        let r = min(max(cornerRadius, 0), (h - f * 2) / 2)
+
+        let path = CGMutablePath()
+        let x0 = rect.minX
+        let y0 = rect.minY
+
+        func point(_ px: CGFloat, _ py: CGFloat) -> CGPoint {
+            CGPoint(x: x0 + px, y: y0 + py)
+        }
+
+        if onRightEdge {
+            path.move(to: point(w, 0))
+            // Reverse curve: leaves the screen edge and sweeps inward.
+            path.addQuadCurve(to: point(w - f, f), control: point(w, f))
+            path.addLine(to: point(r, f))
+            path.addQuadCurve(to: point(0, f + r), control: point(0, f))
+            path.addLine(to: point(0, h - f - r))
+            path.addQuadCurve(to: point(r, h - f), control: point(0, h - f))
+            path.addLine(to: point(w - f, h - f))
+            // Reverse curve back out to the screen edge.
+            path.addQuadCurve(to: point(w, h), control: point(w, h - f))
+        } else {
+            path.move(to: point(0, 0))
+            path.addQuadCurve(to: point(f, f), control: point(0, f))
+            path.addLine(to: point(w - r, f))
+            path.addQuadCurve(to: point(w, f + r), control: point(w, f))
+            path.addLine(to: point(w, h - f - r))
+            path.addQuadCurve(to: point(w - r, h - f), control: point(w, h - f))
+            path.addLine(to: point(f, h - f))
+            path.addQuadCurve(to: point(0, h), control: point(0, h - f))
+        }
+
+        path.closeSubpath()
+        return path
     }
 }

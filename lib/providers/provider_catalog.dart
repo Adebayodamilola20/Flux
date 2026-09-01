@@ -72,18 +72,43 @@ abstract final class ProviderCatalog {
     isImplemented: true,
   );
 
-  /// Google's Gemini CLI.
-  static const ProviderDescriptor gemini = ProviderDescriptor(
-    id: 'gemini',
-    displayName: 'Gemini',
-    tagline: 'Remaining Gemini quota, per model',
-    accent: 0xFF9168F0,
-    // No sign-in of our own: the CLI's stored session authorises the call.
+  /// OpenCode, read from the session store it keeps on this Mac.
+  static const ProviderDescriptor openCode = ProviderDescriptor(
+    id: 'opencode',
+    displayName: 'OpenCode',
+    tagline: 'Tokens used by the model OpenCode is on',
+    accent: 0xFFEBEBF0,
     authMethod: ProviderAuthMethod.localOnly,
     isImplemented: true,
     connectNote:
-        'No sign-in needed. Uses the session Gemini CLI already holds to ask '
-        'Google what is left of your quota.',
+        'No sign-in needed. Reads the session record OpenCode already keeps '
+        'on this Mac, for whichever model you are currently on.',
+  );
+
+  /// Kilo Code. A fork of OpenCode, with the same session store.
+  static const ProviderDescriptor kiloCode = ProviderDescriptor(
+    id: 'kilocode',
+    displayName: 'Kilo Code',
+    tagline: 'Tokens used by the model Kilo Code is on',
+    accent: 0xFF7C5CFF,
+    authMethod: ProviderAuthMethod.localOnly,
+    isImplemented: true,
+    connectNote:
+        'No sign-in needed. Reads the session record Kilo Code already keeps '
+        'on this Mac, for whichever model you are currently on.',
+  );
+
+  /// Hermes Agent.
+  static const ProviderDescriptor hermes = ProviderDescriptor(
+    id: 'hermes',
+    displayName: 'Hermes',
+    tagline: 'Tokens used by the model Hermes is on',
+    accent: 0xFFE0A458,
+    authMethod: ProviderAuthMethod.localOnly,
+    isImplemented: true,
+    connectNote:
+        'No sign-in needed. Reads the session history Hermes reports through '
+        'its own insights command, for the model it is set to.',
   );
 
   /// A slot with no integration behind it.
@@ -116,10 +141,29 @@ abstract final class ProviderCatalog {
         'holds, and reads the weekly limit from its own usage panel.',
   );
 
-  /// Slot order, top to bottom in the rail.
-  static const List<ProviderDescriptor> slots = [claude, chatgpt, gemini];
+  /// Every provider this build can measure, in the order the picker offers
+  /// them.
+  ///
+  /// Deliberately longer than [slotCount]. These are not rail positions — the
+  /// rail has three, and which providers occupy them is the user's choice,
+  /// stored in `AppSettings.slots`. Tying the two together is what made an
+  /// empty position carry a provider's identity, so that a plus the user had
+  /// not filled still described a provider they had never picked.
+  static const List<ProviderDescriptor> available = [
+    claude,
+    chatgpt,
+    openCode,
+    kiloCode,
+    antigravity,
+    hermes,
+    openRouter,
+  ];
 
-  /// The product's fixed slot count. Asserted by [ProviderRegistry] so a
-  /// mismatch is caught at startup rather than by a broken layout.
+  /// How many positions the rail has.
+  ///
+  /// A layout number, not a catalogue number: the rail window is sized for
+  /// exactly this many rings on the native side. `settings_slots_test.dart`
+  /// holds it to `AppSettings.emptySlots`, and `MainFlutterWindow.slotCount`
+  /// has to agree.
   static const int slotCount = 3;
 }

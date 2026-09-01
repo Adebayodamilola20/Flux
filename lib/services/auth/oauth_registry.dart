@@ -43,7 +43,6 @@ class OAuthRegistry {
   /// Scopes get added when an integration genuinely calls something, not in
   /// advance.
   static const Map<String, List<String>> _scopes = {
-    'gemini': ['openid', 'email'],
     'antigravity': ['openid', 'email'],
   };
 
@@ -155,7 +154,7 @@ class OAuthRegistry {
 
   /// Where the user goes to create the client, shown next to the field.
   static String? registrationUrl(String providerId) => switch (providerId) {
-        'gemini' || 'antigravity' =>
+        'antigravity' =>
           'https://console.cloud.google.com/apis/credentials',
         _ => null,
       };

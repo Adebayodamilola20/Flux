@@ -19,8 +19,10 @@ abstract final class ProviderLogos {
       'chatgpt' || 'codex' => const Color(0xFF10A37F),
       'openrouter' => const Color(0xFF6467F2),
       'claude' => const Color(0xFFD97757),
-      'gemini' => const Color(0xFF9168F0),
       'antigravity' => const Color(0xFF4285F4),
+      'opencode' => const Color(0xFFEBEBF0),
+      'kilocode' => const Color(0xFF7C5CFF),
+      'hermes' => const Color(0xFFE0A458),
       'reserved' => const Color(0xFF8A8A8E),
       _ => null,
     };
@@ -39,15 +41,143 @@ abstract final class ProviderLogos {
         viewBox: const Size(16, 16),
         color: color,
       ),
-      'gemini' => _SvgLogoPainter(
-        pathData: _geminiPath,
-        viewBox: const Size(24, 24),
-        color: color,
-      ),
       'antigravity' => _AntigravityMark(color),
+      // Both wordmarks are set in blocky terminal type, which is the one part
+      // of them that survives being shrunk into a ring. "opencode" spelled out
+      // is far too wide at this size, so it is abbreviated to its initials in
+      // the same pixel grid the real mark uses.
+      'opencode' => const _PixelMarkPainter(
+        rows: _openCodeMark,
+        framed: false,
+      ).withColor(color),
+      // Kilo Code's mark already is a pixel monogram inside a rounded frame,
+      // so it is reproduced as drawn rather than abbreviated.
+      'kilocode' => const _PixelMarkPainter(
+        rows: _kiloCodeMark,
+        framed: true,
+      ).withColor(color),
+      // Hermes's own mark is a halftone portrait illustration. There is no
+      // honest way to render that as a 15-point glyph, and redrawing someone's
+      // artwork by hand is not what this file does — every other mark here is
+      // geometry. So it gets its initial in the same grid as its neighbours.
+      'hermes' => const _PixelMarkPainter(
+        rows: _hermesMark,
+        framed: false,
+      ).withColor(color),
       _ => null,
     };
   }
+}
+
+/// The `opencode` wordmark reduced to `oc`.
+///
+/// Spelled out it is eight characters wide against a glyph fifteen points
+/// across, which at ring size is a grey smear. The initials keep the one
+/// thing that identifies it — the blocky terminal type — at a weight that
+/// still reads.
+const _openCodeMark = [
+  '1110111',
+  '1010100',
+  '1110111',
+];
+
+/// `KI` over `LO`, as Kilo Code draws it inside its rounded frame.
+const _kiloCodeMark = [
+  '1010111',
+  '1100010',
+  '1010111',
+  '0000000',
+  '1000111',
+  '1000101',
+  '1110111',
+];
+
+/// `H`, at the same stroke weight as the two above.
+const _hermesMark = [
+  '101',
+  '101',
+  '111',
+  '101',
+  '101',
+];
+
+/// Draws a mark defined as a grid of lit and unlit cells.
+///
+/// The three agent tools all set their marks in blocky terminal type, and a
+/// bitmap is the honest way to hold that: a bezier approximation of a pixel
+/// letter is a worse pixel letter. Cells are snapped to whole device pixels so
+/// the result stays crisp at 15 points instead of blurring into grey mush,
+/// which is the whole reason these are legible at ring size at all.
+class _PixelMarkPainter extends CustomPainter {
+  const _PixelMarkPainter({
+    required this.rows,
+    required this.framed,
+    this.color = const Color(0xFFFFFFFF),
+  });
+
+  /// One string per row; `1` is a lit cell.
+  final List<String> rows;
+
+  /// Draws Kilo Code's rounded outer frame around the glyph.
+  final bool framed;
+
+  final Color color;
+
+  _PixelMarkPainter withColor(Color color) =>
+      _PixelMarkPainter(rows: rows, framed: framed, color: color);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (rows.isEmpty || size.width <= 0 || size.height <= 0) return;
+
+    final columns = rows.first.length;
+    if (columns == 0) return;
+
+    final paint = Paint()..color = color;
+    var box = Offset.zero & size;
+
+    if (framed) {
+      final stroke = (size.shortestSide / 12).clamp(1.0, 2.0);
+      final radius = size.shortestSide / 5;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          box.deflate(stroke / 2),
+          Radius.circular(radius),
+        ),
+        Paint()
+          ..color = color
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = stroke,
+      );
+      // Breathing room between the frame and the letters, as the mark has.
+      box = box.deflate(stroke * 2.2);
+    }
+
+    final cell = math.min(box.width / columns, box.height / rows.length);
+    if (cell <= 0) return;
+
+    // Centred on whatever is left over, so the glyph never sits against one
+    // edge when the grid does not divide the box evenly.
+    final left = box.left + (box.width - cell * columns) / 2;
+    final top = box.top + (box.height - cell * rows.length) / 2;
+
+    for (var y = 0; y < rows.length; y++) {
+      final row = rows[y];
+      for (var x = 0; x < row.length && x < columns; x++) {
+        if (row.codeUnitAt(x) != 0x31) continue;
+        canvas.drawRect(
+          Rect.fromLTWH(left + x * cell, top + y * cell, cell, cell),
+          paint,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_PixelMarkPainter oldDelegate) =>
+      oldDelegate.color != color ||
+      oldDelegate.framed != framed ||
+      !identical(oldDelegate.rows, rows);
 }
 
 // Brand paths from Bootstrap Icons/Simple Icons compatible sources. Trademarks
@@ -58,8 +188,6 @@ const _claudePath =
 const _openAiPath =
     'M14.949 6.547a3.94 3.94 0 0 0-.348-3.273 4.11 4.11 0 0 0-4.4-1.934A4.1 4.1 0 0 0 8.423.2 4.15 4.15 0 0 0 6.305.086a4.1 4.1 0 0 0-1.891.948 4.04 4.04 0 0 0-1.158 1.753 4.1 4.1 0 0 0-1.563.679A4 4 0 0 0 .554 4.72a3.99 3.99 0 0 0 .502 4.731 3.94 3.94 0 0 0 .346 3.274 4.11 4.11 0 0 0 4.402 1.933c.382.425.852.764 1.377.995.526.231 1.095.35 1.67.346 1.78.002 3.358-1.132 3.901-2.804a4.1 4.1 0 0 0 1.563-.68 4 4 0 0 0 1.14-1.253 3.99 3.99 0 0 0-.506-4.716m-6.097 8.406a3.05 3.05 0 0 1-1.945-.694l.096-.054 3.23-1.838a.53.53 0 0 0 .265-.455v-4.49l1.366.778q.02.011.025.035v3.722c-.003 1.653-1.361 2.992-3.037 2.996m-6.53-2.75a2.95 2.95 0 0 1-.36-2.01l.095.057L5.29 12.09a.53.53 0 0 0 .527 0l3.949-2.246v1.555a.05.05 0 0 1-.022.041L6.473 13.3c-1.454.826-3.311.335-4.15-1.098m-.85-6.94A3.02 3.02 0 0 1 3.07 3.949v3.785a.51.51 0 0 0 .262.451l3.93 2.237-1.366.779a.05.05 0 0 1-.048 0L2.585 9.342a2.98 2.98 0 0 1-1.113-4.094zm11.216 2.571L8.747 5.576l1.362-.776a.05.05 0 0 1 .048 0l3.265 1.86a3 3 0 0 1 1.173 1.207 2.96 2.96 0 0 1-.27 3.2 3.05 3.05 0 0 1-1.36.997V8.279a.52.52 0 0 0-.276-.445m1.36-2.015-.097-.057-3.226-1.855a.53.53 0 0 0-.53 0L6.249 6.153V4.598a.04.04 0 0 1 .019-.04L9.533 2.7a3.07 3.07 0 0 1 3.257.139c.474.325.843.778 1.066 1.303.223.526.289 1.103.191 1.664zM5.503 8.575 4.139 7.8a.05.05 0 0 1-.026-.037V4.049c0-.57.166-1.127.476-1.607s.752-.864 1.275-1.105a3.08 3.08 0 0 1 3.234.41l-.096.054-3.23 1.838a.53.53 0 0 0-.265.455zm.742-1.577 1.758-1 1.762 1v2l-1.755 1-1.762-1z';
 
-const _geminiPath =
-    'M11.04 19.32Q12 21.51 12 24q0-2.49.93-4.68.96-2.19 2.58-3.81t3.81-2.55Q21.51 12 24 12q-2.49 0-4.68-.93a12.3 12.3 0 0 1-3.81-2.58 12.3 12.3 0 0 1-2.58-3.81Q12 2.49 12 0q0 2.49-.96 4.68-.93 2.19-2.55 3.81a12.3 12.3 0 0 1-3.81 2.58Q2.49 12 0 12q2.49 0 4.68.96 2.19.93 3.81 2.55t2.55 3.81';
 
 class _SvgLogoPainter extends CustomPainter {
   const _SvgLogoPainter({

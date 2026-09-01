@@ -128,8 +128,11 @@ abstract class ApiKeyUsageProvider implements UsageProvider {
       return;
     }
 
-    // A stored connection is only real while its key is still in the Keychain.
-    if (await _apiKey() == null) {
+    // A key-backed connection is only real while its key is still in the
+    // Keychain. A keyless one — Codex adopting the account it is already signed
+    // in as — has no key to lose, and must not be measured against one: doing
+    // so unlinked it on every launch and made the user re-add it by hand.
+    if (stored.usesStoredKey && await _apiKey() == null) {
       _connection = stored.copyWith(
         status: ConnectionStatus.notConnected,
         message: 'The saved key is no longer in your Keychain.',
@@ -193,6 +196,9 @@ abstract class ApiKeyUsageProvider implements UsageProvider {
       status: ConnectionStatus.connected,
       connectedAt: DateTime.now(),
       accountLabel: reading.accountLabel,
+      // The key just written is what this link rests on, so a later restore
+      // that cannot find it is right to treat the link as broken.
+      usesStoredKey: true,
     ));
   }
 

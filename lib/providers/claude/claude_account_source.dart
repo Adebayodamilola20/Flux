@@ -166,9 +166,10 @@ class ClaudeAccountSource {
     final windows = <UsageWindow>[];
 
     if (utilization is Map<String, dynamic>) {
-      // Only the buckets that mean something to a person. The config carries
-      // several codenamed buckets that are null for most accounts and would be
-      // noise on the rail.
+      // Only the two windows a person actually budgets against. The config
+      // carries several codenamed buckets that are null for most accounts, and
+      // an extra-usage bucket denominated in credits rather than percent —
+      // all of it noise next to the session and the week.
       const named = {
         'five_hour': 'Current session',
         'seven_day': 'This week',
@@ -178,22 +179,6 @@ class ClaudeAccountSource {
         final window = _window(utilization[key], id: key, label: label);
         if (window != null) windows.add(window);
       });
-
-      final extra = utilization['extra_usage'];
-      if (extra is Map<String, dynamic> && extra['is_enabled'] == true) {
-        final used = extra['used_credits'];
-        final limit = extra['monthly_limit'];
-        if (used is num && limit is num && limit > 0) {
-          windows.add(UsageWindow(
-            id: 'extra_usage',
-            label: 'Extra usage',
-            consumed: used,
-            limit: limit,
-            unit: 'credits',
-            source: UsageSource.officialApi,
-          ));
-        }
-      }
     }
 
     return ClaudeAccountReading(

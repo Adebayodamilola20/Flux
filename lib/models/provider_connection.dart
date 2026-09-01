@@ -82,10 +82,21 @@ class ProviderConnection {
     this.accountChangedAt,
     this.connectedAt,
     this.message,
+    this.usesStoredKey = false,
   });
 
   final String providerId;
   final ConnectionStatus status;
+
+  /// Whether this link is backed by a credential in the Keychain.
+  ///
+  /// False for a link made from what is already on this Mac — a signed-in CLI,
+  /// a local transcript — which has no secret of its own and never did. The
+  /// distinction has to be persisted: on restore, a key-backed link whose key
+  /// has gone is genuinely broken, while a keyless one is working exactly as
+  /// designed. Judging both by the same missing-key test is what silently
+  /// unlinked Codex on every launch.
+  final bool usesStoredKey;
 
   /// Something the user recognises — an organisation or account name reported
   /// by the provider. Never an email guessed by the app.
@@ -134,10 +145,12 @@ class ProviderConnection {
     String? message,
     bool clearMessage = false,
     bool clearAccountLabel = false,
+    bool? usesStoredKey,
   }) {
     return ProviderConnection(
       providerId: providerId,
       status: status ?? this.status,
+      usesStoredKey: usesStoredKey ?? this.usesStoredKey,
       accountLabel: clearAccountLabel
           ? null
           : (accountLabel ?? this.accountLabel),
@@ -156,6 +169,7 @@ class ProviderConnection {
     'accountChangedAt': accountChangedAt?.toIso8601String(),
     'connectedAt': connectedAt?.toIso8601String(),
     'message': message,
+    'usesStoredKey': usesStoredKey,
   };
 
   static ProviderConnection? fromJson(Map<String, dynamic> json) {
@@ -178,6 +192,11 @@ class ProviderConnection {
         _ => null,
       },
       message: json['message'] as String?,
+      // Absent in connections written before this was recorded. False is the
+      // safe reading of a missing value: it only ever removes a Keychain
+      // requirement, so the worst case is a stale link surviving one launch,
+      // not a real key going unchecked.
+      usesStoredKey: json['usesStoredKey'] as bool? ?? false,
     );
   }
 
@@ -193,7 +212,8 @@ class ProviderConnection {
       other.accountId == accountId &&
       other.accountChangedAt == accountChangedAt &&
       other.connectedAt == connectedAt &&
-      other.message == message;
+      other.message == message &&
+      other.usesStoredKey == usesStoredKey;
 
   @override
   int get hashCode => Object.hash(
@@ -204,5 +224,6 @@ class ProviderConnection {
     accountChangedAt,
     connectedAt,
     message,
+    usesStoredKey,
   );
 }

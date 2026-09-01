@@ -35,13 +35,17 @@ void main() {
     FakeProvider? provider,
     Duration? refreshInterval,
     List<String?>? slots,
+    List<FakeProvider> extraProviders = const [],
   }) {
     final primary =
         provider ?? FakeProvider(id: 'claude', displayName: 'Claude');
     final registry = ProviderRegistry([
       primary,
       FakeProvider(id: 'chatgpt', displayName: 'Codex'),
-      FakeProvider(id: 'gemini', displayName: 'Gemini'),
+      FakeProvider(id: 'opencode', displayName: 'OpenCode'),
+      // The catalogue is deliberately longer than the rail, so a test can put
+      // a provider on it that has nowhere to go.
+      ...extraProviders,
     ]);
 
     // Applied before the controller reads it, so its first schedule already
@@ -513,6 +517,40 @@ void main() {
       // draw it as though it were two.
       expect(controller.slots[0], isNull);
       expect(controller.slots[last]?.id, 'claude');
+    });
+
+    test('a full rail is swapped into, not silently refused', () async {
+      // Every position taken is the state where "Add to rail" used to look
+      // live, be pressed, and do nothing: there was no free index and the
+      // handler returned. Assigning over an occupied position must replace
+      // what is there, which is what lets the UI offer the swap instead.
+      final (controller: controller, primary: _) = buildController(
+        extraProviders: [FakeProvider(id: 'hermes', displayName: 'Hermes')],
+      );
+      await controller.start();
+
+      await controller.assignSlot(0, 'claude');
+      await controller.assignSlot(1, 'chatgpt');
+      await controller.assignSlot(2, 'opencode');
+
+      // Hermes is connected and measurable, and has nowhere to go.
+      expect(controller.unassigned.map((p) => p.id), ['hermes']);
+
+      await controller.assignSlot(1, 'hermes');
+
+      expect(controller.slots[1]?.id, 'hermes');
+      expect(controller.slots.map((s) => s?.id), [
+        'claude',
+        'hermes',
+        'opencode',
+      ]);
+      // Codex gave up its position, not its account.
+      expect(
+        controller.stateFor('chatgpt').connection.isConnected,
+        isTrue,
+        reason: 'swapping out gives up a position, not an account',
+      );
+      expect(controller.unassigned.map((p) => p.id), ['chatgpt']);
     });
 
     test('the picker offers only what is not already on the rail', () async {

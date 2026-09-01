@@ -1,18 +1,19 @@
 import 'provider_catalog.dart';
 import 'usage_provider.dart';
 
-/// The three providers this build ships with, in rail order.
+/// Every provider this build ships with.
 ///
-/// The count is fixed at [ProviderCatalog.slotCount] and checked here, because
-/// the rail's layout is designed around exactly three rings. A build that wired
-/// up two or four would render wrong in a way that is much harder to
-/// diagnose than an assertion at startup.
+/// Not a rail: there is no fixed count here, because the number of providers
+/// the app can measure and the number of positions the rail draws are separate
+/// facts. The rail has [ProviderCatalog.slotCount] positions and the user
+/// decides which providers go in them; the registry just holds all of them so
+/// the picker has something to offer and the controller has something to poll.
 class ProviderRegistry {
   ProviderRegistry(List<UsageProvider> providers)
     : assert(
-        providers.length == ProviderCatalog.slotCount,
-        'Expected exactly ${ProviderCatalog.slotCount} provider slots, '
-        'got ${providers.length}',
+        providers.length >= ProviderCatalog.slotCount,
+        'The rail has ${ProviderCatalog.slotCount} positions, so there must be '
+        'at least that many providers to fill them; got ${providers.length}',
       ),
       assert(
         providers.map((p) => p.id).toSet().length == providers.length,

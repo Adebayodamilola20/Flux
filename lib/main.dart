@@ -7,7 +7,10 @@ import 'app.dart';
 import 'core/logger.dart';
 import 'providers/api/chatgpt_provider.dart';
 import 'providers/claude/claude_usage_provider.dart';
-import 'providers/gemini/gemini_usage_provider.dart';
+import 'providers/agent/hermes_usage_provider.dart';
+import 'providers/agent/kilocode_usage_provider.dart';
+import 'providers/agent/opencode_usage_provider.dart';
+import 'providers/antigravity/antigravity_usage_provider.dart';
 import 'providers/provider_registry.dart';
 import 'services/auth/oauth_registry.dart';
 import 'services/connection_store.dart';
@@ -42,17 +45,21 @@ Future<void> main() async {
   // tool that is already signed in on this Mac.
   final oauthRegistry = OAuthRegistry(preferences: preferences);
 
-  // The three slots, in rail order.
+  // Everything this build can measure -- not a rail. The rail has three
+  // positions and the user decides which of these go in them; see
+  // `UsageController.slots`.
   //
   // None of them asks the user to sign in. Each reads a tool that is already
-  // installed and already authenticated on this Mac -- Claude Code, Codex, or
-  // the Gemini CLI -- because for these providers an account link would grant
-  // the app nothing the local tool does not already have.
-  // Slots adopt themselves on first run; see each provider's `restore`.
+  // installed and already authenticated on this Mac, because for these
+  // providers an account link would grant the app nothing the local tool does
+  // not already have.
   final registry = ProviderRegistry([
     ClaudeUsageProvider(native: native, connectionStore: connectionStore),
     ChatGptProvider(native: native, connectionStore: connectionStore),
-    GeminiUsageProvider(native: native, connectionStore: connectionStore),
+    OpenCodeUsageProvider(native: native, connectionStore: connectionStore),
+    KiloCodeUsageProvider(native: native, connectionStore: connectionStore),
+    AntigravityUsageProvider(native: native, connectionStore: connectionStore),
+    HermesUsageProvider(native: native, connectionStore: connectionStore),
   ]);
 
   final usageController = UsageController(
