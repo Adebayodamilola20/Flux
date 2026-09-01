@@ -117,8 +117,25 @@ abstract class CliUsageProvider implements UsageProvider {
 
   /// Reads usage. The default drives the CLI's usage panel; a provider whose
   /// tool has no such panel overrides this to explain that instead.
+  /// True when the next read may start the CLI.
+  ///
+  /// Set only by something the user did — adding the provider, or pressing
+  /// Refresh. See the launch guard in [CliQuotaSource.read]: a tool that
+  /// decides it needs to authenticate opens a browser, and that must never
+  /// happen off a timer.
+  bool _mayLaunch = false;
+
+  /// Lets the next read start the CLI. Called when the user asks.
+  void allowLaunchOnce() => _mayLaunch = true;
+
   Future<CliUsageReading> readUsage(AppSettings settings) async {
-    final reading = await quota.read(staleIfOlderThan: _lastActivity());
+    final mayLaunch = _mayLaunch;
+    _mayLaunch = false;
+
+    final reading = await quota.read(
+      staleIfOlderThan: _lastActivity(),
+      allowLaunch: mayLaunch,
+    );
 
     if (reading.hasUsage) {
       final observedAt = reading.observedAt;
@@ -240,6 +257,10 @@ abstract class CliUsageProvider implements UsageProvider {
       ));
     }
 
+    // Adding it is the other: the user has just chosen this provider, so a
+    // sign-in page opening now is explainable rather than a surprise.
+    allowLaunchOnce();
+
     return _update(ProviderConnection(
       providerId: id,
       status: ConnectionStatus.connected,
@@ -315,7 +336,12 @@ abstract class CliUsageProvider implements UsageProvider {
   Duration? get preferredRefreshInterval => null;
 
   @override
-  void invalidateCaches() => quota.invalidate();
+  void invalidateCaches() {
+    // A deliberate refresh is the user asking, so this is one of the two
+    // moments the CLI may be started.
+    quota.invalidate();
+    allowLaunchOnce();
+  }
 
   @override
   Future<List<ActiveSession>> detectActivity() async {

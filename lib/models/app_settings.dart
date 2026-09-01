@@ -7,7 +7,7 @@ import 'rail_placement.dart';
 /// credentials live in the macOS Keychain, never here.
 class AppSettings {
   const AppSettings({
-    this.refreshInterval = const Duration(minutes: 5),
+    this.refreshInterval = const Duration(seconds: 30),
     this.launchAtLogin = false,
     this.recordHistory = true,
     this.railEdge = RailEdge.right,
@@ -50,6 +50,10 @@ class AppSettings {
   static const int defaultWeeklyTokenBudget = 1500000000;
 
   static const List<Duration> refreshIntervalOptions = [
+    // Thirty seconds is the floor `fromJson` accepts and the default: these
+    // figures move with every prompt, and a rail that disagrees with the tool
+    // it is reporting on is worse than no rail.
+    Duration(seconds: 30),
     Duration(minutes: 1),
     Duration(minutes: 5),
     Duration(minutes: 15),

@@ -40,11 +40,17 @@ class _StubQuotaSource implements CliQuotaSource {
   @override
   CliQuotaSourceReading? get cached => _cached;
 
+  /// Records whether the caller would have permitted a launch, so a test can
+  /// assert that a scheduled poll never starts the CLI.
+  bool lastAllowedLaunch = true;
+
   @override
   Future<CliQuotaSourceReading> read({
     bool force = false,
     DateTime? staleIfOlderThan,
+    bool allowLaunch = true,
   }) async {
+    lastAllowedLaunch = allowLaunch;
     final failure = nextFailure;
     if (failure != null) return CliQuotaSourceReading.failed(failure);
     return _cached ??
@@ -88,6 +94,43 @@ void main() {
       source: source,
     );
   }
+
+  group('starting the CLI is never a background action', () {
+    test('a scheduled poll does not launch it', () async {
+      // Driving these tools launches the real thing, and a tool that decides
+      // it needs to authenticate opens the provider's sign-in page. On a
+      // refresh timer that is a browser window appearing out of nowhere while
+      // the user is doing something else, over and over.
+      final source = _StubQuotaSource()..succeedWith(DateTime.now());
+      final provider = build(source);
+
+      await provider.readUsage(const AppSettings());
+
+      expect(source.lastAllowedLaunch, isFalse);
+    });
+
+    test('pressing Refresh does', () async {
+      final source = _StubQuotaSource()..succeedWith(DateTime.now());
+      final provider = build(source);
+
+      provider.invalidateCaches();
+      await provider.readUsage(const AppSettings());
+
+      expect(source.lastAllowedLaunch, isTrue);
+    });
+
+    test('and the permission is spent, not held', () async {
+      final source = _StubQuotaSource()..succeedWith(DateTime.now());
+      final provider = build(source);
+
+      provider.invalidateCaches();
+      await provider.readUsage(const AppSettings());
+      // The next poll comes around on its own and must not inherit it.
+      await provider.readUsage(const AppSettings());
+
+      expect(source.lastAllowedLaunch, isFalse);
+    });
+  });
 
   group('a probe that did not answer', () {
     test('keeps the figure it read earlier', () async {
