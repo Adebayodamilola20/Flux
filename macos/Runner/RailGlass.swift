@@ -73,6 +73,26 @@ final class RailGlass {
     private static let fadeIn: TimeInterval = 0.26
     private static let fadeOut: TimeInterval = 0.19
 
+    /// How far the material starts outside its resting place, as a fraction of
+    /// the rail's width.
+    ///
+    /// Matches the `FractionalTranslation` the open rail animates through in
+    /// Dart. The rail does not fade in where it lands — it emerges from behind
+    /// the bezel — so a frost that only fades is already sitting in place while
+    /// the rail is still travelling, and reads as a coloured box arriving
+    /// first. Travelling with it is what makes the two one object.
+    private static let slideFraction: CGFloat = 0.6
+
+    /// Flutter's `Curves.easeOutCubic` and `Curves.easeInCubic` as timing
+    /// functions. The rail uses one in each direction; the frost has to use the
+    /// same, or it drifts ahead mid-travel even with the durations matched.
+    private static let easeOutCubic = CAMediaTimingFunction(
+        controlPoints: 0.215, 0.61, 0.355, 1
+    )
+    private static let easeInCubic = CAMediaTimingFunction(
+        controlPoints: 0.55, 0.055, 0.675, 0.19
+    )
+
     /// Whether the rail is currently drawn.
     ///
     /// Hidden while the rail is away so the frost does not sit on an empty
@@ -104,26 +124,45 @@ final class RailGlass {
             effect.layer?.removeAllAnimations()
             effect.isHidden = !shouldShow
             effect.alphaValue = shouldShow ? 1 : 0
+            effect.frame = shouldShow ? frame : offscreenFrame
             return
         }
 
-        // Unhidden for the whole fade in both directions: a hidden view does
+        // Unhidden for the whole travel in both directions: a hidden view does
         // not animate, so hiding first would snap the frost away and animate
         // nothing.
         effect.isHidden = false
 
+        // Set without animating, or the view would travel to the start before
+        // travelling back in from it.
+        if shouldShow {
+            effect.frame = offscreenFrame
+        }
+
         NSAnimationContext.runAnimationGroup { context in
             context.duration = shouldShow ? Self.fadeIn : Self.fadeOut
-            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            context.timingFunction = shouldShow
+                ? Self.easeOutCubic
+                : Self.easeInCubic
             effect.animator().alphaValue = shouldShow ? 1 : 0
+            effect.animator().frame = shouldShow ? frame : offscreenFrame
         } completionHandler: { [weak self] in
             guard let self else { return }
-            // Re-read rather than trusting the value captured when the fade
-            // started: a hover that returns mid-fade will have shown it again,
-            // and hiding here would undo that.
+            // Re-read rather than trusting the value captured when the travel
+            // started: a hover that returns mid-animation will have shown it
+            // again, and hiding here would undo that.
             let visibleNow = self.isEnabled && self.isVisible && !self.frame.isEmpty
             self.effect.isHidden = !visibleNow
         }
+    }
+
+    /// Where the material sits before it has travelled in, or after it leaves:
+    /// pushed back behind the bezel by the same fraction the rail uses.
+    private var offscreenFrame: NSRect {
+        frame.offsetBy(
+            dx: (onRightEdge ? 1 : -1) * frame.width * Self.slideFraction,
+            dy: 0
+        )
     }
 
     /// The rail's outline, as a mask image.
