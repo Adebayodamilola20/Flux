@@ -127,6 +127,28 @@ class ProviderState {
   /// live figures rather than an invitation to connect.
   bool get isLive => data != null;
 
+  /// True when the figure on screen is not one this app could confirm just now.
+  ///
+  /// Either a fetch is in flight over an existing figure, or the last one
+  /// failed for a reason that will be retried — a dropped request, a rate
+  /// limit, a CLI that did not answer. In both cases what is displayed is the
+  /// *previous* reading, and the user has no way to tell that apart from a
+  /// current one unless the rail says so. That is the case where the rail read
+  /// 26% while Claude's own menu bar read 31%.
+  bool get isReaching {
+    if (!connection.isConnected) return false;
+
+    // Deliberately not "a fetch is in flight". Polling every thirty seconds
+    // means that is true for a moment on every tick, and a spinner that
+    // flickers twice a minute on a healthy provider teaches the user to
+    // ignore it — which would cost exactly the case it exists for.
+    final kind = failure?.kind;
+    if (kind == null) return false;
+    // An authentication problem is not something to keep spinning about: the
+    // user has to go and fix it, and a hopeful indicator would say otherwise.
+    return kind != UsageFailureKind.authentication;
+  }
+
   ProviderState copyWith({
     ProviderConnection? connection,
     UsageData? data,

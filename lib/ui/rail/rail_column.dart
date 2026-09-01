@@ -185,6 +185,8 @@ class _RailSlot extends StatelessWidget {
                       fraction: fraction,
                       color: ringColor,
                       dimmed: !isLive,
+                      // Sweeps while the figure shown is the previous one.
+                      isReaching: state.isReaching,
                       // Drawn rather than typeset: a "+" from the system font
                       // sits off-centre in a ring and changes weight with the
                       // user's text settings.
