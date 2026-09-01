@@ -47,6 +47,7 @@ final class RailGlass {
         effect.state = .active
         effect.wantsLayer = true
         effect.isHidden = true
+        effect.alphaValue = 0
     }
 
     /// Inserts the material beneath the Flutter view.
@@ -62,14 +63,29 @@ final class RailGlass {
         apply()
     }
 
+    /// How long the frost takes to arrive and leave.
+    ///
+    /// These match `AppMetrics.expand` and `AppMetrics.collapse` in Dart. The
+    /// frost and the rail drawn over it are one object to the eye, so if the
+    /// material snaps while Flutter animates, the two separate: a coloured
+    /// pane appears before the rail on the way in, and outstays it on the way
+    /// out. Matching the curve and the duration is what keeps them together.
+    private static let fadeIn: TimeInterval = 0.26
+    private static let fadeOut: TimeInterval = 0.19
+
     /// Whether the rail is currently drawn.
     ///
     /// Hidden while the rail is away so the frost does not sit on an empty
     /// screen edge, and hidden in panel mode where the panel draws its own
     /// background.
-    func setVisible(_ visible: Bool) {
+    ///
+    /// - Parameter animated: fade rather than snap. False for the structural
+    ///   changes — the rail being hidden outright, or switching to panel mode —
+    ///   where there is no Flutter animation to stay in step with.
+    func setVisible(_ visible: Bool, animated: Bool = false) {
+        guard visible != isVisible else { return }
         isVisible = visible
-        apply()
+        apply(animated: animated)
     }
 
     /// Positions the material over the rail's drawn rectangle.
@@ -81,8 +97,33 @@ final class RailGlass {
         apply()
     }
 
-    private func apply() {
-        effect.isHidden = !(isEnabled && isVisible) || frame.isEmpty
+    private func apply(animated: Bool = false) {
+        let shouldShow = isEnabled && isVisible && !frame.isEmpty
+
+        guard animated else {
+            effect.layer?.removeAllAnimations()
+            effect.isHidden = !shouldShow
+            effect.alphaValue = shouldShow ? 1 : 0
+            return
+        }
+
+        // Unhidden for the whole fade in both directions: a hidden view does
+        // not animate, so hiding first would snap the frost away and animate
+        // nothing.
+        effect.isHidden = false
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = shouldShow ? Self.fadeIn : Self.fadeOut
+            context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+            effect.animator().alphaValue = shouldShow ? 1 : 0
+        } completionHandler: { [weak self] in
+            guard let self else { return }
+            // Re-read rather than trusting the value captured when the fade
+            // started: a hover that returns mid-fade will have shown it again,
+            // and hiding here would undo that.
+            let visibleNow = self.isEnabled && self.isVisible && !self.frame.isEmpty
+            self.effect.isHidden = !visibleNow
+        }
     }
 
     /// The rail's outline, as a mask image.

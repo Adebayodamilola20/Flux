@@ -135,6 +135,7 @@ class _RailShellState extends State<RailShell>
           child: RailSettingsButton(
             railExpanded: shell.isExpanded,
             onRightEdge: onRight,
+            appearance: settings.railAppearance,
             onPressed: () => shell.openPanel(ShellSurface.settings),
           ),
         ),
