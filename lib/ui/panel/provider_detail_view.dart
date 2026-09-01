@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 
 import '../../core/formatting.dart';
 import '../../models/connection_status.dart';
-import '../../models/usage_snapshot.dart';
 import '../../models/usage_window.dart';
 import '../../services/history_service.dart';
 import '../../services/shell_controller.dart';
@@ -228,107 +227,22 @@ class _WindowDetail extends StatelessWidget {
           ].join(' · '),
           style: TextStyle(fontSize: 10.5, color: palette.textTertiary),
         ),
-        const SizedBox(height: 10),
-        _HistorySparkline(
-          history: history,
-          providerId: providerId,
-          windowId: window.id,
-        ),
+        // What was actually spent, where the app knows it.
+        //
+        // This replaced a sparkline of recent readings. Over a percentage that
+        // barely moves the chart was a flat line saying nothing, and it took
+        // the space that the one genuinely useful extra figure wanted: how
+        // many tokens went into reaching that percentage.
+        if (window.tokensUsed case final tokens?) ...[
+          const SizedBox(height: 5),
+          Text(
+            '${Format.compactNumber(tokens)} tokens used on this Mac',
+            style: TextStyle(fontSize: 10.5, color: palette.textTertiary),
+          ),
+        ],
       ],
     );
   }
-}
-
-/// Recent readings for one window.
-///
-/// Rendered only when there are at least two points — a single reading is not
-/// a trend, and drawing it as one would suggest information the app does not
-/// have.
-class _HistorySparkline extends StatelessWidget {
-  const _HistorySparkline({
-    required this.history,
-    required this.providerId,
-    required this.windowId,
-  });
-
-  final HistoryService history;
-  final String providerId;
-  final String windowId;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-
-    return FutureBuilder<List<UsageSnapshot>>(
-      future: history.seriesFor(providerId: providerId, windowId: windowId),
-      builder: (context, snapshot) {
-        final series = snapshot.data ?? const <UsageSnapshot>[];
-        if (series.length < 2) return const SizedBox.shrink();
-
-        return SizedBox(
-          height: 34,
-          child: CustomPaint(
-            painter: _SparklinePainter(
-              values: [
-                for (final s in series)
-                  (s.percent ?? 0).clamp(0, 100).toDouble(),
-              ],
-              color: palette.accentNormal,
-              track: palette.divider,
-            ),
-            child: const SizedBox.expand(),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _SparklinePainter extends CustomPainter {
-  const _SparklinePainter({
-    required this.values,
-    required this.color,
-    required this.track,
-  });
-
-  final List<double> values;
-  final Color color;
-  final Color track;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (values.length < 2 || size.width <= 0 || size.height <= 0) return;
-
-    // Always scale against 0–100 rather than the observed range: a flat week
-    // near zero should look flat, not full-height.
-    final dx = size.width / (values.length - 1);
-    final path = Path();
-
-    for (var i = 0; i < values.length; i++) {
-      final x = dx * i;
-      final y = size.height - (values[i] / 100) * size.height;
-      i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
-    }
-
-    canvas
-      ..drawLine(
-        Offset(0, size.height),
-        Offset(size.width, size.height),
-        Paint()..color = track,
-      )
-      ..drawPath(
-        path,
-        Paint()
-          ..color = color
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 1.5
-          ..strokeJoin = StrokeJoin.round,
-      );
-  }
-
-  @override
-  bool shouldRepaint(_SparklinePainter oldDelegate) =>
-      oldDelegate.values != values || oldDelegate.color != color;
 }
 
 class _FailureBlock extends StatelessWidget {
@@ -372,19 +286,6 @@ class _FailureBlock extends StatelessWidget {
   }
 }
 
-/// Explains what connecting this provider will and will not do.
-///
-/// The distinction matters most for Claude, where two different things share a
-/// name: the *account* usage a connection unlocks, and the local Claude Code
-/// *activity* that is detected with no connection at all. Someone looking for
-/// their Claude Code session limits here should be told plainly that connecting
-/// will not produce them.
-/// Connected, but with nothing to report yet — and what to do about it.
-///
-/// The rail's card has room for the reason and no more, which left a Retry
-/// button as the only thing to press and nothing to learn from pressing it.
-/// This is the surface with room for the answer, so the answer goes here: one
-/// sentence of cause, then short numbered steps.
 class _NothingToShowBlock extends StatelessWidget {
   const _NothingToShowBlock({required this.reason, required this.steps});
 

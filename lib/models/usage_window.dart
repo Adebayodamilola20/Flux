@@ -16,6 +16,7 @@ class UsageWindow {
     this.unit = 'tokens',
     this.resetsAt,
     this.observedAt,
+    this.tokensUsed,
   });
 
   /// Stable identifier, unique within a provider (`session`, `weekly`, …).
@@ -47,6 +48,19 @@ class UsageWindow {
   ///
   /// Null when the reading is taken at fetch time, which is the common case.
   final DateTime? observedAt;
+
+  /// Tokens actually spent in this window, when that is separately known.
+  ///
+  /// Some providers report a percentage and nothing else — Anthropic gives a
+  /// share of the plan limit, never a token count — while this Mac's own
+  /// transcripts do carry real totals for the same period. Where both exist
+  /// they answer different questions: the percentage is how close the limit
+  /// is, and this is how much was burned getting there.
+  ///
+  /// Null when no token figure is known. It is never derived from the
+  /// percentage: multiplying a share by a limit nobody published would be an
+  /// invented number wearing a precise one's clothes.
+  final num? tokensUsed;
 
   /// True when this figure is old enough that saying so matters.
   ///
@@ -113,6 +127,7 @@ class UsageWindow {
     String? unit,
     DateTime? resetsAt,
     UsageSource? source,
+    num? tokensUsed,
   }) {
     return UsageWindow(
       id: id ?? this.id,
@@ -122,6 +137,8 @@ class UsageWindow {
       unit: unit ?? this.unit,
       resetsAt: resetsAt ?? this.resetsAt,
       source: source ?? this.source,
+      observedAt: observedAt,
+      tokensUsed: tokensUsed ?? this.tokensUsed,
     );
   }
 
