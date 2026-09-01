@@ -244,32 +244,38 @@ final class StatusItemController {
 
     // MARK: - Interaction
 
+    /// Any click opens the menu.
+    ///
+    /// It used to toggle the rail, which meant one stray click switched the
+    /// widget off — and because that state was written to preferences, the
+    /// rail stayed gone until the user worked out that the icon they had just
+    /// clicked was also the way back. A menu-bar item is where you go to *find*
+    /// options; it should never be a switch that removes the app from view by
+    /// accident. Showing and hiding are both here, spelled out.
     @objc private func handleClick(_ sender: NSStatusBarButton) {
-        guard let event = NSApp.currentEvent else {
-            onRevealRail?()
-            return
-        }
-
-        let isSecondary = event.type == .rightMouseUp
-            || event.modifierFlags.contains(.control)
-
-        if isSecondary {
-            showContextMenu()
-        } else {
-            onRevealRail?()
-        }
+        showContextMenu()
     }
 
     private func showContextMenu() {
         let menu = NSMenu()
 
-        let toggle = NSMenuItem(
-            title: "Show/Hide Rail",
+        // Two items rather than one toggle: "Show/Hide" gives no clue which of
+        // the two a click will do, which is how the rail kept disappearing.
+        let show = NSMenuItem(
+            title: "Show Rail",
+            action: #selector(menuShowRail),
+            keyEquivalent: ""
+        )
+        show.target = self
+        menu.addItem(show)
+
+        let hide = NSMenuItem(
+            title: "Hide Rail",
             action: #selector(menuToggleRail),
             keyEquivalent: ""
         )
-        toggle.target = self
-        menu.addItem(toggle)
+        hide.target = self
+        menu.addItem(hide)
 
         let refresh = NSMenuItem(
             title: "Refresh Now",
@@ -305,6 +311,7 @@ final class StatusItemController {
         statusItem.menu = nil
     }
 
+    @objc private func menuShowRail() { onRevealRail?() }
     @objc private func menuToggleRail() { onToggleRail?() }
     @objc private func menuRefresh() { onRefresh?() }
     @objc private func menuSettings() { onSettings?() }

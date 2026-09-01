@@ -429,6 +429,64 @@ void main() {
     });
   });
 
+  group('a figure that could not be confirmed', () {
+    test('is marked as reaching after a dropped request', () async {
+      // The rail read 26% while Claude's own menu bar read 31%, and nothing on
+      // screen said which was live. A stale number with no marking is
+      // indistinguishable from a current one.
+      final provider = FakeProvider(id: 'claude', percent: 26)..seedConnected();
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+        slots: const ['claude', null, null],
+      );
+      await controller.refresh('claude');
+      expect(controller.stateFor('claude').isReaching, isFalse);
+
+      provider.failure =
+          const UsageFailure(UsageFailureKind.network, 'offline');
+      await controller.refresh('claude');
+
+      final state = controller.stateFor('claude');
+      expect(state.isReaching, isTrue);
+      // The last figure is kept — it is the best available, just not confirmed.
+      expect(state.percent, 26);
+    });
+
+    test('is not marked while a healthy poll is in flight', () async {
+      // Polling every thirty seconds means a fetch is in flight for a moment
+      // on every tick. A spinner that flickers twice a minute on a working
+      // provider teaches the user to ignore it.
+      final provider = FakeProvider(id: 'claude', percent: 31)..seedConnected();
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+        slots: const ['claude', null, null],
+      );
+      await controller.refresh('claude');
+
+      expect(controller.stateFor('claude').isReaching, isFalse);
+    });
+
+    test('an expired credential is not something to keep spinning about',
+        () async {
+      final provider = FakeProvider(id: 'claude', percent: 31)..seedConnected();
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+        slots: const ['claude', null, null],
+      );
+      await controller.refresh('claude');
+
+      provider.failure = const UsageFailure(
+        UsageFailureKind.authentication,
+        'sign in again',
+      );
+      await controller.refresh('claude');
+
+      // The user has to go and fix this; a hopeful indicator would say the
+      // app was still trying, which it is not.
+      expect(controller.stateFor('claude').isReaching, isFalse);
+    });
+  });
+
   group('menu bar', () {
     test('pushes the first measurable percentage', () async {
       final provider = FakeProvider(id: 'claude', percent: 52)..seedConnected();

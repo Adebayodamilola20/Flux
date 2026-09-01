@@ -196,7 +196,7 @@ class RailCallout extends StatelessWidget {
 
     return [
       for (final window in data.windows) ...[
-        _WindowRow(window: window),
+        _WindowRow(window: window, isReaching: state.isReaching),
         if (window != data.windows.last) const SizedBox(height: 9),
       ],
     ];
@@ -237,9 +237,12 @@ class _Header extends StatelessWidget {
 /// One quota window, laid out as in the reference: label and reset time on one
 /// line, the bar beneath it, then the percentage.
 class _WindowRow extends StatelessWidget {
-  const _WindowRow({required this.window});
+  const _WindowRow({required this.window, this.isReaching = false});
 
   final UsageWindow window;
+
+  /// The provider could not be reached, so this figure is the previous one.
+  final bool isReaching;
 
   @override
   Widget build(BuildContext context) {
@@ -275,16 +278,22 @@ class _WindowRow extends StatelessWidget {
           fraction: fraction,
           color: palette.accentFor(fraction),
           height: 3,
-          indeterminate: fraction == null,
+          indeterminate: fraction == null || isReaching,
         ),
         const SizedBox(height: 4),
         Text(
           // A window with no published limit reports a total, not a share of
           // one — inventing a denominator would be a lie.
           [
-            percent == null
-                ? '${Format.compactNumber(window.consumed)} ${window.unit}'
-                : '$percent% Used',
+            // Says the figure is being fetched rather than presenting the last
+            // one as current. The rail showed 26% while Claude's own menu bar
+            // showed 31%, with nothing on screen to say which was live.
+            if (isReaching)
+              'Connecting…'
+            else
+              percent == null
+                  ? '${Format.compactNumber(window.consumed)} ${window.unit}'
+                  : '$percent% Used',
             // When the provider measured it, if that is not now. A figure that
             // cannot be asked for on demand — OpenAI reports the Codex
             // allowance only in the reply to a prompt — can be days old, and

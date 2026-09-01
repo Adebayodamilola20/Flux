@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import '../../core/formatting.dart';
@@ -117,8 +118,74 @@ class ClaudeUsageProvider implements UsageProvider {
   /// Re-reads as soon as Claude Code rewrites its config, so the rail shows
   /// the newest figures Anthropic has reported rather than waiting for the
   /// next scheduled refresh.
+  ///
+  /// Two things are watched, because a signed-in session and a *different*
+  /// signed-in session change different files. Usage lands in the config; a
+  /// `/login` replaces the stored credential and may not touch the config at
+  /// all. Watching only the config meant switching accounts left the previous
+  /// account's figure on the rail until a scheduled poll happened to notice —
+  /// which is exactly the "I signed in again and nothing changed" case.
   @override
-  Stream<void>? get changes => _account.watch();
+  Stream<void>? get changes => _merge([
+    _account.watch(),
+    _signInChanges(),
+  ]);
+
+  /// Fires when Claude Code's stored credential is replaced.
+  ///
+  /// Polls the Keychain item's modification date, which is an attributes-only
+  /// read and so never raises the approval dialog — the same trick the live
+  /// source uses to notice a re-login without prompting.
+  Stream<void> _signInChanges() async* {
+    DateTime? seen;
+    while (true) {
+      await Future<void>.delayed(signInPollInterval);
+      DateTime? stamp;
+      try {
+        stamp = await _native.claudeCodeCredentialsChangedAt();
+      } catch (_) {
+        continue;
+      }
+      if (stamp == null) continue;
+      // The first reading is the baseline, not a change; otherwise every
+      // launch would fire a redundant fetch.
+      if (seen != null && stamp.isAfter(seen)) yield null;
+      seen = stamp;
+    }
+  }
+
+  /// How often the stored credential is checked for a re-login.
+  static const Duration signInPollInterval = Duration(seconds: 3);
+
+  /// Both watches as one stream, for the single listener that subscribes.
+  ///
+  /// The sources are infinite loops, so cancelling has to reach both of them
+  /// or they keep polling after the provider is gone.
+  static Stream<void> _merge(List<Stream<void>> sources) {
+    final subscriptions = <StreamSubscription<void>>[];
+    late final StreamController<void> controller;
+
+    controller = StreamController<void>(
+      onListen: () {
+        for (final source in sources) {
+          subscriptions.add(
+            source.listen(
+              (_) => controller.add(null),
+              onError: controller.addError,
+            ),
+          );
+        }
+      },
+      onCancel: () async {
+        for (final subscription in subscriptions) {
+          await subscription.cancel();
+        }
+        subscriptions.clear();
+      },
+    );
+
+    return controller.stream;
+  }
 
   /// Claude usage moves with every prompt, and reading it is one small GET
   /// against Anthropic's own endpoint. Polling it on the user's general
