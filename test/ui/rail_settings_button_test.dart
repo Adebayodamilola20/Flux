@@ -59,7 +59,11 @@ void main() {
 
     expect(opacityOf(tester, RailSettingsButton.revealedKey), closeTo(1, 0.01));
 
-    await gesture.removePointer();
+    // Moved away rather than removed: removing a pointer does not deliver an
+    // exit to MouseRegion, so the widget never learned the pointer had left
+    // and the test was asserting against an event it had not sent.
+    await gesture.moveTo(const Offset(5, 5));
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
     expect(opacityOf(tester, RailSettingsButton.revealedKey), closeTo(0, 0.01));

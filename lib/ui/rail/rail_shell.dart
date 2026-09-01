@@ -329,26 +329,23 @@ class _CalloutLayer extends StatelessWidget {
                       ),
                     ),
                   ),
-              child: AnimatedSwitcher(
-                duration: AppMetrics.fadeAnimation,
-                switchInCurve: Curves.easeOutCubic,
-                switchOutCurve: Curves.easeInCubic,
-                transitionBuilder: (child, animation) {
-                  return FadeTransition(
-                    opacity: animation,
-                    child: ScaleTransition(
-                      scale: Tween<double>(begin: 0.98, end: 1).animate(
-                        CurvedAnimation(
-                          parent: animation,
-                          curve: Curves.easeOutCubic,
-                        ),
-                      ),
-                      child: child,
-                    ),
-                  );
-                },
-                child: child,
-              ),
+              // One card, swapped in place.
+              //
+              // There used to be an AnimatedSwitcher here, cross-fading the
+              // old provider's card out while the new one came in. Combined
+              // with the AnimatedPositioned above it, that put **two complete
+              // cards on screen at once**: the switcher keeps the outgoing
+              // child mounted for the length of its transition, and its Stack
+              // centres children of different heights on each other, so two
+              // cards of different sizes ended up visibly apart rather than
+              // overlapping. Moving the pointer across the rail showed a card
+              // for a ring the pointer had already left, sitting beside the
+              // one for the ring it was on.
+              //
+              // The card is meant to *follow* the pointer, which is what the
+              // AnimatedPositioned does. Its contents belong to whichever ring
+              // it has arrived at, and there is only ever one of it.
+              child: child,
             ),
           ),
         ),
