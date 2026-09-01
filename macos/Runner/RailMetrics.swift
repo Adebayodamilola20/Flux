@@ -62,7 +62,7 @@ enum RailMetrics {
             + settingsButtonSize
             + settingsHotZonePadding
 
-        NSSize(
+        return NSSize(
             width: expandedWidth + shadowPadding * 2,
             height: max(expandedHeight, heightWithSettings) + shadowPadding * 2
         )
