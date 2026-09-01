@@ -63,6 +63,10 @@ final class NativeChannel {
         channel.invokeMethod("railToggleRequested", arguments: nil)
     }
 
+    func requestRevealRail() {
+        channel.invokeMethod("railRevealRequested", arguments: nil)
+    }
+
     /// Delivers a URL-scheme callback from a provider's browser sign-in.
     func deliverAuthCallback(url: URL) {
         channel.invokeMethod("auth.callback", arguments: ["url": url.absoluteString])
@@ -139,7 +143,8 @@ final class NativeChannel {
                 showIcon: args["showIcon"] as? Bool ?? true,
                 showPercent: args["showPercent"] as? Bool ?? false,
                 percent: args["percent"] as? Int,
-                isError: args["isError"] as? Bool ?? false
+                isError: args["isError"] as? Bool ?? false,
+                label: args["label"] as? String
             )
             result(nil)
 

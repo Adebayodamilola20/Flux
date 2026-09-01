@@ -218,6 +218,10 @@ class NativeBridge {
   void Function()? onSettingsRequested;
   void Function()? onRailToggleRequested;
 
+  /// The menu-bar icon was clicked. Distinct from the toggle: a click brings
+  /// the rail back, it never takes it away.
+  void Function()? onRailRevealRequested;
+
   /// A provider's browser sign-in came back through the registered URL scheme.
   void Function(Uri url)? onAuthCallback;
 
@@ -236,6 +240,8 @@ class NativeBridge {
         onSettingsRequested?.call();
       case 'railToggleRequested':
         onRailToggleRequested?.call();
+      case 'railRevealRequested':
+        onRailRevealRequested?.call();
       case 'auth.callback':
         final raw = args?['url'];
         if (raw is String) {
@@ -308,12 +314,14 @@ class NativeBridge {
     required bool showPercent,
     int? percent,
     bool isError = false,
+    String? label,
   }) async {
     await _invoke<void>('menuBar.update', {
       'showIcon': showIcon,
       'showPercent': showPercent,
       'percent': percent,
       'isError': isError,
+      'label': label,
     });
   }
 

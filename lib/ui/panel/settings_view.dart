@@ -307,12 +307,6 @@ class _RailSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // A remembered display that is currently disconnected must not be shown as
-    // the selection — the rail is not on it.
-    final knownIds = screens.map((s) => s.id).toSet();
-    final selectedScreen =
-        knownIds.contains(settings.screenId) ? settings.screenId : null;
-
     return SettingsSection(
       title: 'Rail',
       children: [
@@ -360,33 +354,6 @@ class _RailSection extends StatelessWidget {
                 : onUpdate(settings.copyWith(railExpansion: v)),
           ),
         ),
-        SettingsRow(
-          label: 'Monitor',
-          description: screens.length < 2
-              ? 'Only one display is connected.'
-              : 'Which display the rail appears on.',
-          control: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SettingsDropdown<String?>(
-                value: selectedScreen,
-                items: [null, ...screens.map((s) => s.id)],
-                labelBuilder: (id) {
-                  if (id == null) return 'Main display';
-                  final match = screens.where((s) => s.id == id).firstOrNull;
-                  return match?.name ?? 'Display $id';
-                },
-                onChanged: (v) => onUpdate(
-                  v == null
-                      ? settings.copyWith(clearScreenId: true)
-                      : settings.copyWith(screenId: v),
-                ),
-              ),
-              const SizedBox(width: 6),
-              PillButton(label: 'Rescan', onPressed: onReloadScreens),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -403,13 +370,6 @@ class _GeneralSection extends StatelessWidget {
     return SettingsSection(
       title: 'General',
       children: [
-        SettingsRow(
-          label: 'Launch at login',
-          control: SettingsSwitch(
-            value: settings.launchAtLogin,
-            onChanged: (v) => onUpdate(settings.copyWith(launchAtLogin: v)),
-          ),
-        ),
         SettingsRow(
           label: 'Refresh every',
           control: SettingsDropdown<Duration>(
@@ -489,89 +449,6 @@ class _AppearanceSection extends StatelessWidget {
     );
   }
 }
-
-class _LocalTrackingSection extends StatefulWidget {
-  const _LocalTrackingSection({required this.settings, required this.onUpdate});
-
-  final AppSettings settings;
-  final Future<void> Function(AppSettings) onUpdate;
-
-  @override
-  State<_LocalTrackingSection> createState() => _LocalTrackingSectionState();
-}
-
-class _LocalTrackingSectionState extends State<_LocalTrackingSection> {
-  late final TextEditingController _session = TextEditingController(
-    text: widget.settings.sessionTokenBudget.toString(),
-  );
-  late final TextEditingController _weekly = TextEditingController(
-    text: widget.settings.weeklyTokenBudget.toString(),
-  );
-
-  @override
-  void dispose() {
-    _session.dispose();
-    _weekly.dispose();
-    super.dispose();
-  }
-
-  void _commit() {
-    final session = int.tryParse(_session.text.trim());
-    final weekly = int.tryParse(_weekly.text.trim());
-    widget.onUpdate(widget.settings.copyWith(
-      sessionTokenBudget: session != null && session > 0 ? session : null,
-      weeklyTokenBudget: weekly != null && weekly > 0 ? weekly : null,
-    ));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = context.palette;
-
-    return SettingsSection(
-      title: 'Local tracking',
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Text(
-            'Providers do not publish plan limits as token counts, so locally '
-            'tracked percentages are measured against these budgets. They are '
-            'starting points, not official figures — adjust them to match what '
-            'your plan actually gives you.',
-            style: TextStyle(
-              fontSize: 10.5,
-              height: 1.4,
-              color: palette.textTertiary,
-            ),
-          ),
-        ),
-        SettingsRow(
-          label: 'Session budget',
-          description: 'Tokens per rolling 5-hour window.',
-          control: SettingsTextField(
-            controller: _session,
-            keyboardType: TextInputType.number,
-            onSubmitted: (_) => _commit(),
-          ),
-        ),
-        SettingsRow(
-          label: 'Weekly budget',
-          description: 'Tokens per rolling 7 days.',
-          control: SettingsTextField(
-            controller: _weekly,
-            keyboardType: TextInputType.number,
-            onSubmitted: (_) => _commit(),
-          ),
-        ),
-        Align(
-          alignment: Alignment.centerRight,
-          child: PillButton(label: 'Apply budgets', onPressed: _commit),
-        ),
-      ],
-    );
-  }
-}
-
 
 /// Where the OAuth client for each browser-sign-in provider is registered.
 ///
@@ -740,12 +617,6 @@ class _ProviderPage extends StatelessWidget {
               ),
             ],
           ),
-        ],
-        // Budgets only mean something where the app measures local token
-        // counts against them, which is Claude alone.
-        if (providerId == 'claude') ...[
-          const SizedBox(height: 20),
-          _LocalTrackingSection(settings: settings, onUpdate: onUpdate),
         ],
       ],
     );

@@ -54,6 +54,7 @@ class ShellController extends ChangeNotifier {
       ..onModeChanged = _handleModeChanged
       ..onRefreshRequested = _handleRefreshRequested
       ..onRailToggleRequested = toggleRailVisibility
+      ..onRailRevealRequested = revealRail
       // Braced deliberately: an arrow body would swallow the following
       // cascade into the closure.
       ..onSettingsRequested = () {
@@ -176,6 +177,27 @@ class ShellController extends ChangeNotifier {
     }
     next ? await _native.showRail(pinnedOpen: !_settings.railExpansion.autoCollapses)
         : await _native.hideRail();
+  }
+
+  /// Brings the rail back and opens it.
+  ///
+  /// What the menu-bar icon does. It only ever reveals: clicking the icon used
+  /// to run [toggleRailVisibility], which switched the rail off and wrote that
+  /// to preferences, so the widget disappeared and did not come back until the
+  /// user worked out that the icon they had just clicked was the way to undo
+  /// it. Hiding stays available, on the context menu, where it is labelled.
+  Future<void> revealRail() async {
+    if (!_settings.railVisible) {
+      await _settingsService.update(_settings.copyWith(railVisible: true));
+    }
+    if (_surface != ShellSurface.rail) {
+      await showRail();
+    } else {
+      await _native.showRail(
+        pinnedOpen: !_settings.railExpansion.autoCollapses,
+      );
+    }
+    await _native.expandRail();
   }
 
   /// Opens the rail from a click, for users who turned hover-expansion off.

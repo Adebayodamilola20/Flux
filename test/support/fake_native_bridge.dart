@@ -81,6 +81,7 @@ class MenuBarUpdate {
     required this.showPercent,
     required this.percent,
     required this.isError,
+    this.label,
   });
 
   final bool showIcon;
@@ -88,9 +89,12 @@ class MenuBarUpdate {
   final int? percent;
   final bool isError;
 
+  /// Which provider the figure is for, when more than one is in rotation.
+  final String? label;
+
   @override
-  String toString() =>
-      'MenuBarUpdate(icon: $showIcon, percent: $percent, error: $isError)';
+  String toString() => 'MenuBarUpdate(icon: $showIcon, label: $label, '
+      'percent: $percent, error: $isError)';
 }
 
 /// One recorded `cli.probe` call.
@@ -232,6 +236,7 @@ class _FakeNativeState {
             showPercent: args['showPercent'] as bool,
             percent: args['percent'] as int?,
             isError: args['isError'] as bool,
+            label: args['label'] as String?,
           ),
         );
         return null;

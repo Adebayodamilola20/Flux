@@ -202,8 +202,8 @@ void main() {
     });
   });
 
-  group('what the figure is measured against', () {
-    test('is the user’s budget, and says so', () async {
+  group('the weekly total', () {
+    test('is nothing at all for the week, so no bar is drawn', () async {
       final reader = _StubReader(
         reading: AgentUsageReading(
           models: [_model('glm-5.2', tokens: 500)],
@@ -212,19 +212,19 @@ void main() {
       );
       final provider = build(reader);
 
-      final data = await provider.fetchUsage(
-        const AppSettings(weeklyTokenBudget: 1000),
-      );
+      final data = await provider.fetchUsage(const AppSettings());
       final window = data.windows.firstWhere((w) => w.id == 'weekly_tokens');
 
-      expect(window.limit, 1000);
-      expect(window.percentUsed, 50);
-      // Neither tool publishes an allowance, so this must never be dressed up
-      // as a figure the provider blessed.
+      expect(window.consumed, 500);
+      // Neither tool publishes a weekly allowance. The budget this used to be
+      // divided by was a number the app made up, so the count stands alone
+      // rather than being dressed as a percentage of nothing.
+      expect(window.limit, isNull);
+      expect(window.percentUsed, isNull);
       expect(window.source, UsageSource.localTracking);
       expect(window.source.isProviderReported, isFalse);
       expect(
-        data.notes.any((n) => n.contains('token budget')),
+        data.notes.any((n) => n.contains('no weekly allowance')),
         isTrue,
       );
     });

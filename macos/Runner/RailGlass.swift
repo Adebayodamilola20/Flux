@@ -32,7 +32,15 @@ final class RailGlass {
         // `.behindWindow` is the blending mode that samples the desktop rather
         // than the window's own contents.
         effect.blendingMode = .behindWindow
-        effect.material = .hudWindow
+        // `.fullScreenUI` rather than `.hudWindow`: the HUD material is close
+        // to opaque once the theme wash is over it, which made the setting
+        // produce a dark panel instead of glass. This one keeps far more of
+        // what is behind the window, which is the point.
+        effect.material = .fullScreenUI
+        // Keeps the material at full strength even though the rail is never
+        // the key window — otherwise the frost drops away the moment the user
+        // clicks back into their editor, which is always.
+        effect.isEmphasized = true
         // `.active` rather than `.followsWindowActiveState`: the rail is never
         // the key window, and a frost that greys out whenever the user is
         // working in their editor would be frosted approximately never.

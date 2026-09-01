@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 
 import '../../models/connection_status.dart';
@@ -58,13 +60,23 @@ class RailColumn extends StatelessWidget {
       // Glass keeps a thin wash of the theme colour over the frost. Fully
       // transparent would leave the rings floating on a blur with nothing to
       // separate them from a busy desktop.
+      //
+      // The wash is deliberately light. At the weight this used to carry, the
+      // frost underneath barely showed and the result read as a dark panel
+      // rather than as glass — the whole point of the setting is that you can
+      // see the desktop moving behind it.
       fill: isGlass
-          ? palette.railFill.withValues(alpha: 0.28)
+          ? palette.railFill.withValues(alpha: 0.14)
           : palette.railFill,
+      // A bright hairline rather than a grey one. Catching the light along its
+      // edge is what separates a pane of glass from a translucent rectangle.
       borderColor: isGlass
-          ? palette.textTertiary.withValues(alpha: 0.28)
+          ? const Color(0xFFFFFFFF).withValues(alpha: 0.30)
           : palette.railBorder,
-      shadowColor: palette.railShadow,
+      // No drop shadow under glass: a shadow says the panel is floating above
+      // the desktop, which contradicts a material that is meant to be lit by
+      // what is behind it.
+      shadowColor: isGlass ? null : palette.railShadow,
       onRightEdge: onRightEdge,
       cornerRadius: 20,
       filletRadius: 13,
@@ -230,25 +242,63 @@ class _RailSlot extends StatelessWidget {
 /// It is a pure-black hint that the rail is available. Keeping it neutral
 /// avoids drawing attention away from the work behind it.
 class RailNub extends StatelessWidget {
-  const RailNub({super.key, required this.onRightEdge});
+  const RailNub({
+    super.key,
+    required this.onRightEdge,
+    this.appearance = RailAppearance.solid,
+  });
 
   final bool onRightEdge;
 
+  /// Follows the rail's own setting.
+  ///
+  /// It has to: the frost the native side draws is sized to the *open* rail
+  /// and is not on screen while the rail rests, so a solid fill here was a
+  /// black bar sitting against the bezel in a mode the user had explicitly set
+  /// to glass. The sliver is the only thing visible most of the time, so it is
+  /// the one that most has to look right.
+  final RailAppearance appearance;
+
   @override
   Widget build(BuildContext context) {
+    final palette = context.palette;
     final radius = Radius.circular(AppMetrics.nubRadius);
+    final isGlass = appearance == RailAppearance.glass;
 
-    return Container(
+    final corners = BorderRadius.horizontal(
+      // Rounded on the inward side only; the edge side is flat against the
+      // bezel, the same rule the full rail follows.
+      left: onRightEdge ? radius : Radius.zero,
+      right: onRightEdge ? Radius.zero : radius,
+    );
+
+    final nub = Container(
       width: AppMetrics.nubWidth,
       height: AppMetrics.nubHeight,
       decoration: BoxDecoration(
-        color: context.palette.railFill,
-        // Rounded on the inward side only; the edge side is flat against the
-        // bezel, the same rule the full rail follows.
-        borderRadius: BorderRadius.horizontal(
-          left: onRightEdge ? radius : Radius.zero,
-          right: onRightEdge ? Radius.zero : radius,
-        ),
+        color: isGlass
+            ? palette.railFill.withValues(alpha: 0.30)
+            : palette.railFill,
+        borderRadius: corners,
+        border: isGlass
+            ? Border.all(
+                color: const Color(0xFFFFFFFF).withValues(alpha: 0.22),
+                width: 0.5,
+              )
+            : null,
+      ),
+    );
+
+    if (!isGlass) return nub;
+
+    // Blurs whatever the transparent window is sitting on. Unlike the open
+    // rail, the sliver is small enough that a Flutter-side blur is honest
+    // here — there is no large transparent area for it to frost by mistake.
+    return ClipRRect(
+      borderRadius: corners,
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: nub,
       ),
     );
   }

@@ -554,16 +554,75 @@ class UsageController extends ChangeNotifier {
 
   // MARK: - Internals
 
+  /// How long each provider holds the menu bar before the next one.
+  ///
+  /// Long enough to read and not be a distraction in peripheral vision; short
+  /// enough that a glance at a three-provider rail sees all of them inside a
+  /// quarter of a minute.
+  static const Duration menuBarDwell = Duration(seconds: 4);
+
+  Timer? _menuBarCycle;
+  int _menuBarIndex = 0;
+
+  /// Everything on the rail that has a figure worth putting in the menu bar.
+  ///
+  /// The menu bar used to show the first slot alone, which meant Claude
+  /// forever: the other two were measured, on the rail, and invisible up
+  /// there. Anything the user put on the rail earned its turn.
+  List<ProviderState> get menuBarRotation => [
+    for (final state in slots)
+      if (state != null && (state.percent != null || state.failure != null))
+        state,
+  ];
+
   /// Pushes the summary to the native status item.
   Future<void> _syncMenuBar() async {
     if (_disposed) return;
-    final state = primary;
+
+    final rotation = menuBarRotation;
+    _scheduleMenuBarCycle(rotation.length);
+
+    // Nothing measurable yet: the icon alone, rather than a percentage for
+    // something the user has not added.
+    if (rotation.isEmpty) {
+      await _native.updateMenuBar(
+        showIcon: _settings.effectiveShowMenuBarIcon,
+        showPercent: _settings.showMenuBarPercent,
+        percent: null,
+      );
+      return;
+    }
+
+    // Providers come and go from the rail while this is running, so the index
+    // is wrapped at use rather than trusted to still be in range.
+    final state = rotation[_menuBarIndex % rotation.length];
+
     await _native.updateMenuBar(
       showIcon: _settings.effectiveShowMenuBarIcon,
       showPercent: _settings.showMenuBarPercent,
-      percent: state?.percent,
-      isError: state?.failure != null,
+      percent: state.percent,
+      isError: state.failure != null,
+      // Only worth naming when there is more than one to tell apart.
+      label: rotation.length > 1 ? state.displayName : null,
     );
+  }
+
+  /// Runs the changeover timer, and only while it can change anything.
+  void _scheduleMenuBarCycle(int count) {
+    final wanted = _settings.showMenuBarPercent && count > 1;
+    if (!wanted) {
+      _menuBarCycle?.cancel();
+      _menuBarCycle = null;
+      _menuBarIndex = 0;
+      return;
+    }
+    if (_menuBarCycle != null) return;
+
+    _menuBarCycle = Timer.periodic(menuBarDwell, (_) {
+      if (_disposed) return;
+      _menuBarIndex++;
+      unawaited(_syncMenuBar());
+    });
   }
 
   void _onSettingsChanged() {
@@ -607,6 +666,7 @@ class UsageController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _timer?.cancel();
+    _menuBarCycle?.cancel();
     for (final timer in [..._fastTimers.values, ..._debounces.values]) {
       timer.cancel();
     }

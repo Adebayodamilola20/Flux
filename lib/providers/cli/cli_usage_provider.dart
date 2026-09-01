@@ -134,8 +134,42 @@ abstract class CliUsageProvider implements UsageProvider {
       );
     }
 
+    // The probe produced nothing this time. That is common and usually
+    // temporary: driving a real CLI under a pseudo-terminal takes the better
+    // part of a minute and loses to a busy machine, a slow start, or a panel
+    // that was still drawing. Throwing away a figure that was read correctly
+    // ten minutes ago and replacing it with "usage unavailable" is what made a
+    // working slot appear to break on its own and then offer a Retry that
+    // fixed nothing. The last good reading is served instead, and said to be
+    // what it is.
+    final previous = quota.cached;
+    if (previous != null &&
+        previous.hasUsage &&
+        reading.failure != CliQuotaFailure.notInstalled) {
+      final observedAt = previous.observedAt;
+      return CliUsageReading(
+        windows: previous.windows,
+        accountLabel: previous.accountLabel,
+        notes: [
+          if (previous.planLabel != null) previous.planLabel!,
+          if (observedAt != null)
+            'Last read from the ${descriptor.displayName} usage panel '
+                '${Format.relativeTime(observedAt)}. '
+                '${_retryNote(reading.failure)}',
+        ],
+      );
+    }
+
     return unavailableFor(reading.failure);
   }
+
+  /// One clause explaining why the figure above is not newer.
+  String _retryNote(CliQuotaFailure? failure) => switch (failure) {
+    CliQuotaFailure.signedOut =>
+      'It did not answer just now — if you have signed out, run `$executable` '
+          'and sign in again.',
+    _ => 'It did not answer just now; this will refresh on its own.',
+  };
 
   /// The message for a probe that produced nothing.
   ///

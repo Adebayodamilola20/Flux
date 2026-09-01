@@ -184,7 +184,6 @@ abstract class AgentUsageProvider implements UsageProvider {
 
     final context = active.contextTokens;
     final contextLimit = active.contextLimit;
-    final weekly = settings.weeklyTokenBudget;
 
     return UsageData(
       providerId: id,
@@ -214,10 +213,12 @@ abstract class AgentUsageProvider implements UsageProvider {
           id: 'weekly_tokens',
           label: 'This week',
           consumed: active.tokens.toDouble(),
-          limit: weekly > 0 ? weekly.toDouble() : null,
+          // No limit, deliberately. Neither tool publishes a weekly allowance,
+          // and the budget this used to be divided by was a number the app
+          // invented — so it is reported as the count it is, and the bar is
+          // left off rather than drawn against nothing.
+          limit: null,
           unit: 'tokens',
-          // The tool recorded the tokens; the ceiling is the user's budget,
-          // because neither tool publishes a weekly allowance.
           source: UsageSource.localTracking,
         ),
       ],
@@ -231,8 +232,8 @@ abstract class AgentUsageProvider implements UsageProvider {
         if (others.isNotEmpty)
           'Also used this week: '
               '${others.map((m) => m.label).take(3).join(', ')}.',
-        'The weekly figure is measured against your token budget in Settings — '
-            '${descriptor.displayName} publishes no weekly limit of its own.',
+        '${descriptor.displayName} publishes no weekly allowance, so the '
+            'weekly figure is a count rather than a percentage.',
       ],
     );
   }

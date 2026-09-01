@@ -48,7 +48,14 @@ class ProviderGlyph extends StatelessWidget {
     final markColor = useBrandColor
         ? ProviderLogos.brandColorFor(providerId) ?? color
         : color;
-    final logo = ProviderLogos.painterFor(providerId, markColor);
+    // A mark drawn in its own brand gradient is only right where the brand
+    // colour is wanted at all; on a filled row it has to be flat, or it
+    // disappears into the fill.
+    final logo = ProviderLogos.painterFor(
+      providerId,
+      markColor,
+      useBrandGradient: useBrandColor,
+    );
     if (logo != null) {
       return SizedBox.square(
         dimension: size,

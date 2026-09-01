@@ -29,7 +29,14 @@ abstract final class ProviderLogos {
   }
 
   /// Returns the mark for a provider, or null when there is no drawn logo.
-  static CustomPainter? painterFor(String providerId, Color color) {
+  ///
+  /// [useBrandGradient] is false where the mark sits on a filled surface and
+  /// has to be one flat contrasting colour to survive.
+  static CustomPainter? painterFor(
+    String providerId,
+    Color color, {
+    bool useBrandGradient = true,
+  }) {
     return switch (providerId) {
       'claude' => _SvgLogoPainter(
         pathData: _claudePath,
@@ -41,7 +48,10 @@ abstract final class ProviderLogos {
         viewBox: const Size(16, 16),
         color: color,
       ),
-      'antigravity' => _AntigravityMark(color),
+      'antigravity' => _AntigravityMark(
+        color,
+        useBrandGradient: useBrandGradient,
+      ),
       // Both wordmarks are set in blocky terminal type, which is the one part
       // of them that survives being shrunk into a ring. "opencode" spelled out
       // is far too wide at this size, so it is abbreviated to its initials in
@@ -571,11 +581,22 @@ class _SvgPathData {
   }
 }
 
-/// Antigravity's mark: an upward chevron over a base, drawn as an outline.
+/// Antigravity's mark: a single rounded arch.
+///
+/// Its own logo is one continuous stroke that rises from the baseline, turns
+/// over a soft apex, and falls again — an `A` with no crossbar. It used to be
+/// drawn here as a stacked double chevron, which is a different shape and read
+/// as a pair of arrows.
+///
+/// The real mark carries a blue-to-warm gradient along the stroke. That is kept
+/// as a gradient rather than flattened, because the sweep is the recognisable
+/// part; when the caller asks for a flat colour — a selected sidebar row, where
+/// brand colour would vanish into the fill — the gradient is dropped.
 class _AntigravityMark extends CustomPainter {
-  const _AntigravityMark(this.color);
+  const _AntigravityMark(this.color, {this.useBrandGradient = true});
 
   final Color color;
+  final bool useBrandGradient;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -583,32 +604,48 @@ class _AntigravityMark extends CustomPainter {
     final h = size.height;
     if (w <= 0 || h <= 0) return;
 
+    final stroke = size.shortestSide * 0.19;
+
+    // Legs splayed slightly wider than the apex, as the mark has them.
+    final path = Path()
+      ..moveTo(w * 0.11, h * 0.90)
+      ..cubicTo(
+        w * 0.20, h * 0.30,
+        w * 0.38, h * 0.06,
+        w * 0.50, h * 0.06,
+      )
+      ..cubicTo(
+        w * 0.62, h * 0.06,
+        w * 0.80, h * 0.30,
+        w * 0.89, h * 0.90,
+      );
+
     final paint = Paint()
-      ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = size.shortestSide * 0.13
+      ..strokeWidth = stroke
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
-    // A rising chevron: the "anti-gravity" idea, and distinct at a glance from
-    // the other three marks in the stack.
-    canvas
-      ..drawPath(
-        Path()
-          ..moveTo(w * 0.16, h * 0.56)
-          ..lineTo(w * 0.5, h * 0.16)
-          ..lineTo(w * 0.84, h * 0.56),
-        paint,
-      )
-      ..drawPath(
-        Path()
-          ..moveTo(w * 0.16, h * 0.86)
-          ..lineTo(w * 0.5, h * 0.46)
-          ..lineTo(w * 0.84, h * 0.86),
-        paint,
-      );
+    if (useBrandGradient) {
+      paint.shader = const LinearGradient(
+        begin: Alignment.bottomLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFF4285F4),
+          Color(0xFF9B72F2),
+          Color(0xFFE8710A),
+          Color(0xFF4285F4),
+        ],
+        stops: [0.0, 0.32, 0.55, 1.0],
+      ).createShader(Offset.zero & size);
+    } else {
+      paint.color = color;
+    }
+
+    canvas.drawPath(path, paint);
   }
 
   @override
-  bool shouldRepaint(_AntigravityMark old) => old.color != color;
+  bool shouldRepaint(_AntigravityMark old) =>
+      old.color != color || old.useBrandGradient != useBrandGradient;
 }

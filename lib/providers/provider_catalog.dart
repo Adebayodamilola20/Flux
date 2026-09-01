@@ -129,7 +129,7 @@ abstract final class ProviderCatalog {
   /// Google's Antigravity CLI.
   static const ProviderDescriptor antigravity = ProviderDescriptor(
     id: 'antigravity',
-    displayName: 'Google Antigravity',
+    displayName: 'Antigravity',
     tagline: 'Weekly model limits from the Antigravity CLI',
     accent: 0xFF4285F4,
     // Reads `agy /usage` rather than asking for a Google sign-in that would

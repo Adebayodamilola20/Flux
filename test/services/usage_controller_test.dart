@@ -444,6 +444,51 @@ void main() {
       expect(native.menuBarUpdates.last.isError, isFalse);
     });
 
+    test('names each provider as it takes its turn', () async {
+      // The first slot used to hold the menu bar forever, so Claude was the
+      // only thing ever shown up there however many providers were on the
+      // rail. Everything the user put on the rail earns its turn.
+      final second = FakeProvider(id: 'hermes', displayName: 'Hermes', percent: 12)
+        ..seedConnected();
+      final provider = FakeProvider(id: 'claude', percent: 52)..seedConnected();
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+        extraProviders: [second],
+        slots: const ['claude', 'hermes', null],
+      );
+      await settings.update(
+        settings.settings.copyWith(showMenuBarPercent: true),
+      );
+
+      await controller.refresh('claude');
+      await controller.refresh('hermes');
+
+      expect(
+        controller.menuBarRotation.map((s) => s.id),
+        ['claude', 'hermes'],
+      );
+      // With more than one in rotation the number is ambiguous on its own —
+      // 52% of what? — so the subject is named alongside it.
+      expect(native.menuBarUpdates.last.label, isNotNull);
+    });
+
+    test('says nothing about which one when there is only one', () async {
+      final provider = FakeProvider(id: 'claude', percent: 52)..seedConnected();
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+        slots: const ['claude', null, null],
+      );
+      await settings.update(
+        settings.settings.copyWith(showMenuBarPercent: true),
+      );
+
+      await controller.refresh('claude');
+
+      expect(native.menuBarUpdates.last.percent, 52);
+      // A label would be noise when nothing else can be meant.
+      expect(native.menuBarUpdates.last.label, isNull);
+    });
+
     test('flags an error rather than leaving a stale number', () async {
       final provider = FakeProvider(id: 'claude')
         ..seedConnected()

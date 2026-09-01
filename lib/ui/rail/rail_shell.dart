@@ -97,7 +97,10 @@ class _RailShellState extends State<RailShell>
               children: [
                 _CollapsedLayer(
                   animation: _controller,
-                  child: RailNub(onRightEdge: onRight),
+                  child: RailNub(
+                    onRightEdge: onRight,
+                    appearance: settings.railAppearance,
+                  ),
                 ),
                 _OpenLayer(
                   animation: _controller,

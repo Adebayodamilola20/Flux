@@ -37,6 +37,9 @@ class MainFlutterWindow: RailWindow {
             slotCount: MainFlutterWindow.slotCount
         )
 
+        statusItem.onRevealRail = { [weak channel] in
+            channel?.requestRevealRail()
+        }
         statusItem.onToggleRail = { [weak channel] in
             channel?.requestToggleRail()
         }
