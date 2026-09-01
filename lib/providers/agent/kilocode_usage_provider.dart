@@ -8,9 +8,13 @@ import 'agent_usage_provider.dart';
 
 /// Kilo Code.
 ///
-/// A fork of OpenCode, and it kept the session schema: same `session` table,
-/// same model JSON, same token columns. Only the path differs, which is why
-/// this is a path and a descriptor rather than a second implementation.
+/// A fork of OpenCode, sharing its `session` table and model JSON, which is
+/// why this is a path and a descriptor rather than a second implementation.
+///
+/// The schemas are not identical, though: Kilo Code forked before OpenCode
+/// began totalling each session onto its row, so its `session` table carries
+/// no token columns. [AgentSessionStore] detects that and rebuilds the totals
+/// from the assistant turns instead.
 class KiloCodeUsageProvider extends AgentUsageProvider {
   KiloCodeUsageProvider({
     required super.native,

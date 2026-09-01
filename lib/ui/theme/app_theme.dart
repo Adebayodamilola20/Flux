@@ -215,6 +215,10 @@ abstract final class AppMetrics {
 
   static const Duration progressAnimation = Duration(milliseconds: 520);
   static const Duration fadeAnimation = Duration(milliseconds: 180);
+
+  /// How long the hover card takes to travel between rings. Slower than
+  /// the content cross-fade so the movement is what the eye follows.
+  static const Duration calloutMove = Duration(milliseconds: 260);
 }
 
 abstract final class AppTheme {

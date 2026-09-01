@@ -287,7 +287,14 @@ class _CalloutLayer extends StatelessWidget {
     final inset =
         metrics.shadowPadding + metrics.collapsedWidth + AppMetrics.calloutGap;
 
-    return Positioned(
+    // Animated, not plain: moving between rings changes only `top`, and a
+    // plain Positioned teleports the card there. The switcher below cross-fades
+    // the contents, so without this the card's frame jumps to the new ring
+    // while its text fades — which reads as one card vanishing and another
+    // appearing rather than the same card following the pointer.
+    return AnimatedPositioned(
+      duration: AppMetrics.calloutMove,
+      curve: Curves.easeOutCubic,
       top: metrics.slotCenterY(slotIndex),
       left: onRight ? null : inset,
       right: onRight ? inset : null,

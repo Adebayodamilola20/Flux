@@ -114,92 +114,92 @@ class _RailSettingsButtonState extends State<RailSettingsButton>
   Widget build(BuildContext context) {
     final palette = context.palette;
 
-    return Tooltip(
-      message: 'Settings',
-      waitDuration: const Duration(milliseconds: 500),
-      child: MouseRegion(
-        cursor: widget.railExpanded
-            ? SystemMouseCursors.click
-            : SystemMouseCursors.basic,
-        onEnter: (_) => _handleEnter(),
-        onExit: (_) => _handleExit(),
-        child: GestureDetector(
-          onTap: widget.railExpanded ? widget.onPressed : null,
-          behavior: HitTestBehavior.opaque,
-          child: Semantics(
-            button: true,
-            label: 'Settings',
-            child: SizedBox(
-              width: 42,
-              height: 42,
-              child: AnimatedBuilder(
-                animation: Listenable.merge([_reveal, _roll]),
-                builder: (context, _) {
-                  final reveal = Curves.easeOutCubic.transform(_reveal.value);
-                  final foldedOpacity = 1 - reveal;
-                  final turn = _rollingTurn(widget.onRightEdge);
-                  final scale = _jellyScale();
+    // No tooltip: the control sits against the rail, and a light label
+    // appearing beside a dark widget was louder than the thing it described.
+    // The gear itself says what it is, and it carries a Semantics label for
+    // anyone who cannot see it.
+    return MouseRegion(
+      cursor: widget.railExpanded
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
+      onEnter: (_) => _handleEnter(),
+      onExit: (_) => _handleExit(),
+      child: GestureDetector(
+        onTap: widget.railExpanded ? widget.onPressed : null,
+        behavior: HitTestBehavior.opaque,
+        child: Semantics(
+          button: true,
+          label: 'Settings',
+          child: SizedBox(
+            width: 42,
+            height: 42,
+            child: AnimatedBuilder(
+              animation: Listenable.merge([_reveal, _roll]),
+              builder: (context, _) {
+                final reveal = Curves.easeOutCubic.transform(_reveal.value);
+                final foldedOpacity = 1 - reveal;
+                final turn = _rollingTurn(widget.onRightEdge);
+                final scale = _jellyScale();
 
-                  return Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Opacity(
-                        key: RailSettingsButton.foldedKey,
-                        opacity: foldedOpacity,
-                        child: CustomPaint(
-                          size: const Size(34, 34),
-                          painter: _FoldedSettingsPainter(
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    Opacity(
+                      key: RailSettingsButton.foldedKey,
+                      opacity: foldedOpacity,
+                      child: CustomPaint(
+                        size: const Size(34, 34),
+                        painter: _FoldedSettingsPainter(
+                          color: palette.railFill,
+                          shadow: palette.railShadow,
+                          onRightEdge: widget.onRightEdge,
+                        ),
+                      ),
+                    ),
+                    Opacity(
+                      key: RailSettingsButton.revealedKey,
+                      opacity: reveal,
+                      child: Transform(
+                        alignment: Alignment.center,
+                        transform: Matrix4.diagonal3Values(
+                          scale.$1,
+                          scale.$2,
+                          1,
+                        ),
+                        child: Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
                             color: palette.railFill,
-                            shadow: palette.railShadow,
-                            onRightEdge: widget.onRightEdge,
-                          ),
-                        ),
-                      ),
-                      Opacity(
-                        key: RailSettingsButton.revealedKey,
-                        opacity: reveal,
-                        child: Transform(
-                          alignment: Alignment.center,
-                          transform: Matrix4.diagonal3Values(
-                            scale.$1,
-                            scale.$2,
-                            1,
-                          ),
-                          child: Container(
-                            width: 34,
-                            height: 34,
-                            decoration: BoxDecoration(
-                              color: palette.railFill,
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: palette.railBorder,
-                                width: 1,
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: palette.railShadow,
-                                  blurRadius: 12,
-                                  offset: const Offset(0, 5),
-                                ),
-                              ],
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: palette.railBorder,
+                              width: 1,
                             ),
-                            child: Center(
-                              child: Transform.rotate(
-                                angle: turn * math.pi * 2,
-                                child: Icon(
-                                  Icons.settings_outlined,
-                                  size: 18,
-                                  color: palette.textPrimary,
-                                ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: palette.railShadow,
+                                blurRadius: 12,
+                                offset: const Offset(0, 5),
+                              ),
+                            ],
+                          ),
+                          child: Center(
+                            child: Transform.rotate(
+                              angle: turn * math.pi * 2,
+                              child: Icon(
+                                Icons.settings_outlined,
+                                size: 18,
+                                color: palette.textPrimary,
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ],
-                  );
-                },
-              ),
+                    ),
+                  ],
+                );
+              },
             ),
           ),
         ),

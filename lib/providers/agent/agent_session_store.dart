@@ -175,31 +175,12 @@ class AgentSessionStore implements AgentUsageReader {
 
     final since = DateTime.now().subtract(window).millisecondsSinceEpoch;
 
-    // Grouped in SQL rather than in Dart: the store holds every session the
-    // user has ever run, and there is no reason to carry all of it across a
-    // process boundary to add up six columns.
-    final rows = await _query('''
-      SELECT model,
-             SUM(tokens_input + tokens_output + tokens_reasoning
-                 + tokens_cache_read + tokens_cache_write) AS tokens,
-             COUNT(*) AS sessions,
-             MAX(time_created) AS last_used
-      FROM session
-      WHERE model IS NOT NULL AND time_created >= $since
-      GROUP BY model
-      ORDER BY last_used DESC;
-    ''');
+    final models = await _sessionTotals(since) ?? await _messageTotals(since);
 
-    if (rows == null) {
+    if (models == null) {
       return AgentUsageReading.unavailable(
         'Could not read $displayName’s session record on this Mac.',
       );
-    }
-
-    final models = <AgentModelUsage>[];
-    for (final row in rows) {
-      final usage = _toUsage(row);
-      if (usage != null) models.add(usage);
     }
 
     if (models.isEmpty) {
@@ -214,6 +195,124 @@ class AgentSessionStore implements AgentUsageReader {
 
     final byVolume = [...models]..sort((a, b) => b.tokens.compareTo(a.tokens));
     return AgentUsageReading(models: byVolume, active: active);
+  }
+
+  /// Whether the session table carries its own token columns.
+  ///
+  /// OpenCode totals each session as it goes and stores the result on the row.
+  /// Kilo Code forked before that and keeps only the model, so the same query
+  /// fails there with `no such column` — which is indistinguishable, from the
+  /// caller, from the store being unreadable. Asking the schema first is what
+  /// separates "this tool records totals elsewhere" from "something is wrong".
+  Future<bool> _sessionHasTokenColumns() async {
+    final columns = await _query('PRAGMA table_info(session);');
+    if (columns == null) return false;
+    return columns.any((c) => c['name'] == 'tokens_input');
+  }
+
+  /// Totals from the session rows themselves — one grouped query.
+  ///
+  /// Preferred where it works: the store holds every session the user has ever
+  /// run, and there is no reason to carry all of it across a process boundary
+  /// to add up six columns. Null when the schema cannot answer it.
+  Future<List<AgentModelUsage>?> _sessionTotals(int since) async {
+    if (!await _sessionHasTokenColumns()) return null;
+
+    final rows = await _query('''
+      SELECT model,
+             SUM(tokens_input + tokens_output + tokens_reasoning
+                 + tokens_cache_read + tokens_cache_write) AS tokens,
+             COUNT(*) AS sessions,
+             MAX(time_created) AS last_used
+      FROM session
+      WHERE model IS NOT NULL AND time_created >= $since
+      GROUP BY model
+      ORDER BY last_used DESC;
+    ''');
+    if (rows == null) return null;
+
+    final models = <AgentModelUsage>[];
+    for (final row in rows) {
+      final usage = _toUsage(row);
+      if (usage != null) models.add(usage);
+    }
+    return models;
+  }
+
+  /// Totals rebuilt from the assistant turns.
+  ///
+  /// Where the session row carries no totals, each assistant message still
+  /// records the tokens its turn cost. Summing those reproduces the same
+  /// figure the tool shows, at the cost of decoding JSON in Dart — which is
+  /// why this is the fallback rather than the default.
+  ///
+  /// Only assistant turns carry a token block; user turns have none, so they
+  /// contribute nothing and are skipped rather than counted as zero.
+  Future<List<AgentModelUsage>?> _messageTotals(int since) async {
+    final rows = await _query('''
+      SELECT data, time_created
+      FROM message
+      WHERE time_created >= $since
+      ORDER BY time_created DESC;
+    ''');
+    if (rows == null) return null;
+
+    final totals = <String, AgentModelUsage>{};
+    for (final row in rows) {
+      final raw = row['data'];
+      if (raw is! String) continue;
+
+      Object? decoded;
+      try {
+        decoded = jsonDecode(raw);
+      } on FormatException {
+        continue;
+      }
+      if (decoded is! Map<String, dynamic>) continue;
+
+      final id = decoded['modelID'];
+      final tokens = decoded['tokens'];
+      if (id is! String || tokens is! Map<String, dynamic>) continue;
+
+      final created = row['time_created'];
+      final at = created is num
+          ? DateTime.fromMillisecondsSinceEpoch(created.toInt())
+          : DateTime.fromMillisecondsSinceEpoch(0);
+
+      final existing = totals[id];
+      totals[id] = AgentModelUsage(
+        model: id,
+        provider: decoded['providerID'] is String
+            ? decoded['providerID'] as String
+            : 'unknown',
+        tokens: (existing?.tokens ?? 0) + _tokenSum(tokens),
+        sessions: (existing?.sessions ?? 0) + 1,
+        lastUsedAt: existing == null || at.isAfter(existing.lastUsedAt)
+            ? at
+            : existing.lastUsedAt,
+      );
+    }
+
+    // Newest first, matching the order the grouped query returns, so the
+    // caller can keep treating the first entry as the model in use.
+    return totals.values.toList()
+      ..sort((a, b) => b.lastUsedAt.compareTo(a.lastUsedAt));
+  }
+
+  /// Every token a turn spent, cache included.
+  ///
+  /// Cache reads are what these tools spend most of their allowance on, so
+  /// counting only input and output would under-report by an order of
+  /// magnitude — the same rule the session-column query follows.
+  static int _tokenSum(Map<String, dynamic> tokens) {
+    int number(Object? v) => v is num ? v.toInt() : 0;
+    final cache = tokens['cache'];
+    return number(tokens['input']) +
+        number(tokens['output']) +
+        number(tokens['reasoning']) +
+        (cache is Map<String, dynamic>
+            ? number(cache['read']) + number(cache['write'])
+            : 0);
   }
 
   /// Adds the live context figure to the model in use.

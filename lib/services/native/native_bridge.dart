@@ -130,10 +130,10 @@ class RailMetrics {
     collapsedVerticalPadding: 28,
     shadowPadding: 26,
     settingsButtonSize: 34,
-    settingsButtonGap: 2,
+    settingsButtonGap: -4,
     edgeInset: 0,
     windowWidth: 332,
-    windowHeight: 350,
+    windowHeight: 344,
     slots: 3,
   );
 

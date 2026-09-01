@@ -27,8 +27,13 @@ enum RailMetrics {
     static let shadowPadding: CGFloat = 26
 
     /// The settings affordance below the provider stack.
+    ///
+    /// The gap is measured to the control's box, not to what it draws. Folded,
+    /// the control is a stroked arc inset roughly ten points inside that box,
+    /// so a positive gap here leaves the arc floating well clear of the rail.
+    /// A slightly negative value is what seats it against the rail's edge.
     static let settingsButtonSize: CGFloat = 34
-    static let settingsButtonGap: CGFloat = 2
+    static let settingsButtonGap: CGFloat = -4
     static let settingsHotZonePadding: CGFloat = 8
 
     /// The resting sliver, as drawn.
