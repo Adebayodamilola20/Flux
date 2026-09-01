@@ -9,6 +9,7 @@ import '../../models/connection_status.dart';
 import '../../models/provider_connection.dart';
 import '../../models/usage_data.dart';
 import '../../models/usage_failure.dart';
+import '../../models/usage_window.dart';
 import '../../services/connection_store.dart';
 import '../../services/native/native_bridge.dart';
 import '../provider_catalog.dart';
@@ -368,6 +369,51 @@ class ClaudeUsageProvider implements UsageProvider {
     }
   }
 
+  /// Adds this Mac's own token totals to Anthropic's percentage windows.
+  ///
+  /// Anthropic reports a share of the plan limit and never a token count, so
+  /// "38%" answers how close the ceiling is and nothing about what was spent
+  /// getting there. Claude Code's transcripts do carry real totals for the
+  /// same two periods, so they are matched up by window and carried alongside.
+  ///
+  /// Explicitly *not* derived from the percentage: there is no published token
+  /// ceiling to multiply by, and a number invented that way would look exact
+  /// while meaning nothing. Where the transcripts have nothing to say, the
+  /// figure stays absent.
+  Future<List<UsageWindow>> _withLocalTokens(
+    List<UsageWindow> windows,
+    AppSettings settings,
+  ) async {
+    if (!_local.isAvailable) return windows;
+
+    List<UsageWindow> local;
+    try {
+      local = (await _local.load(settings)).windows;
+    } catch (e) {
+      _log.debug('local token totals unavailable: ${e.runtimeType}');
+      return windows;
+    }
+
+    num? tokensFor(String id) {
+      for (final w in local) {
+        if (w.id == id && w.unit == 'tokens') return w.consumed;
+      }
+      return null;
+    }
+
+    // The local source names its windows for the same two periods Anthropic
+    // reports, which is what makes the pairing meaningful rather than a guess.
+    const pairs = {'five_hour': 'session', 'seven_day': 'weekly'};
+
+    return [
+      for (final window in windows)
+        if (pairs[window.id] case final localId?)
+          window.copyWith(tokensUsed: tokensFor(localId))
+        else
+          window,
+    ];
+  }
+
   @override
   Future<UsageData> fetchUsage(AppSettings settings) async {
     if (!_connection.isConnected) {
@@ -417,7 +463,7 @@ class ClaudeUsageProvider implements UsageProvider {
       return UsageData(
         providerId: id,
         providerName: displayName,
-        windows: live.windows,
+        windows: await _withLocalTokens(live.windows, settings),
         connection: ConnectionStatus.connected,
         fetchedAt: live.fetchedAt ?? DateTime.now(),
         accountLabel: reading.email,
@@ -483,7 +529,7 @@ class ClaudeUsageProvider implements UsageProvider {
     return UsageData(
       providerId: id,
       providerName: displayName,
-      windows: current,
+      windows: await _withLocalTokens(current, settings),
       connection: ConnectionStatus.connected,
       fetchedAt: observedAt ?? DateTime.now(),
       accountLabel: reading.email,
