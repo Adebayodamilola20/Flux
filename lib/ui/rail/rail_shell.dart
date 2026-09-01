@@ -9,6 +9,7 @@ import '../../services/usage_controller.dart';
 import '../theme/app_theme.dart';
 import 'rail_callout.dart';
 import 'rail_column.dart';
+import 'rail_settings_button.dart';
 
 /// The edge widget.
 ///
@@ -122,6 +123,18 @@ class _RailShellState extends State<RailShell>
             ),
           ),
         ),
+        _SettingsLayer(
+          animation: _controller,
+          metrics: metrics,
+          slotCount: states.length,
+          onRight: onRight,
+          enabled: shell.isExpanded,
+          child: RailSettingsButton(
+            railExpanded: shell.isExpanded,
+            onRightEdge: onRight,
+            onPressed: () => shell.openPanel(ShellSurface.settings),
+          ),
+        ),
         if (hovered != null)
           _CalloutLayer(
             animation: _controller,
@@ -140,6 +153,57 @@ class _RailShellState extends State<RailShell>
             ),
           ),
       ],
+    );
+  }
+}
+
+/// The settings affordance that lives below the provider rail.
+class _SettingsLayer extends StatelessWidget {
+  const _SettingsLayer({
+    required this.animation,
+    required this.metrics,
+    required this.slotCount,
+    required this.onRight,
+    required this.enabled,
+    required this.child,
+  });
+
+  final Animation<double> animation;
+  final RailMetrics metrics;
+  final int slotCount;
+  final bool onRight;
+  final bool enabled;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final controlSize = metrics.settingsButtonSize + 8;
+    final sideOffset =
+        metrics.shadowPadding + (metrics.collapsedWidth - controlSize) / 2;
+
+    return Positioned(
+      top: metrics.settingsButtonTop(slotCount) - 4,
+      left: onRight ? null : sideOffset,
+      right: onRight ? sideOffset : null,
+      child: IgnorePointer(
+        ignoring: !enabled,
+        child: FadeTransition(
+          opacity: CurvedAnimation(
+            parent: animation,
+            curve: const Interval(0.45, 1, curve: Curves.easeOut),
+            reverseCurve: const Interval(0, 0.4, curve: Curves.easeIn),
+          ),
+          child: ScaleTransition(
+            scale: Tween<double>(begin: 0.9, end: 1).animate(
+              CurvedAnimation(
+                parent: animation,
+                curve: const Interval(0.45, 1, curve: Curves.easeOutBack),
+              ),
+            ),
+            child: child,
+          ),
+        ),
+      ),
     );
   }
 }

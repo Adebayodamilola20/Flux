@@ -26,6 +26,11 @@ enum RailMetrics {
     /// than the card or the shadow is clipped at the window edge.
     static let shadowPadding: CGFloat = 26
 
+    /// The settings affordance below the provider stack.
+    static let settingsButtonSize: CGFloat = 34
+    static let settingsButtonGap: CGFloat = 2
+    static let settingsHotZonePadding: CGFloat = 8
+
     /// The resting sliver, as drawn.
     static let nubWidth: CGFloat = 7
     static let nubHeight: CGFloat = 84
@@ -52,10 +57,14 @@ enum RailMetrics {
     /// while animating — Flutter animates inside a stationary window, which is
     /// what keeps the motion smooth.
     static func windowSize(slots: Int) -> NSSize {
+        let heightWithSettings = collapsedHeight(slots: slots)
+            + settingsButtonGap
+            + settingsButtonSize
+            + settingsHotZonePadding
+
         NSSize(
             width: expandedWidth + shadowPadding * 2,
-            height: max(expandedHeight, collapsedHeight(slots: slots))
-                + shadowPadding * 2
+            height: max(expandedHeight, heightWithSettings) + shadowPadding * 2
         )
     }
 
@@ -101,18 +110,46 @@ enum RailMetrics {
         )
     }
 
+    /// The settings control below the rail, in the window's coordinate space.
+    static func settingsButtonRect(
+        in windowSize: NSSize,
+        edge: RailEdge,
+        slots: Int
+    ) -> NSRect {
+        let rail = railRect(in: windowSize, edge: edge, slots: slots)
+        let x = rail.midX - settingsButtonSize / 2
+        return NSRect(
+            x: x,
+            y: rail.minY - settingsButtonGap - settingsButtonSize,
+            width: settingsButtonSize,
+            height: settingsButtonSize
+        )
+    }
+
     /// The pointer target while the rail is open: the rail and its card.
     static func openHotZone(
         in windowSize: NSSize,
-        edge: RailEdge
+        edge: RailEdge,
+        slots: Int
     ) -> NSRect {
-        let height = min(expandedHeight, windowSize.height)
+        let settings = settingsButtonRect(
+            in: windowSize,
+            edge: edge,
+            slots: slots
+        ).insetBy(
+            dx: -settingsHotZonePadding,
+            dy: -settingsHotZonePadding
+        )
+        let rail = railRect(in: windowSize, edge: edge, slots: slots)
+        let minY = min(settings.minY, rail.minY)
+        let maxY = max(settings.maxY, rail.maxY)
+        let height = min(maxY - minY, windowSize.height)
         let x: CGFloat = edge == .right
             ? windowSize.width - shadowPadding - expandedWidth
             : shadowPadding
         return NSRect(
             x: x,
-            y: (windowSize.height - height) / 2,
+            y: minY,
             width: expandedWidth,
             height: height
         )
@@ -127,6 +164,8 @@ enum RailMetrics {
             "slotHeight": Double(slotHeight),
             "collapsedVerticalPadding": Double(collapsedVerticalPadding),
             "shadowPadding": Double(shadowPadding),
+            "settingsButtonSize": Double(settingsButtonSize),
+            "settingsButtonGap": Double(settingsButtonGap),
             "edgeInset": 0.0,
             "windowWidth": Double(size.width),
             "windowHeight": Double(size.height),

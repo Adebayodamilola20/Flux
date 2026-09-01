@@ -101,6 +101,8 @@ class RailMetrics {
     required this.slotHeight,
     required this.collapsedVerticalPadding,
     required this.shadowPadding,
+    required this.settingsButtonSize,
+    required this.settingsButtonGap,
     required this.edgeInset,
     required this.windowWidth,
     required this.windowHeight,
@@ -112,6 +114,8 @@ class RailMetrics {
   final double slotHeight;
   final double collapsedVerticalPadding;
   final double shadowPadding;
+  final double settingsButtonSize;
+  final double settingsButtonGap;
   final double edgeInset;
   final double windowWidth;
   final double windowHeight;
@@ -125,14 +129,21 @@ class RailMetrics {
     slotHeight: 66,
     collapsedVerticalPadding: 28,
     shadowPadding: 26,
+    settingsButtonSize: 34,
+    settingsButtonGap: 2,
     edgeInset: 0,
     windowWidth: 332,
-    windowHeight: 312,
+    windowHeight: 350,
     slots: 3,
   );
 
   double get collapsedHeight =>
       slots * slotHeight + collapsedVerticalPadding * 2;
+
+  double settingsButtonTop(int slotCount) {
+    final railHeight = slotCount * slotHeight + collapsedVerticalPadding * 2;
+    return (windowHeight - railHeight) / 2 + railHeight + settingsButtonGap;
+  }
 
   /// Vertical centre of a provider's ring, in the window's coordinate space.
   ///
@@ -167,6 +178,10 @@ class RailMetrics {
           number('collapsedVerticalPadding') ??
           fallback.collapsedVerticalPadding,
       shadowPadding: number('shadowPadding') ?? fallback.shadowPadding,
+      settingsButtonSize:
+          number('settingsButtonSize') ?? fallback.settingsButtonSize,
+      settingsButtonGap:
+          number('settingsButtonGap') ?? fallback.settingsButtonGap,
       edgeInset: number('edgeInset') ?? fallback.edgeInset,
       windowWidth: width,
       windowHeight: height,

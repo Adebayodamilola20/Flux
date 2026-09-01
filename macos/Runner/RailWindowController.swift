@@ -273,7 +273,7 @@ final class RailWindowController {
         // its card, so moving the pointer onto the card never collapses the
         // rail out from under it.
         let local = isExpanded
-            ? RailMetrics.openHotZone(in: size, edge: edge)
+            ? RailMetrics.openHotZone(in: size, edge: edge, slots: slotCount)
             : RailMetrics.restingHotZone(in: size, edge: edge)
 
         return local.offsetBy(dx: frame.minX, dy: frame.minY)

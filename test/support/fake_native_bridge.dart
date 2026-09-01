@@ -174,9 +174,11 @@ class _FakeNativeState {
           'slotHeight': 66.0,
           'collapsedVerticalPadding': 28.0,
           'shadowPadding': 26.0,
+          'settingsButtonSize': 34.0,
+          'settingsButtonGap': 10.0,
           'edgeInset': 0.0,
           'windowWidth': 332.0,
-          'windowHeight': 312.0,
+          'windowHeight': 358.0,
           'slots': 3,
         };
 
