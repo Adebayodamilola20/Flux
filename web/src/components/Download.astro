@@ -1,0 +1,266 @@
+---
+import { DOWNLOADS, BUILD_FROM_SOURCE, PRODUCT, GITHUB } from '../config/site';
+import Icon from './Icon.astro';
+
+interface Props {
+  /** Rendered as its own page rather than as a section of the homepage. */
+  standalone?: boolean;
+}
+
+const { standalone = false } = Astro.props;
+
+/** Availability is read from config, never assumed. */
+const anyAvailable = DOWNLOADS.some((d) => d.available && d.url);
+---
+
+<section class:list={['dl', 'section', standalone && 'dl--page']} id="download">
+  <div class="wrap">
+    <div class="head center">
+      {standalone ? (
+        <h1 class="h2">Download {PRODUCT.name}</h1>
+      ) : (
+        <h2 class="h2">Download {PRODUCT.name}</h2>
+      )}
+      <p class="lede">{PRODUCT.platforms}. Free, and {PRODUCT.license}-licensed.</p>
+    </div>
+
+    <div class="plats">
+      {
+        DOWNLOADS.map((d) => (
+          <div class:list={['plat', !d.supported && 'plat--off']}>
+            <div class="plat__head">
+              <Icon name={d.id === 'macos' ? 'apple' : 'windows'} size={18} />
+              <h3 class="plat__name">{d.label}</h3>
+              <span class:list={['tag', d.supported && 'tag--pending']}>{d.status}</span>
+            </div>
+
+            <p class="plat__detail">{d.detail}</p>
+
+            {d.available && d.url ? (
+              <a class="btn btn--primary plat__btn" href={d.url}>
+                Download for {d.label}
+              </a>
+            ) : (
+              <span class="btn btn--disabled plat__btn" aria-disabled="true">
+                {d.supported ? 'No build published yet' : 'Not available'}
+              </span>
+            )}
+
+            <p class="plat__note">{d.note}</p>
+
+            {d.watch && (
+              <a class="plat__watch" href={d.watch.url} target="_blank" rel="noopener noreferrer">
+                {d.watch.label}
+                <Icon name="arrow" size={12} />
+              </a>
+            )}
+          </div>
+        ))
+      }
+    </div>
+
+    {
+      !anyAvailable && (
+        <div class="src">
+          <div class="src__head">
+            <h3 class="src__t">Run it from source</h3>
+            <a class="src__link" href={GITHUB.readmeUrl} target="_blank" rel="noopener noreferrer">
+              Setup guide
+              <Icon name="arrow" size={12} />
+            </a>
+          </div>
+          <p class="src__n">
+            Requires the Flutter SDK and Xcode. Until a release is published, this is
+            how you get it.
+          </p>
+          <pre class="code"><code>{BUILD_FROM_SOURCE.join('\n')}</code></pre>
+        </div>
+      )
+    }
+  </div>
+</section>
+
+<style>
+  /* On its own page the section carries the whole viewport. */
+  .dl--page {
+    padding-top: clamp(3rem, 7vw, 5rem);
+    min-height: 68vh;
+  }
+
+
+
+  .head {
+    max-width: 44rem;
+    margin-inline: auto;
+  }
+
+  .dl .lede {
+    color: var(--ink-2);
+  }
+
+  .plats {
+    margin-top: 3rem;
+    max-width: 56rem;
+    margin-inline: auto;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+  }
+
+  .plat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 1.5rem;
+    border: 1px solid var(--hair);
+    border-radius: var(--r);
+    background: var(--paper-2);
+    min-width: 0;
+  }
+
+  .plat--off {
+    background: transparent;
+    color: var(--ink-3);
+  }
+
+  .plat__head {
+    display: flex;
+    align-items: center;
+    gap: 0.5625rem;
+    flex-wrap: wrap;
+  }
+
+  .plat__name {
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  .tag {
+    padding: 0.125rem 0.4375rem;
+    border: 1px solid var(--hair);
+    border-radius: 999px;
+    font-family: var(--mono);
+    font-size: 0.625rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    white-space: nowrap;
+  }
+
+  .tag--pending {
+    color: #565e06;
+    border-color: rgba(138,153,8,0.35);
+    background: rgba(138,153,8,0.12);
+  }
+
+  .plat__detail {
+    margin-top: 0.375rem;
+    font-size: 0.875rem;
+    color: var(--ink-2);
+  }
+
+  .plat--off .plat__detail {
+    color: var(--ink-3);
+  }
+
+  .plat__btn {
+    margin-top: 1.5rem;
+    width: 100%;
+    max-width: 18rem;
+  }
+
+  .on-ink .btn--disabled {
+    border-color: rgba(255,255,255,0.12);
+    color: var(--ink-3);
+  }
+
+  .plat__note {
+    margin-top: 0.625rem;
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--ink-3);
+  }
+
+  .plat__watch {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3125rem;
+    margin-top: 0.625rem;
+    font-size: 0.75rem;
+    color: var(--ink-2);
+    text-decoration: none;
+  }
+
+  .plat__watch:hover {
+    color: var(--ink);
+  }
+
+  /* ------------------------------------------------------ build from source */
+
+  .src {
+    margin-top: 1rem;
+    max-width: 56rem;
+    margin-inline: auto;
+    text-align: left;
+    padding: 1.5rem;
+    border: 1px solid var(--hair);
+    border-radius: var(--r);
+  }
+
+  .src__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  .src__t {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+  }
+
+  .src__link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3125rem;
+    font-size: 0.875rem;
+    color: var(--ink-2);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .src__link:hover {
+    color: var(--ink);
+  }
+
+  .src__n {
+    margin-top: 0.375rem;
+    font-size: 0.875rem;
+    color: var(--ink-2);
+  }
+
+  .code {
+    margin: 1rem 0 0;
+    padding: 1rem;
+    background: #14181b;
+    border: 0;
+    border-radius: var(--r-sm);
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    line-height: 1.8;
+    color: rgba(255,255,255,0.82);
+  }
+
+  @media (max-width: 48rem) {
+    .plats {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .plat__btn {
+      max-width: none;
+    }
+  }
+</style>

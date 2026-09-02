@@ -1,0 +1,84 @@
+---
+import { PRODUCT, GITHUB, DOWNLOAD_PATH } from '../config/site';
+import Icon from './Icon.astro';
+import NotchDemo from './NotchDemo.astro';
+---
+
+<section class="hero" id="top">
+  <div class="wrap center">
+    <h1 class="display title rise">
+      <span class="l1">{PRODUCT.headline.line1}</span>
+      <span class="l2"
+        >{PRODUCT.headline.line2}<span class="mark">{PRODUCT.headline.mark}</span
+        ></span
+      >
+    </h1>
+
+    <div class="acts rise">
+      <a class="btn btn--primary btn--lg" href={DOWNLOAD_PATH}>
+        <Icon name="apple" size={18} />
+        Download for Mac
+      </a>
+      <a
+        class="btn btn--soft btn--lg"
+        href={GITHUB.url}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <Icon name="star" size={16} />
+        Star on GitHub
+      </a>
+    </div>
+  </div>
+
+  <div class="stage rise">
+    <div class="wrap">
+      <NotchDemo hero />
+    </div>
+  </div>
+</section>
+
+<style>
+  .hero {
+    padding-top: clamp(2.5rem, 7vw, 5.5rem);
+  }
+
+  .title {
+    max-width: 18ch;
+    margin-inline: auto;
+  }
+
+  .l1,
+  .l2 {
+    display: block;
+  }
+
+  .acts {
+    margin-top: clamp(1.75rem, 3vw, 2.5rem);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.75rem;
+    animation-delay: 80ms;
+  }
+
+  .stage {
+    margin-top: clamp(2.5rem, 5vw, 4rem);
+    animation-delay: 160ms;
+  }
+
+  /* Inset, with the paper showing either side — the reference does not run
+     its screen to the container edge. */
+  .stage .wrap {
+    max-width: 64rem;
+  }
+
+  @media (max-width: 32rem) {
+    .acts {
+      flex-direction: column;
+    }
+    .acts .btn {
+      width: 100%;
+    }
+  }
+</style>
