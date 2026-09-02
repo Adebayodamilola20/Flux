@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../../core/logger.dart';
 import 'cli_probe.dart';
 import '../../models/rail_placement.dart';
+import '../../ui/theme/app_theme.dart';
 
 /// Description of a running provider-related process, as reported by the
 /// native layer.
