@@ -192,6 +192,21 @@ class RailMetrics {
     return (windowHeight - railHeight) / 2 + railHeight + settingsButtonGap;
   }
 
+  /// Where the settings control sits beside a top rail.
+  ///
+  /// A top rail runs out of room below it — that space belongs to the hover
+  /// card — so the control goes at the trailing end of the row instead, which
+  /// is the same relationship it has to a side rail turned through ninety
+  /// degrees.
+  double settingsButtonLeft(int slotCount) {
+    final railWidth = slotCount * slotHeight + collapsedVerticalPadding * 2;
+    return (windowWidth - railWidth) / 2 + railWidth + settingsButtonGap;
+  }
+
+  /// Its centre on the other axis, so it lines up with the rings.
+  double settingsButtonCrossCenter() =>
+      shadowPadding + collapsedWidth / 2;
+
   /// Vertical centre of a provider's ring, in the window's coordinate space.
   ///
   /// The hover card is positioned from this so its tail lands on the ring it
@@ -200,6 +215,19 @@ class RailMetrics {
   double slotCenterY(int index) {
     final columnTop = (windowHeight - collapsedHeight) / 2;
     return columnTop +
+        collapsedVerticalPadding +
+        index * slotHeight +
+        slotHeight / 2;
+  }
+
+  /// Horizontal centre of a provider's ring on a top rail.
+  ///
+  /// The mirror of [slotCenterY] for the other axis: the rail is centred
+  /// across the window rather than down it, so the card is placed from here
+  /// and its tail points up at the ring instead of sideways.
+  double slotCenterX(int index) {
+    final rowLeft = (windowWidth - collapsedHeight) / 2;
+    return rowLeft +
         collapsedVerticalPadding +
         index * slotHeight +
         slotHeight / 2;

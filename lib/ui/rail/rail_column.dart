@@ -26,6 +26,7 @@ class RailColumn extends StatelessWidget {
     required this.onOpenDetail,
     required this.onAddToSlot,
     required this.onRightEdge,
+    this.fromTop = false,
     this.entrance,
     this.appearance = RailAppearance.solid,
   });
@@ -52,6 +53,9 @@ class RailColumn extends StatelessWidget {
   final ValueChanged<int> onAddToSlot;
   final bool onRightEdge;
 
+  /// Laid out across the screen, hanging from the top bezel.
+  final bool fromTop;
+
   /// Solid or frosted. Glass thins the fill so the material behind it — drawn
   /// natively, because only AppKit can blur the desktop — actually shows.
   final RailAppearance appearance;
@@ -60,6 +64,11 @@ class RailColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = context.palette;
     final isGlass = appearance == RailAppearance.glass;
+
+    // Along the rail: down a side, across the top. Everything below reads this
+    // rather than asking which edge it is, so another edge on the same axis
+    // would need nothing more here.
+    final axis = fromTop ? Axis.horizontal : Axis.vertical;
 
     return NotchShape(
       // Denser than a floating panel — the rail sits flush against the bezel
@@ -110,18 +119,21 @@ class RailColumn extends StatelessWidget {
                   index: index,
                   count: states.length,
                   fromRight: onRightEdge,
+                  fromTop: fromTop,
                   child: switch (states[index]) {
                     final state? => _RailSlot(
                       state: state,
                       metrics: metrics,
-                      height: metrics.slotHeight,
+                      extent: metrics.slotHeight,
+                      axis: axis,
                       isHovered: state.id == hoveredId,
                       onEnter: () => onHoverSlot(state.id),
                       onTap: () => onOpenDetail(state.id),
                     ),
                     null => _EmptySlot(
                       metrics: metrics,
-                      height: metrics.slotHeight,
+                      extent: metrics.slotHeight,
+                      axis: axis,
                       // Clears the card on the way in. An empty position has
                       // no provider to describe, and without this the previous
                       // ring's card stays up — so a plus appeared to be
@@ -145,7 +157,8 @@ class _RailSlot extends StatelessWidget {
   const _RailSlot({
     required this.state,
     required this.metrics,
-    required this.height,
+    required this.extent,
+    required this.axis,
     required this.isHovered,
     required this.onEnter,
     required this.onTap,
@@ -153,7 +166,14 @@ class _RailSlot extends StatelessWidget {
 
   final ProviderState state;
   final RailMetrics metrics;
-  final double height;
+
+  /// How much room this slot takes along the rail.
+  final double extent;
+
+  /// Which way the rail runs, so the slot claims its space on that axis and
+  /// leaves the other to the rail's thickness.
+  final Axis axis;
+
   final bool isHovered;
   final VoidCallback onEnter;
   final VoidCallback onTap;
@@ -186,7 +206,8 @@ class _RailSlot extends StatelessWidget {
         onTap: isReserved ? null : onTap,
         behavior: HitTestBehavior.opaque,
         child: SizedBox(
-          height: height,
+          width: axis == Axis.horizontal ? extent : null,
+          height: axis == Axis.horizontal ? null : extent,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -266,11 +287,15 @@ class RailNub extends StatelessWidget {
   const RailNub({
     super.key,
     required this.onRightEdge,
+    this.fromTop = false,
     this.metrics = RailMetrics.fallback,
     this.appearance = RailAppearance.solid,
   });
 
   final bool onRightEdge;
+
+  /// Lying along the top bezel rather than standing against a side.
+  final bool fromTop;
 
   /// The sliver follows the rail's scale, so it does not stay a fixed size
   /// against a rail that grew or shrank with the display.
@@ -291,16 +316,18 @@ class RailNub extends StatelessWidget {
     final radius = Radius.circular(metrics.nubRadius);
     final isGlass = appearance == RailAppearance.glass;
 
-    final corners = BorderRadius.horizontal(
-      // Rounded on the inward side only; the edge side is flat against the
-      // bezel, the same rule the full rail follows.
-      left: onRightEdge ? radius : Radius.zero,
-      right: onRightEdge ? Radius.zero : radius,
-    );
+    // Rounded on the inward side only; the edge side is flat against the
+    // bezel, the same rule the full rail follows.
+    final corners = fromTop
+        ? BorderRadius.vertical(bottom: radius)
+        : BorderRadius.horizontal(
+            left: onRightEdge ? radius : Radius.zero,
+            right: onRightEdge ? Radius.zero : radius,
+          );
 
     final nub = Container(
-      width: metrics.nubWidth,
-      height: metrics.nubHeight,
+      width: fromTop ? metrics.nubHeight : metrics.nubWidth,
+      height: fromTop ? metrics.nubWidth : metrics.nubHeight,
       decoration: BoxDecoration(
         color: isGlass
             ? palette.railFill.withValues(alpha: 0.30)
@@ -378,13 +405,15 @@ class _ActivityDotState extends State<_ActivityDot>
 /// provider we chose for this row" would not be a choice.
 class _EmptySlot extends StatefulWidget {
   const _EmptySlot({
-    required this.height,
+    required this.extent,
+    required this.axis,
     required this.metrics,
     required this.onTap,
     required this.onEnter,
   });
 
-  final double height;
+  final double extent;
+  final Axis axis;
   final RailMetrics metrics;
   final VoidCallback onTap;
 
@@ -414,7 +443,8 @@ class _EmptySlotState extends State<_EmptySlot> {
         onTap: widget.onTap,
         behavior: HitTestBehavior.opaque,
         child: SizedBox(
-          height: widget.height,
+          width: widget.axis == Axis.horizontal ? widget.extent : null,
+          height: widget.axis == Axis.horizontal ? null : widget.extent,
           child: Center(
             child: _Jelly(
               active: _hovered,
@@ -541,12 +571,17 @@ class _Arriving extends StatelessWidget {
     required this.count,
     required this.fromRight,
     required this.child,
+    this.fromTop = false,
   });
 
   final Animation<double>? animation;
   final int index;
   final int count;
   final bool fromRight;
+
+  /// Arriving downward out of the top bezel rather than sideways.
+  final bool fromTop;
+
   final Widget child;
 
   /// How much of the reveal each slot waits before starting.
@@ -591,7 +626,9 @@ class _Arriving extends StatelessWidget {
           child: Transform.translate(
             // Out from behind the bezel, and a shade under its resting size,
             // so it reads as coming toward the user rather than sliding past.
-            offset: Offset((fromRight ? 1 : -1) * (1 - t) * 34, 0),
+            offset: fromTop
+                ? Offset(0, -(1 - t) * 34)
+                : Offset((fromRight ? 1 : -1) * (1 - t) * 34, 0),
             child: Transform.scale(
               scale: 0.72 + 0.28 * t.clamp(0.0, 1.4),
               child: slot,

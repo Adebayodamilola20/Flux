@@ -21,12 +21,16 @@ class RailCallout extends StatelessWidget {
     super.key,
     required this.state,
     required this.onRightEdge,
+    this.fromTop = false,
     required this.onConnect,
     required this.onRetry,
   });
 
   final ProviderState state;
   final bool onRightEdge;
+
+  /// Hanging beneath a top rail, so the tail points up.
+  final bool fromTop;
   final VoidCallback onConnect;
 
   /// Re-runs the fetch for this provider.
@@ -43,6 +47,7 @@ class RailCallout extends StatelessWidget {
             borderColor: const Color(0xFF171719),
             shadowColor: const Color(0xCC000000),
             tailOnRight: onRightEdge,
+            tailOnTop: fromTop,
             radius: 14,
             tailWidth: 12,
             tailHeight: 18,

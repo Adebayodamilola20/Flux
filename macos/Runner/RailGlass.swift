@@ -29,6 +29,7 @@ final class RailGlass {
     private var isVisible = false
     private var frame: NSRect = .zero
     private var onRightEdge = true
+    private var fromTop = false
 
     init() {
         // `.behindWindow` is the blending mode that samples the desktop rather
@@ -113,9 +114,14 @@ final class RailGlass {
     /// Positions the material over the rail's drawn rectangle.
     func layout(windowSize: NSSize, edge: RailEdge, slots: Int) {
         onRightEdge = edge == .right
+        fromTop = edge.isHorizontal
         frame = RailMetrics.railRect(in: windowSize, edge: edge, slots: slots)
         effect.frame = frame
-        effect.maskImage = Self.mask(for: frame.size, onRightEdge: onRightEdge)
+        effect.maskImage = Self.mask(
+            for: frame.size,
+            onRightEdge: onRightEdge,
+            fromTop: fromTop
+        )
         apply()
     }
 
@@ -173,14 +179,20 @@ final class RailGlass {
     /// two inward corners are rounded, the two outward ones are not, and the
     /// outline curves *back* into the screen edge at top and bottom. A
     /// symmetric cap-inset image cannot express any of that.
-    private static func mask(for size: NSSize, onRightEdge: Bool) -> NSImage? {
+    private static func mask(
+        for size: NSSize,
+        onRightEdge: Bool,
+        fromTop: Bool
+    ) -> NSImage? {
         guard size.width > 0, size.height > 0 else { return nil }
 
         return NSImage(size: size, flipped: false) { rect in
             guard let context = NSGraphicsContext.current?.cgContext else {
                 return false
             }
-            context.addPath(notchPath(in: rect, onRightEdge: onRightEdge))
+            context.addPath(
+                notchPath(in: rect, onRightEdge: onRightEdge, fromTop: fromTop)
+            )
             context.setFillColor(NSColor.black.cgColor)
             context.fillPath()
             return true
@@ -194,9 +206,41 @@ final class RailGlass {
     /// difference between this and a rounded rectangle is the entire design.
     /// The shape is symmetric about its horizontal axis, so it needs no
     /// adjustment for AppKit's upward Y.
-    private static func notchPath(in rect: NSRect, onRightEdge: Bool) -> CGPath {
+    private static func notchPath(
+        in rect: NSRect,
+        onRightEdge: Bool,
+        fromTop: Bool = false
+    ) -> CGPath {
         let w = rect.width
         let h = rect.height
+
+        if fromTop {
+            // Hanging from the top bezel. AppKit's Y runs up, so the flat side
+            // is at maxY and the rounded corners are at the bottom — the same
+            // silhouette as `_fromTop` in `rail_shapes.dart`, in the other
+            // coordinate space.
+            let f = min(max(filletRadius, 0), w / 2)
+            let r = min(max(cornerRadius, 0), (w - f * 2) / 2)
+
+            let path = CGMutablePath()
+            let x0 = rect.minX
+            let y1 = rect.maxY
+
+            func p(_ px: CGFloat, _ down: CGFloat) -> CGPoint {
+                CGPoint(x: x0 + px, y: y1 - down)
+            }
+
+            path.move(to: p(0, 0))
+            path.addQuadCurve(to: p(f, f), control: p(f, 0))
+            path.addLine(to: p(f, h - r))
+            path.addQuadCurve(to: p(f + r, h), control: p(f, h))
+            path.addLine(to: p(w - f - r, h))
+            path.addQuadCurve(to: p(w - f, h - r), control: p(w - f, h))
+            path.addLine(to: p(w - f, f))
+            path.addQuadCurve(to: p(w, 0), control: p(w - f, 0))
+            path.closeSubpath()
+            return path
+        }
 
         // The reverse curves eat into the top and bottom, so they cannot be
         // larger than half the height, and the inward corners cannot exceed

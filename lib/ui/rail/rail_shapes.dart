@@ -19,13 +19,17 @@ class NotchShape extends StatelessWidget {
     this.cornerRadius = 18,
     this.filletRadius = 12,
     this.shadowColor,
+    this.fromTop = false,
   });
 
   final Widget child;
   final Color fill;
 
-  /// Which side is flush against the screen.
+  /// Which side is flush against the screen. Ignored when [fromTop].
   final bool onRightEdge;
+
+  /// Draws the rail hanging from the top of the screen instead of a side.
+  final bool fromTop;
 
   final Color? borderColor;
 
@@ -47,6 +51,7 @@ class NotchShape extends StatelessWidget {
         cornerRadius: cornerRadius,
         filletRadius: filletRadius,
         shadow: shadowColor,
+        fromTop: fromTop,
       ),
       child: child,
     );
@@ -61,6 +66,7 @@ class _NotchPainter extends CustomPainter {
     required this.cornerRadius,
     required this.filletRadius,
     required this.shadow,
+    required this.fromTop,
   });
 
   final Color fill;
@@ -69,6 +75,7 @@ class _NotchPainter extends CustomPainter {
   final double cornerRadius;
   final double filletRadius;
   final Color? shadow;
+  final bool fromTop;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -79,6 +86,7 @@ class _NotchPainter extends CustomPainter {
       onRightEdge: onRightEdge,
       cornerRadius: cornerRadius,
       filletRadius: filletRadius,
+      fromTop: fromTop,
     );
 
     if (shadow != null) {
@@ -104,7 +112,8 @@ class _NotchPainter extends CustomPainter {
       oldDelegate.onRightEdge != onRightEdge ||
       oldDelegate.cornerRadius != cornerRadius ||
       oldDelegate.filletRadius != filletRadius ||
-      oldDelegate.shadow != shadow;
+      oldDelegate.shadow != shadow ||
+      oldDelegate.fromTop != fromTop;
 }
 
 /// Builds the rail's outline.
@@ -118,7 +127,16 @@ abstract final class NotchPathBuilder {
     required bool onRightEdge,
     required double cornerRadius,
     required double filletRadius,
+    bool fromTop = false,
   }) {
+    if (fromTop) {
+      return _fromTop(
+        size: size,
+        cornerRadius: cornerRadius,
+        filletRadius: filletRadius,
+      );
+    }
+
     final w = size.width;
     final h = size.height;
 
@@ -157,6 +175,40 @@ abstract final class NotchPathBuilder {
 
     return path;
   }
+
+  /// The same silhouette hanging from the top of the screen.
+  ///
+  /// Not a rotation of the side rail — the fillets have to sweep *outwards*
+  /// into the top bezel rather than inwards, or the shape reads as a tab
+  /// floating below the edge instead of growing out of it. Flat along the top,
+  /// rounded at the two lower corners, with a reverse curve at each upper
+  /// corner returning to the screen edge.
+  static Path _fromTop({
+    required Size size,
+    required double cornerRadius,
+    required double filletRadius,
+  }) {
+    final w = size.width;
+    final h = size.height;
+
+    // The reverse curves eat into the left and right, so they cannot be larger
+    // than half the width, and the lower corners cannot exceed what is left.
+    final f = filletRadius.clamp(0.0, w / 2);
+    final r = cornerRadius.clamp(0.0, (w - f * 2) / 2);
+
+    return Path()
+      ..moveTo(0, 0)
+      // Leaves the top edge and sweeps down.
+      ..quadraticBezierTo(f, 0, f, f)
+      ..lineTo(f, h - r)
+      ..quadraticBezierTo(f, h, f + r, h)
+      ..lineTo(w - f - r, h)
+      ..quadraticBezierTo(w - f, h, w - f, h - r)
+      ..lineTo(w - f, f)
+      // Reverse curve back up to the top edge.
+      ..quadraticBezierTo(w - f, 0, w, 0)
+      ..close();
+  }
 }
 
 /// The hover card, with a tail that points back at the ring it describes.
@@ -175,6 +227,7 @@ class CalloutShape extends StatelessWidget {
     this.radius = 12,
     this.tailWidth = 9,
     this.tailHeight = 16,
+    this.tailOnTop = false,
   });
 
   final Widget child;
@@ -182,6 +235,10 @@ class CalloutShape extends StatelessWidget {
 
   /// Which side the tail leaves from — the side the rail is on.
   final bool tailOnRight;
+
+  /// The tail leaves from the card's top edge instead, pointing back up at a
+  /// rail hanging from the top of the screen.
+  final bool tailOnTop;
 
   final Color? borderColor;
   final Color? shadowColor;
@@ -201,16 +258,19 @@ class CalloutShape extends StatelessWidget {
         border: borderColor,
         shadow: shadowColor,
         tailOnRight: tailOnRight,
+        tailOnTop: tailOnTop,
         radius: radius,
         tailWidth: tailWidth,
         tailHeight: tailHeight,
       ),
       child: Padding(
-        // Reserve the tail's width so content never runs underneath it.
-        padding: EdgeInsets.only(
-          left: tailOnRight ? 0 : tailWidth,
-          right: tailOnRight ? tailWidth : 0,
-        ),
+        // Reserve the tail's depth so content never runs underneath it.
+        padding: tailOnTop
+            ? EdgeInsets.only(top: tailWidth)
+            : EdgeInsets.only(
+                left: tailOnRight ? 0 : tailWidth,
+                right: tailOnRight ? tailWidth : 0,
+              ),
         child: child,
       ),
     );
@@ -223,6 +283,7 @@ class _CalloutPainter extends CustomPainter {
     required this.border,
     required this.shadow,
     required this.tailOnRight,
+    required this.tailOnTop,
     required this.radius,
     required this.tailWidth,
     required this.tailHeight,
@@ -232,36 +293,52 @@ class _CalloutPainter extends CustomPainter {
   final Color? border;
   final Color? shadow;
   final bool tailOnRight;
+  final bool tailOnTop;
   final double radius;
   final double tailWidth;
   final double tailHeight;
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (size.width <= tailWidth || size.height <= 0) return;
+    if (size.height <= tailWidth || size.width <= 0) return;
+    if (!tailOnTop && size.width <= tailWidth) return;
 
-    final bodyRect = Rect.fromLTWH(
-      tailOnRight ? 0 : tailWidth,
-      0,
-      size.width - tailWidth,
-      size.height,
-    );
+    final bodyRect = tailOnTop
+        ? Rect.fromLTWH(0, tailWidth, size.width, size.height - tailWidth)
+        : Rect.fromLTWH(
+            tailOnRight ? 0 : tailWidth,
+            0,
+            size.width - tailWidth,
+            size.height,
+          );
 
     final path = Path()
       ..addRRect(RRect.fromRectAndRadius(bodyRect, Radius.circular(radius)));
 
-    // The tail points at the ring, which the caller has aligned with the
-    // card's vertical centre.
-    final midY = size.height / 2;
-    final halfBase = (tailHeight / 2).clamp(0.0, size.height / 2);
-    final tip = tailOnRight ? size.width : 0.0;
-    final base = tailOnRight ? bodyRect.right : bodyRect.left;
+    if (tailOnTop) {
+      // Points back up at the ring, which the caller has aligned with the
+      // card's horizontal centre.
+      final midX = size.width / 2;
+      final halfBase = (tailHeight / 2).clamp(0.0, size.width / 2);
+      path
+        ..moveTo(midX - halfBase, bodyRect.top)
+        ..lineTo(midX, 0)
+        ..lineTo(midX + halfBase, bodyRect.top)
+        ..close();
+    } else {
+      // The tail points at the ring, which the caller has aligned with the
+      // card's vertical centre.
+      final midY = size.height / 2;
+      final halfBase = (tailHeight / 2).clamp(0.0, size.height / 2);
+      final tip = tailOnRight ? size.width : 0.0;
+      final base = tailOnRight ? bodyRect.right : bodyRect.left;
 
-    path
-      ..moveTo(base, midY - halfBase)
-      ..lineTo(tip, midY)
-      ..lineTo(base, midY + halfBase)
-      ..close();
+      path
+        ..moveTo(base, midY - halfBase)
+        ..lineTo(tip, midY)
+        ..lineTo(base, midY + halfBase)
+        ..close();
+    }
 
     if (shadow != null) {
       canvas.drawShadow(path, shadow!, 18, false);
@@ -285,6 +362,7 @@ class _CalloutPainter extends CustomPainter {
       oldDelegate.border != border ||
       oldDelegate.shadow != shadow ||
       oldDelegate.tailOnRight != tailOnRight ||
+      oldDelegate.tailOnTop != tailOnTop ||
       oldDelegate.radius != radius ||
       oldDelegate.tailWidth != tailWidth ||
       oldDelegate.tailHeight != tailHeight;

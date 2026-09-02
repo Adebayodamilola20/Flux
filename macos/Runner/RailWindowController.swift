@@ -31,7 +31,9 @@ final class RailWindowController {
     let glass = RailGlass()
     private(set) var isRailVisible = false
 
-    private var edge: RailEdge = .right
+    /// Which edge the rail is on. Read by the channel so the metrics it sends
+    /// Flutter describe the window that was actually built.
+    private(set) var edge: RailEdge = .right
     private var offsetFraction: CGFloat = 0.5
     private var preferredScreenId: String?
 
@@ -101,23 +103,37 @@ final class RailWindowController {
         // because the rail follows the user between monitors, and a rail
         // scaled for the laptop looks wrong the moment it moves to the 27-inch.
         let wanted = RailMetrics.scale(for: screen)
+        let boost = edge.isHorizontal ? RailMetrics.topEdgeBoost : 1
         let rescaled = abs(wanted - RailMetrics.scale) > 0.001
+            || abs(boost - RailMetrics.edgeBoost) > 0.001
         RailMetrics.scale = wanted
+        RailMetrics.edgeBoost = boost
 
-        let size = RailMetrics.windowSize(slots: slotCount)
+        let size = RailMetrics.windowSize(slots: slotCount, edge: edge)
         let visible = screen.visibleFrame
 
         // Flush against the bezel. The rail is meant to read as part of the
         // display, and any gap at all — even a point — breaks that and turns it
         // back into a window parked near the edge.
-        let x: CGFloat = edge == .right
-            ? visible.maxX - size.width + RailMetrics.shadowPadding
-            : visible.minX - RailMetrics.shadowPadding
+        let x: CGFloat
+        let y: CGFloat
 
-        // `offsetFraction` is measured from the top, the way the user reads the
-        // screen; AppKit's origin is at the bottom.
-        let usable = visible.height - size.height
-        let y = visible.maxY - size.height - usable * offsetFraction
+        if edge.isHorizontal {
+            // Centred across the top. The offset does not apply: a notch that
+            // slid along the top bezel would sit under the menu bar's clock at
+            // one end and the menu titles at the other.
+            x = visible.midX - size.width / 2
+            y = visible.maxY - size.height + RailMetrics.shadowPadding
+        } else {
+            x = edge == .right
+                ? visible.maxX - size.width + RailMetrics.shadowPadding
+                : visible.minX - RailMetrics.shadowPadding
+
+            // `offsetFraction` is measured from the top, the way the user reads
+            // the screen; AppKit's origin is at the bottom.
+            let usable = visible.height - size.height
+            y = visible.maxY - size.height - usable * offsetFraction
+        }
 
         window.setFrame(
             NSRect(x: x, y: y, width: size.width, height: size.height),

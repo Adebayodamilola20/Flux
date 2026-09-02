@@ -44,10 +44,26 @@ enum RailMetrics {
         return min(max(height / referenceHeight, minScale), maxScale)
     }
 
+    /// Extra size given to a rail hanging from the top of the screen.
+    ///
+    /// A side rail is read out of the corner of the eye, against a bezel the
+    /// user is not looking at. A top one sits under the menu bar, in the part
+    /// of the screen they are already looking at, and at the side rail's
+    /// proportions it reads as a strip of nothing. A multiplier rather than a
+    /// second set of numbers, so it still scales with the display.
+    static let topEdgeBoost: CGFloat = 1.34
+
+    /// Which multiplier the geometry is currently using.
+    ///
+    /// Set alongside `scale` when the rail is positioned, because the two
+    /// answer the same question — how big is this rail — and splitting them
+    /// across two call sites is how one of them gets forgotten.
+    static var edgeBoost: CGFloat = 1
+
     /// Scales a base measurement and lands it on a whole point, so an edge
     /// never falls on a half pixel.
     private static func s(_ value: CGFloat) -> CGFloat {
-        (value * scale).rounded()
+        (value * scale * edgeBoost).rounded()
     }
 
     // MARK: - Geometry
@@ -104,15 +120,25 @@ enum RailMetrics {
     /// Full window size. Fixed across every state so the window never resizes
     /// while animating — Flutter animates inside a stationary window, which is
     /// what keeps the motion smooth.
-    static func windowSize(slots: Int) -> NSSize {
-        let heightWithSettings = collapsedHeight(slots: slots)
+    static func windowSize(slots: Int, edge: RailEdge = .right) -> NSSize {
+        let alongWithSettings = collapsedHeight(slots: slots)
             + settingsButtonGap
             + settingsButtonSize
             + settingsHotZonePadding
 
+        // The same window turned on its side. Sized for the widest state
+        // either way, because Flutter animates inside a window that never
+        // resizes.
+        if edge.isHorizontal {
+            return NSSize(
+                width: max(expandedHeight, alongWithSettings) + shadowPadding * 2,
+                height: expandedWidth + shadowPadding * 2
+            )
+        }
+
         return NSSize(
             width: expandedWidth + shadowPadding * 2,
-            height: max(expandedHeight, heightWithSettings) + shadowPadding * 2
+            height: max(expandedHeight, alongWithSettings) + shadowPadding * 2
         )
     }
 
@@ -125,6 +151,14 @@ enum RailMetrics {
         in windowSize: NSSize,
         edge: RailEdge
     ) -> NSRect {
+        if edge.isHorizontal {
+            return NSRect(
+                x: (windowSize.width - nubHotZoneHeight) / 2,
+                y: windowSize.height - shadowPadding - nubHotZoneWidth,
+                width: nubHotZoneHeight,
+                height: nubHotZoneWidth
+            )
+        }
         let x: CGFloat = edge == .right
             ? windowSize.width - shadowPadding - nubHotZoneWidth
             : shadowPadding
@@ -146,15 +180,29 @@ enum RailMetrics {
         edge: RailEdge,
         slots: Int
     ) -> NSRect {
-        let height = min(collapsedHeight(slots: slots), windowSize.height)
+        let along = min(collapsedHeight(slots: slots), edge.isHorizontal
+            ? windowSize.width
+            : windowSize.height)
+
+        if edge.isHorizontal {
+            // Hanging from the top: flat against the bezel, so it is pinned to
+            // the top of the window rather than centred in it.
+            return NSRect(
+                x: (windowSize.width - along) / 2,
+                y: windowSize.height - shadowPadding - collapsedWidth,
+                width: along,
+                height: collapsedWidth
+            )
+        }
+
         let x: CGFloat = edge == .right
             ? windowSize.width - shadowPadding - collapsedWidth
             : shadowPadding
         return NSRect(
             x: x,
-            y: (windowSize.height - height) / 2,
+            y: (windowSize.height - along) / 2,
             width: collapsedWidth,
-            height: height
+            height: along
         )
     }
 
@@ -219,8 +267,8 @@ enum RailMetrics {
     }
 
     /// Values handed to Flutter so its layout matches the window exactly.
-    static func channelPayload(slots: Int) -> [String: Any] {
-        let size = windowSize(slots: slots)
+    static func channelPayload(slots: Int, edge: RailEdge = .right) -> [String: Any] {
+        let size = windowSize(slots: slots, edge: edge)
         return [
             "collapsedWidth": Double(collapsedWidth),
             "expandedWidth": Double(expandedWidth),
@@ -233,7 +281,9 @@ enum RailMetrics {
             "windowWidth": Double(size.width),
             "windowHeight": Double(size.height),
             "slots": slots,
-            "scale": Double(scale),
+            // What Flutter draws inside the rail has to grow by the same
+            // amount, or a bigger top notch would hold the same small rings.
+            "scale": Double(scale * edgeBoost),
         ]
     }
 }
@@ -242,8 +292,12 @@ enum RailMetrics {
 enum RailEdge: String {
     case left
     case right
+    case top
 
     init(name: String?) {
         self = RailEdge(rawValue: name ?? "") ?? .right
     }
+
+    /// True when the rail lays its slots out across the screen.
+    var isHorizontal: Bool { self == .top }
 }

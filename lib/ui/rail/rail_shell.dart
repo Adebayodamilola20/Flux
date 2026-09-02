@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 
-import '../../models/rail_placement.dart';
 import '../../services/native/native_bridge.dart';
 import '../../services/settings_service.dart';
 import '../../services/shell_controller.dart';
@@ -90,7 +89,9 @@ class _RailShellState extends State<RailShell>
 
     final metrics = shell.metrics;
     final states = usage.slots;
-    final onRight = settings.railEdge == RailEdge.right;
+    final edge = settings.railEdge;
+    final onRight = edge.isRightEdge;
+    final fromTop = edge.isHorizontal;
 
     final hovered = _hoveredId == null
         ? null
@@ -99,18 +100,21 @@ class _RailShellState extends State<RailShell>
     return Stack(
       children: [
         Positioned(
-          top: 0,
-          bottom: 0,
-          left: onRight ? null : metrics.shadowPadding,
-          right: onRight ? metrics.shadowPadding : null,
+          top: fromTop ? metrics.shadowPadding : 0,
+          bottom: fromTop ? null : 0,
+          left: fromTop ? 0 : (onRight ? null : metrics.shadowPadding),
+          right: fromTop ? 0 : (onRight ? metrics.shadowPadding : null),
           child: Center(
             child: Stack(
-              alignment: onRight ? Alignment.centerRight : Alignment.centerLeft,
+              alignment: fromTop
+                  ? Alignment.topCenter
+                  : (onRight ? Alignment.centerRight : Alignment.centerLeft),
               children: [
                 _CollapsedLayer(
                   animation: _controller,
                   child: RailNub(
                     onRightEdge: onRight,
+                    fromTop: fromTop,
                     metrics: metrics,
                     appearance: settings.railAppearance,
                   ),
@@ -118,12 +122,14 @@ class _RailShellState extends State<RailShell>
                 _OpenLayer(
                   animation: _controller,
                   fromRight: onRight,
+                  fromTop: fromTop,
                   child: RailColumn(
                     states: states,
                     metrics: metrics,
                     entrance: _controller,
                     hoveredId: _hoveredId,
                     onRightEdge: onRight,
+                    fromTop: fromTop,
                     appearance: settings.railAppearance,
                     onHoverSlot: _setHovered,
                     onOpenDetail: (id) => shell.openPanel(
@@ -145,6 +151,7 @@ class _RailShellState extends State<RailShell>
           metrics: metrics,
           slotCount: states.length,
           onRight: onRight,
+          fromTop: fromTop,
           enabled: shell.isExpanded,
           child: RailSettingsButton(
             railExpanded: shell.isExpanded,
@@ -160,10 +167,12 @@ class _RailShellState extends State<RailShell>
             metrics: metrics,
             slotIndex: states.indexOf(hovered),
             onRight: onRight,
+            fromTop: fromTop,
             child: RailCallout(
               key: ValueKey(hovered.id),
               state: hovered,
               onRightEdge: onRight,
+              fromTop: fromTop,
               onConnect: () => shell.openPanel(
                 ShellSurface.connectProvider,
                 providerId: hovered.id,
@@ -185,6 +194,7 @@ class _SettingsLayer extends StatelessWidget {
     required this.onRight,
     required this.enabled,
     required this.child,
+    this.fromTop = false,
   });
 
   final Animation<double> animation;
@@ -192,6 +202,10 @@ class _SettingsLayer extends StatelessWidget {
   final int slotCount;
   final bool onRight;
   final bool enabled;
+
+  /// Beside a top rail rather than beneath a side one.
+  final bool fromTop;
+
   final Widget child;
 
   @override
@@ -251,10 +265,14 @@ class _OpenLayer extends StatelessWidget {
     required this.animation,
     required this.fromRight,
     required this.child,
+    this.fromTop = false,
   });
 
   final Animation<double> animation;
   final bool fromRight;
+
+  /// Emerging downward out of the top bezel rather than sideways.
+  final bool fromTop;
   final Widget child;
 
   @override
@@ -278,7 +296,9 @@ class _OpenLayer extends StatelessWidget {
             // Only the tab travels here now. Each ring carries its own
             // arrival, and stacking the two made the rings cross the bezel
             // twice — once with the slab, once on their own.
-            translation: Offset((fromRight ? 1 : -1) * (1 - t) * 0.22, 0),
+            translation: fromTop
+                ? Offset(0, -(1 - t) * 0.22)
+                : Offset((fromRight ? 1 : -1) * (1 - t) * 0.22, 0),
             child: rail,
           ),
         );
@@ -296,12 +316,17 @@ class _CalloutLayer extends StatelessWidget {
     required this.slotIndex,
     required this.onRight,
     required this.child,
+    this.fromTop = false,
   });
 
   final Animation<double> animation;
   final RailMetrics metrics;
   final int slotIndex;
   final bool onRight;
+
+  /// The rail hangs from the top, so the card hangs below it.
+  final bool fromTop;
+
   final Widget child;
 
   @override
@@ -317,12 +342,16 @@ class _CalloutLayer extends StatelessWidget {
     return AnimatedPositioned(
       duration: AppMetrics.calloutMove,
       curve: Curves.easeOutCubic,
-      top: metrics.slotCenterY(slotIndex),
-      left: onRight ? null : inset,
-      right: onRight ? inset : null,
+      top: fromTop ? inset : metrics.slotCenterY(slotIndex),
+      left: fromTop
+          ? metrics.slotCenterX(slotIndex)
+          : (onRight ? null : inset),
+      right: fromTop ? null : (onRight ? inset : null),
       child: FractionalTranslation(
-        // Centre the card on the ring, whatever height its content came out at.
-        translation: const Offset(0, -0.5),
+        // Centre the card on the ring, whatever size its content came out at:
+        // on its vertical centre beside a side rail, on its horizontal centre
+        // beneath a top one.
+        translation: fromTop ? const Offset(-0.5, 0) : const Offset(0, -0.5),
         child: FadeTransition(
           opacity: CurvedAnimation(
             parent: animation,
@@ -335,11 +364,15 @@ class _CalloutLayer extends StatelessWidget {
                 curve: const Interval(0.35, 1, curve: Curves.easeOutCubic),
               ),
             ),
-            alignment: onRight ? Alignment.centerRight : Alignment.centerLeft,
+            alignment: fromTop
+                ? Alignment.topCenter
+                : (onRight ? Alignment.centerRight : Alignment.centerLeft),
             child: SlideTransition(
               position:
                   Tween<Offset>(
-                    begin: Offset(onRight ? 0.04 : -0.04, 0),
+                    begin: fromTop
+                        ? const Offset(0, -0.04)
+                        : Offset(onRight ? 0.04 : -0.04, 0),
                     end: Offset.zero,
                   ).animate(
                     CurvedAnimation(

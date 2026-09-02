@@ -86,7 +86,7 @@ final class NativeChannel {
         // MARK: Rail
 
         case "rail.metrics":
-            result(RailMetrics.channelPayload(slots: slotCount))
+            result(RailMetrics.channelPayload(slots: slotCount, edge: rail.edge))
 
         case "rail.configure":
             rail.configure(

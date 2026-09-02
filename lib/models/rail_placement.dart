@@ -1,14 +1,39 @@
 /// Which screen edge the rail clings to.
 enum RailEdge {
   left,
-  right;
+  right,
+
+  /// Hanging from the top of the screen, centred.
+  ///
+  /// The same shape and the same behaviour, turned through ninety degrees: the
+  /// flat side is against the top bezel and the rings run across rather than
+  /// down. It is a different axis rather than a third position, which is why
+  /// so much of the geometry asks [isHorizontal] rather than which edge it is.
+  top;
 
   String get label => switch (this) {
         RailEdge.left => 'Left edge',
         RailEdge.right => 'Right edge',
+        RailEdge.top => 'Top centre',
       };
 
-  RailEdge get opposite => this == RailEdge.left ? RailEdge.right : RailEdge.left;
+  /// True when the rail lays its slots out across the screen.
+  bool get isHorizontal => this == RailEdge.top;
+
+  /// True when the rail hangs off a vertical edge, which is where "which side
+  /// is flat" is a meaningful question.
+  bool get isVertical => !isHorizontal;
+
+  /// Whether the flat side is the screen's right. Meaningless at the top, and
+  /// false there so callers that only handle two sides stay on their default.
+  bool get isRightEdge => this == RailEdge.right;
+
+  RailEdge get opposite => switch (this) {
+        RailEdge.left => RailEdge.right,
+        RailEdge.right => RailEdge.left,
+        // Nothing sensible to flip to, and nothing asks for one.
+        RailEdge.top => RailEdge.top,
+      };
 }
 
 /// How the rail behaves when the pointer is not over it.
@@ -40,10 +65,12 @@ enum RailExpansion {
   bool get autoCollapses => this != RailExpansion.alwaysExpanded;
 }
 
-/// Vertical placement of the rail along its edge, as a fraction of the screen's
-/// usable height measured from the top.
+/// Placement of the rail along its edge, as a fraction of the screen's usable
+/// extent in that direction.
 ///
-/// 0.5 centres it, which is where the design puts it by default.
+/// Measured from the top for a side rail and from the left for a top one — in
+/// both cases from the origin the user reads from. 0.5 centres it, which is
+/// where the design puts it by default, and where the top rail stays.
 class RailOffset {
   const RailOffset(this.fraction)
       : assert(fraction >= 0 && fraction <= 1, 'fraction must be 0–1');
