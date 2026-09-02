@@ -66,7 +66,7 @@ final class StatusItemController {
         button.action = #selector(handleClick(_:))
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         button.imagePosition = .imageLeading
-        button.setAccessibilityLabel("Side Notch")
+        button.setAccessibilityLabel("DevNotch")
     }
 
     // MARK: - Public API
@@ -179,7 +179,7 @@ final class StatusItemController {
         let subject = label ?? "usage"
         let spoken = percent.map { "\(subject) \($0) percent used" }
             ?? "\(subject) unknown"
-        button.setAccessibilityLabel("Side Notch, \(spoken)")
+        button.setAccessibilityLabel("DevNotch, \(spoken)")
     }
 
     /// The product's own mark: the rail itself, seen edge-on.
@@ -298,7 +298,7 @@ final class StatusItemController {
         menu.addItem(.separator())
 
         let quit = NSMenuItem(
-            title: "Quit Side Notch",
+            title: "Quit DevNotch",
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
         )
