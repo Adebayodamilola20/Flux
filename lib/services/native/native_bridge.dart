@@ -130,21 +130,31 @@ class RailMetrics {
   /// staying a fixed size inside a window that changed.
   final double scale;
 
-  /// The provider ring's diameter at this scale.
-  double get ringDiameter => AppMetrics.ringDiameter * scale;
+  // Base sizes for everything Flutter draws inside the rail. They live here,
+  // beside the measurements the native side sends, because this class is the
+  // geometry — a copy in the theme would drift from the window that has to
+  // contain it, which is the bug this whole file exists to prevent.
+  static const double _baseRingDiameter = 32;
+  static const double _baseRingStroke = 2.8;
+  static const double _baseNubWidth = 7;
+  static const double _baseNubHeight = 84;
+  static const double _baseNubRadius = 3.5;
+  static const double _baseSlotLabelSize = 12;
 
-  /// Its stroke. Held to a minimum so the gauge never thins to a hairline on
-  /// a small display, where it would stop reading as a ring at all.
-  double get ringStroke =>
-      (AppMetrics.ringStroke * scale).clamp(2.0, 6.0);
+  /// The provider ring's diameter at this scale.
+  double get ringDiameter => _baseRingDiameter * scale;
+
+  /// Its stroke. Floored so the gauge never thins to a hairline on a small
+  /// display, where it would stop reading as a ring at all.
+  double get ringStroke => (_baseRingStroke * scale).clamp(2.0, 6.0);
 
   /// The resting sliver at this scale.
-  double get nubWidth => AppMetrics.nubWidth * scale;
-  double get nubHeight => AppMetrics.nubHeight * scale;
-  double get nubRadius => AppMetrics.nubRadius * scale;
+  double get nubWidth => _baseNubWidth * scale;
+  double get nubHeight => _baseNubHeight * scale;
+  double get nubRadius => _baseNubRadius * scale;
 
   /// The percentage under each ring.
-  double get slotLabelSize => 12 * scale;
+  double get slotLabelSize => _baseSlotLabelSize * scale;
 
   /// Used before native replies, and under `flutter test` where there is no
   /// native side at all. Matches the Swift defaults.

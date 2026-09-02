@@ -100,6 +100,7 @@ class RailColumn extends StatelessWidget {
                 if (states[index] case final state?)
                   _RailSlot(
                     state: state,
+                    metrics: metrics,
                     height: metrics.slotHeight,
                     isHovered: state.id == hoveredId,
                     onEnter: () => onHoverSlot(state.id),
@@ -107,6 +108,7 @@ class RailColumn extends StatelessWidget {
                   )
                 else
                   _EmptySlot(
+                    metrics: metrics,
                     height: metrics.slotHeight,
                     // Clears the card on the way in. An empty position has no
                     // provider to describe, and without this the previous
@@ -127,6 +129,7 @@ class RailColumn extends StatelessWidget {
 class _RailSlot extends StatelessWidget {
   const _RailSlot({
     required this.state,
+    required this.metrics,
     required this.height,
     required this.isHovered,
     required this.onEnter,
@@ -134,6 +137,7 @@ class _RailSlot extends StatelessWidget {
   });
 
   final ProviderState state;
+  final RailMetrics metrics;
   final double height;
   final bool isHovered;
   final VoidCallback onEnter;
@@ -175,14 +179,14 @@ class _RailSlot extends StatelessWidget {
                 alignment: Alignment.center,
                 clipBehavior: Clip.none,
                 children: [
-                  AnimatedScale(
-                    // A small lift on hover confirms which ring the card
-                    // belongs to, alongside the tail pointing at it.
-                    scale: isHovered ? 1.08 : 1,
-                    duration: AppMetrics.fadeAnimation,
-                    curve: Curves.easeOut,
+                  _Jelly(
+                    // A lift on hover confirms which ring the card belongs to,
+                    // alongside the tail pointing at it.
+                    active: isHovered,
                     child: UsageRing(
                       fraction: fraction,
+                      diameter: metrics.ringDiameter,
+                      stroke: metrics.ringStroke,
                       color: ringColor,
                       dimmed: !isLive,
                       // Sweeps while the figure shown is the previous one.
@@ -196,7 +200,7 @@ class _RailSlot extends StatelessWidget {
                         color: isEmpty
                             ? palette.textTertiary
                             : palette.textPrimary,
-                        size: isEmpty ? 11 : 15,
+                        size: metrics.ringDiameter * (isEmpty ? 0.34 : 0.47),
                         useBrandColor: false,
                       ),
                     ),
@@ -210,11 +214,11 @@ class _RailSlot extends StatelessWidget {
                 ],
               ),
               if (isEmpty ? null : _label(state) case final label?) ...[
-                const SizedBox(height: 3),
+                SizedBox(height: 3 * metrics.scale),
                 Text(
                   label,
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: metrics.slotLabelSize,
                     height: 1,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0,
@@ -247,10 +251,15 @@ class RailNub extends StatelessWidget {
   const RailNub({
     super.key,
     required this.onRightEdge,
+    this.metrics = RailMetrics.fallback,
     this.appearance = RailAppearance.solid,
   });
 
   final bool onRightEdge;
+
+  /// The sliver follows the rail's scale, so it does not stay a fixed size
+  /// against a rail that grew or shrank with the display.
+  final RailMetrics metrics;
 
   /// Follows the rail's own setting.
   ///
@@ -264,7 +273,7 @@ class RailNub extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
-    final radius = Radius.circular(AppMetrics.nubRadius);
+    final radius = Radius.circular(metrics.nubRadius);
     final isGlass = appearance == RailAppearance.glass;
 
     final corners = BorderRadius.horizontal(
@@ -275,8 +284,8 @@ class RailNub extends StatelessWidget {
     );
 
     final nub = Container(
-      width: AppMetrics.nubWidth,
-      height: AppMetrics.nubHeight,
+      width: metrics.nubWidth,
+      height: metrics.nubHeight,
       decoration: BoxDecoration(
         color: isGlass
             ? palette.railFill.withValues(alpha: 0.30)
@@ -355,11 +364,13 @@ class _ActivityDotState extends State<_ActivityDot>
 class _EmptySlot extends StatefulWidget {
   const _EmptySlot({
     required this.height,
+    required this.metrics,
     required this.onTap,
     required this.onEnter,
   });
 
   final double height;
+  final RailMetrics metrics;
   final VoidCallback onTap;
 
   /// Told when the pointer arrives, so the rail can drop whatever card it was
@@ -390,28 +401,109 @@ class _EmptySlotState extends State<_EmptySlot> {
         child: SizedBox(
           height: widget.height,
           child: Center(
-            child: AnimatedContainer(
-              duration: AppMetrics.fadeAnimation,
-              width: 28,
-              height: 28,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(
-                  color: _hovered
-                      ? palette.textSecondary.withValues(alpha: 0.7)
-                      : palette.textTertiary.withValues(alpha: 0.35),
-                  width: 1.2,
+            child: _Jelly(
+              active: _hovered,
+              child: AnimatedContainer(
+                duration: AppMetrics.fadeAnimation,
+                width: widget.metrics.ringDiameter * 0.875,
+                height: widget.metrics.ringDiameter * 0.875,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: _hovered
+                        ? palette.textSecondary.withValues(alpha: 0.7)
+                        : palette.textTertiary.withValues(alpha: 0.35),
+                    width: 1.2 * widget.metrics.scale,
+                  ),
                 ),
-              ),
-              child: Icon(
-                Icons.add_rounded,
-                size: 14,
-                color: _hovered ? palette.textSecondary : palette.textTertiary,
+                child: Icon(
+                  Icons.add_rounded,
+                  size: widget.metrics.ringDiameter * 0.44,
+                  color: _hovered
+                      ? palette.textSecondary
+                      : palette.textTertiary,
+                ),
               ),
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Springs its child up on hover and lets it settle.
+///
+/// A plain scale animation arrives at its new size and stops, which reads as
+/// the icon changing size rather than reacting to the pointer. This overshoots
+/// and settles — the give of something soft being pressed — which is what makes
+/// the rail feel answerable rather than redrawn.
+///
+/// The two directions are not symmetrical on purpose. Arriving gets the
+/// overshoot, because that is the moment worth acknowledging; leaving is a
+/// short ease back, because a wobble on the way out draws the eye to a ring
+/// the pointer has already left.
+class _Jelly extends StatefulWidget {
+  const _Jelly({required this.active, required this.child});
+
+  final bool active;
+  final Widget child;
+
+  /// How much larger the child grows at rest inside the spring.
+  static const double lift = 1.12;
+
+  @override
+  State<_Jelly> createState() => _JellyState();
+}
+
+class _JellyState extends State<_Jelly> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 520),
+    reverseDuration: const Duration(milliseconds: 220),
+    value: widget.active ? 1 : 0,
+  );
+
+  late final Animation<double> _scale = _controller.drive(
+    Tween<double>(begin: 1, end: _Jelly.lift).chain(
+      CurveTween(
+        curve: Curves.elasticOut,
+        // `elasticOut` run backwards wobbles on the way out, which is exactly
+        // what should not happen to a ring the pointer has left.
+      ),
+    ),
+  );
+
+  late final Animation<double> _settle = _controller.drive(
+    Tween<double>(begin: 1, end: _Jelly.lift).chain(
+      CurveTween(curve: Curves.easeOutCubic),
+    ),
+  );
+
+  @override
+  void didUpdateWidget(_Jelly oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.active == oldWidget.active) return;
+    widget.active ? _controller.forward(from: 0) : _controller.reverse();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final value = _controller.status == AnimationStatus.reverse
+            ? _settle.value
+            : _scale.value;
+        return Transform.scale(scale: value, child: child);
+      },
+      child: widget.child,
     );
   }
 }

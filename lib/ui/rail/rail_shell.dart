@@ -99,6 +99,7 @@ class _RailShellState extends State<RailShell>
                   animation: _controller,
                   child: RailNub(
                     onRightEdge: onRight,
+                    metrics: metrics,
                     appearance: settings.railAppearance,
                   ),
                 ),
