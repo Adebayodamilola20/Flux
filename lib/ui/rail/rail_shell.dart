@@ -111,6 +111,7 @@ class _RailShellState extends State<RailShell>
                   animation: _controller,
                   child: RailNub(
                     onRightEdge: onRight,
+                    metrics: metrics,
                     appearance: settings.railAppearance,
                   ),
                 ),
@@ -147,6 +148,7 @@ class _RailShellState extends State<RailShell>
           child: RailSettingsButton(
             railExpanded: shell.isExpanded,
             onRightEdge: onRight,
+            scale: metrics.scale,
             appearance: settings.railAppearance,
             onPressed: () => shell.openPanel(ShellSurface.settings),
           ),
