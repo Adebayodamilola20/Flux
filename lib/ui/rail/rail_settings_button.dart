@@ -13,10 +13,18 @@ class RailSettingsButton extends StatefulWidget {
     required this.onRightEdge,
     required this.appearance,
     required this.onPressed,
+    this.scale = 1,
   });
 
   final bool railExpanded;
   final bool onRightEdge;
+
+  /// Follows the rail's own scale, from the display it is on.
+  ///
+  /// Without this the control keeps one fixed size while everything above it
+  /// grows or shrinks, which reads as a gear that belongs to a different
+  /// widget rather than the foot of this one.
+  final double scale;
 
   /// Solid or frosted, following the rail. The control sits against the rail
   /// and reads as part of it, so a solid black disc beside a frosted rail
@@ -145,8 +153,8 @@ class _RailSettingsButtonState extends State<RailSettingsButton>
           button: true,
           label: 'Settings',
           child: SizedBox(
-            width: 42,
-            height: 42,
+            width: 42 * widget.scale,
+            height: 42 * widget.scale,
             child: AnimatedBuilder(
               animation: Listenable.merge([_reveal, _roll]),
               builder: (context, _) {
@@ -162,7 +170,7 @@ class _RailSettingsButtonState extends State<RailSettingsButton>
                       key: RailSettingsButton.foldedKey,
                       opacity: foldedOpacity,
                       child: CustomPaint(
-                        size: const Size(34, 34),
+                        size: Size(34 * widget.scale, 34 * widget.scale),
                         painter: _FoldedSettingsPainter(
                           color: fill,
                           shadow: isGlass
@@ -183,8 +191,8 @@ class _RailSettingsButtonState extends State<RailSettingsButton>
                           1,
                         ),
                         child: Container(
-                          width: 34,
-                          height: 34,
+                          width: 34 * widget.scale,
+                          height: 34 * widget.scale,
                           decoration: BoxDecoration(
                             color: fill,
                             shape: BoxShape.circle,
@@ -192,7 +200,7 @@ class _RailSettingsButtonState extends State<RailSettingsButton>
                               color: isGlass
                                   ? palette.textTertiary.withValues(alpha: 0.28)
                                   : palette.railBorder,
-                              width: 1,
+                              width: 1 * widget.scale,
                             ),
                             // No drop shadow on glass: the material is meant to
                             // sit in the desktop, and a shadow under it puts it
@@ -212,7 +220,7 @@ class _RailSettingsButtonState extends State<RailSettingsButton>
                               angle: turn * math.pi * 2,
                               child: Icon(
                                 Icons.settings_outlined,
-                                size: 18,
+                                size: 18 * widget.scale,
                                 color: palette.textPrimary,
                               ),
                             ),

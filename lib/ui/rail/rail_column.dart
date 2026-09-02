@@ -78,8 +78,8 @@ class RailColumn extends StatelessWidget {
       // what is behind it.
       shadowColor: isGlass ? null : palette.railShadow,
       onRightEdge: onRightEdge,
-      cornerRadius: 20,
-      filletRadius: 13,
+      cornerRadius: metrics.notchCornerRadius,
+      filletRadius: metrics.notchFilletRadius,
       child: SizedBox(
         width: metrics.collapsedWidth,
         // Sized from what is actually rendered, not from the slot count the

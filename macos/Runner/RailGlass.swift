@@ -15,11 +15,13 @@ import Cocoa
 /// a blurred rectangle hanging in the middle of the screen.
 final class RailGlass {
 
-    /// Both must match the values `RailColumn` passes to `NotchShape` in Dart.
-    /// The frost is drawn behind that outline, so any disagreement shows as a
-    /// second, differently-shaped panel sitting behind the rail.
-    private static let cornerRadius: CGFloat = 20
-    private static let filletRadius: CGFloat = 13
+    /// Both must match the values `RailColumn` passes to `NotchShape` in Dart,
+    /// which derive them from the rail's own width — see `notchCornerRadius`
+    /// in `RailMetrics` on the Dart side. The frost is drawn behind that
+    /// outline, so any disagreement shows as a second, differently-shaped
+    /// panel sitting behind the rail.
+    private static var cornerRadius: CGFloat { RailMetrics.collapsedWidth * 0.62 }
+    private static var filletRadius: CGFloat { RailMetrics.collapsedWidth * 0.46 }
 
     private let effect = NSVisualEffectView()
 

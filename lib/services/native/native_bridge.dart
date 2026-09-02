@@ -156,6 +156,18 @@ class RailMetrics {
   /// The percentage under each ring.
   double get slotLabelSize => _baseSlotLabelSize * scale;
 
+  /// The rail outline's inward corner radius.
+  ///
+  /// Derived from the rail's own width rather than fixed, so the silhouette
+  /// keeps its proportions at every scale. Generous on purpose: at a small
+  /// radius the inward side is a straight run between two little corners and
+  /// reads as a rectangle pushed against the edge. Just over half the width is
+  /// what makes the side read as one continuous arc.
+  double get notchCornerRadius => collapsedWidth * 0.62;
+
+  /// The reverse curves where the outline sweeps back into the screen edge.
+  double get notchFilletRadius => collapsedWidth * 0.46;
+
   /// Used before native replies, and under `flutter test` where there is no
   /// native side at all. Matches the Swift defaults.
   static const RailMetrics fallback = RailMetrics(
