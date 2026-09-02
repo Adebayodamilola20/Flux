@@ -550,11 +550,15 @@ class _Arriving extends StatelessWidget {
   final Widget child;
 
   /// How much of the reveal each slot waits before starting.
-  static const double _stagger = 0.11;
+  ///
+  /// A fifth of it, so with three slots the last begins at forty per cent —
+  /// far enough behind the first to be seen as a separate arrival rather than
+  /// a blur, and still overlapping it.
+  static const double _stagger = 0.20;
 
-  /// How much of it each slot takes to arrive. Deliberately overlapping the
-  /// next one's start.
-  static const double _span = 0.62;
+  /// How much of the reveal each slot takes to arrive. The last one finishes
+  /// exactly as the reveal does.
+  static const double _span = 0.60;
 
   @override
   Widget build(BuildContext context) {

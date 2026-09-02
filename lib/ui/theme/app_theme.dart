@@ -210,8 +210,17 @@ abstract final class AppMetrics {
 
   /// Expansion. Fast enough to feel like it was already there, eased so it
   /// arrives rather than stops.
-  static const Duration expand = Duration(milliseconds: 260);
-  static const Duration collapse = Duration(milliseconds: 190);
+  /// Long enough for the rings to arrive one at a time and be seen doing it.
+  ///
+  /// At a quarter of a second the stagger existed but was over before the eye
+  /// could follow it, so the rail still read as one slab appearing. This is
+  /// close to a SwiftUI spring's settling time, which is the pace the motion
+  /// was being compared against.
+  static const Duration expand = Duration(milliseconds: 560);
+
+  /// Closing stays brisk. It runs as one motion, and a slow exit holds
+  /// attention the user has already moved on from.
+  static const Duration collapse = Duration(milliseconds: 240);
 
   static const Duration progressAnimation = Duration(milliseconds: 520);
   static const Duration fadeAnimation = Duration(milliseconds: 180);

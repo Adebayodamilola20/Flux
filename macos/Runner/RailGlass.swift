@@ -72,8 +72,8 @@ final class RailGlass {
     /// material snaps while Flutter animates, the two separate: a coloured
     /// pane appears before the rail on the way in, and outstays it on the way
     /// out. Matching the curve and the duration is what keeps them together.
-    private static let fadeIn: TimeInterval = 0.26
-    private static let fadeOut: TimeInterval = 0.19
+    private static let fadeIn: TimeInterval = 0.56
+    private static let fadeOut: TimeInterval = 0.24
 
     /// How far the material starts outside its resting place, as a fraction of
     /// the rail's width.
@@ -83,7 +83,7 @@ final class RailGlass {
     /// the bezel — so a frost that only fades is already sitting in place while
     /// the rail is still travelling, and reads as a coloured box arriving
     /// first. Travelling with it is what makes the two one object.
-    private static let slideFraction: CGFloat = 0.6
+    private static let slideFraction: CGFloat = 0.22
 
     /// Flutter's `Curves.easeOutCubic` and `Curves.easeInCubic` as timing
     /// functions. The rail uses one in each direction; the frost has to use the
