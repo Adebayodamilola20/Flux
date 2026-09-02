@@ -26,8 +26,16 @@ class RailColumn extends StatelessWidget {
     required this.onOpenDetail,
     required this.onAddToSlot,
     required this.onRightEdge,
+    this.entrance,
     this.appearance = RailAppearance.solid,
   });
+
+  /// The rail's open animation, so each ring can arrive on its own.
+  ///
+  /// Null where the rail is drawn already open — the widget tests, and any
+  /// surface that shows it without the reveal — in which case the slots
+  /// simply render in place.
+  final Animation<double>? entrance;
 
   /// What each rail position holds. A null entry is an empty slot, drawn as a
   /// plus for the user to fill.
@@ -97,26 +105,33 @@ class RailColumn extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               for (var index = 0; index < states.length; index++)
-                if (states[index] case final state?)
-                  _RailSlot(
-                    state: state,
-                    metrics: metrics,
-                    height: metrics.slotHeight,
-                    isHovered: state.id == hoveredId,
-                    onEnter: () => onHoverSlot(state.id),
-                    onTap: () => onOpenDetail(state.id),
-                  )
-                else
-                  _EmptySlot(
-                    metrics: metrics,
-                    height: metrics.slotHeight,
-                    // Clears the card on the way in. An empty position has no
-                    // provider to describe, and without this the previous
-                    // ring's card stays up — so a plus appeared to be claimed
-                    // by whichever provider the pointer passed over last.
-                    onEnter: () => onHoverSlot(null),
-                    onTap: () => onAddToSlot(index),
-                  ),
+                _Arriving(
+                  animation: entrance,
+                  index: index,
+                  count: states.length,
+                  fromRight: onRightEdge,
+                  child: switch (states[index]) {
+                    final state? => _RailSlot(
+                      state: state,
+                      metrics: metrics,
+                      height: metrics.slotHeight,
+                      isHovered: state.id == hoveredId,
+                      onEnter: () => onHoverSlot(state.id),
+                      onTap: () => onOpenDetail(state.id),
+                    ),
+                    null => _EmptySlot(
+                      metrics: metrics,
+                      height: metrics.slotHeight,
+                      // Clears the card on the way in. An empty position has
+                      // no provider to describe, and without this the previous
+                      // ring's card stays up — so a plus appeared to be
+                      // claimed by whichever provider the pointer passed over
+                      // last.
+                      onEnter: () => onHoverSlot(null),
+                      onTap: () => onAddToSlot(index),
+                    ),
+                  },
+                ),
             ],
           ),
         ),
@@ -504,6 +519,83 @@ class _JellyState extends State<_Jelly> with SingleTickerProviderStateMixin {
         return Transform.scale(scale: value, child: child);
       },
       child: widget.child,
+    );
+  }
+}
+
+/// Brings one slot in on its own, a beat after the one above it.
+///
+/// The rail used to arrive as a single block sliding out of the bezel: every
+/// ring already in its final place relative to the others, the whole slab
+/// translating together. That reads as a panel being pushed on screen rather
+/// than as the rail assembling itself.
+///
+/// Each slot now travels its own distance on its own slice of the reveal, so
+/// they land one after another. The stagger is small — a slot starts before
+/// the one above it has settled — because a queue that waits its turn feels
+/// slow, while an overlap feels like one motion with depth in it.
+class _Arriving extends StatelessWidget {
+  const _Arriving({
+    required this.animation,
+    required this.index,
+    required this.count,
+    required this.fromRight,
+    required this.child,
+  });
+
+  final Animation<double>? animation;
+  final int index;
+  final int count;
+  final bool fromRight;
+  final Widget child;
+
+  /// How much of the reveal each slot waits before starting.
+  static const double _stagger = 0.11;
+
+  /// How much of it each slot takes to arrive. Deliberately overlapping the
+  /// next one's start.
+  static const double _span = 0.62;
+
+  @override
+  Widget build(BuildContext context) {
+    final parent = animation;
+    if (parent == null) return child;
+
+    final start = (index * _stagger).clamp(0.0, 1.0 - _span);
+    final interval = Interval(start, start + _span);
+
+    // Closing runs as one motion rather than in reverse order. Unbuilding
+    // itself piece by piece draws attention to a widget the user has just
+    // finished with.
+    final travel = CurvedAnimation(
+      parent: parent,
+      curve: Interval(start, start + _span, curve: Curves.easeOutBack),
+      reverseCurve: Curves.easeInCubic,
+    );
+    final fade = CurvedAnimation(
+      parent: parent,
+      curve: interval,
+      reverseCurve: const Interval(0, 0.5, curve: Curves.easeIn),
+    );
+
+    return AnimatedBuilder(
+      animation: parent,
+      builder: (context, slot) {
+        final t = travel.value;
+        return Opacity(
+          opacity: fade.value.clamp(0.0, 1.0),
+          child: Transform.translate(
+            // Out from behind the bezel, and a shade under its resting size,
+            // so it reads as coming toward the user rather than sliding past.
+            offset: Offset((fromRight ? 1 : -1) * (1 - t) * 34, 0),
+            child: Transform.scale(
+              scale: 0.72 + 0.28 * t.clamp(0.0, 1.4),
+              child: slot,
+            ),
+          ),
+        );
+      },
+      child: child,
     );
   }
 }

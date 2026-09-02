@@ -121,6 +121,7 @@ class _RailShellState extends State<RailShell>
                   child: RailColumn(
                     states: states,
                     metrics: metrics,
+                    entrance: _controller,
                     hoveredId: _hoveredId,
                     onRightEdge: onRight,
                     appearance: settings.railAppearance,
@@ -274,7 +275,10 @@ class _OpenLayer extends StatelessWidget {
           opacity: t.clamp(0.0, 1.0),
           child: FractionalTranslation(
             // Emerges from behind the bezel rather than fading in place.
-            translation: Offset((fromRight ? 1 : -1) * (1 - t) * 0.6, 0),
+            // Only the tab travels here now. Each ring carries its own
+            // arrival, and stacking the two made the rings cross the bezel
+            // twice — once with the slab, once on their own.
+            translation: Offset((fromRight ? 1 : -1) * (1 - t) * 0.22, 0),
             child: rail,
           ),
         );
