@@ -284,6 +284,15 @@ class NativeBridge {
   Future<void> setRailPinnedOpen(bool pinned) =>
       _invoke<void>('rail.setPinnedOpen', {'pinned': pinned});
 
+  /// Tells the window whether a hover card is drawn beside the rail.
+  ///
+  /// The pointer target widens to take the card in while one is up, so moving
+  /// from a ring onto the card it belongs to does not close the rail on the
+  /// way. Flutter owns this because the card is only drawn while a ring is
+  /// hovered, which the window cannot see.
+  Future<void> setRailCardVisible(bool visible) =>
+      _invoke<void>('rail.setCardVisible', {'visible': visible});
+
   /// Opens the rail without waiting for a hover.
   Future<void> expandRail() => _invoke<void>('rail.expand');
 

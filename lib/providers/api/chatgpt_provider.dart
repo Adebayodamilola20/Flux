@@ -36,12 +36,13 @@ class ChatGptProvider extends ApiKeyUsageProvider {
     Uri? endpoint,
     CodexUsageSource? codexSource,
     CodexAccountSource? accountSource,
-  })  : _endpoint = endpoint ?? defaultEndpoint,
-        _codex = codexSource ?? CodexUsageSource(),
-        _account = accountSource ?? CodexAccountSource();
+  }) : _endpoint = endpoint ?? defaultEndpoint,
+       _codex = codexSource ?? CodexUsageSource(),
+       _account = accountSource ?? CodexAccountSource();
 
-  static final Uri defaultEndpoint =
-      Uri.parse('https://api.openai.com/v1/organization/costs');
+  static final Uri defaultEndpoint = Uri.parse(
+    'https://api.openai.com/v1/organization/costs',
+  );
 
   final Uri _endpoint;
   final CodexUsageSource _codex;
@@ -60,24 +61,29 @@ class ChatGptProvider extends ApiKeyUsageProvider {
   @override
   Future<ProviderConnection> enableLocalOnly() async {
     final account = await _syncAccount();
-    final reading = await _codex.read(notBefore: connection.accountChangedAt);
+    final reading = await _codex.read(notBefore: _cutOff(account));
 
     if (!reading.hasUsage) {
-      return updateConnection(connection.copyWith(
-        status: ConnectionStatus.error,
-        message: 'No Codex usage was found on this Mac. Run Codex once, then '
-            'connect again.',
-      ));
+      return updateConnection(
+        connection.copyWith(
+          status: ConnectionStatus.error,
+          message:
+              'No Codex usage was found on this Mac. Run Codex once, then '
+              'connect again.',
+        ),
+      );
     }
 
-    return updateConnection(ProviderConnection(
-      providerId: id,
-      status: ConnectionStatus.connected,
-      connectedAt: DateTime.now(),
-      accountLabel: CodexUsageSource.planLabel(reading.planType),
-      accountId: account.accountId,
-      accountChangedAt: connection.accountChangedAt,
-    ));
+    return updateConnection(
+      ProviderConnection(
+        providerId: id,
+        status: ConnectionStatus.connected,
+        connectedAt: DateTime.now(),
+        accountLabel: CodexUsageSource.planLabel(reading.planType),
+        accountId: account.accountId,
+        accountChangedAt: connection.accountChangedAt,
+      ),
+    );
   }
 
   /// Re-reads the moment Codex records a new allowance, or signs in again.
@@ -128,6 +134,22 @@ class ChatGptProvider extends ApiKeyUsageProvider {
     return controller.stream;
   }
 
+  /// The moment before which no figure belongs to the account signed in now.
+  ///
+  /// Two things can establish it, and the later one wins. [signedInAt] is when
+  /// Codex last wrote its credentials, which is the sign-in now in force;
+  /// `accountChangedAt` is when this app noticed the identifier change. The
+  /// file is the more reliable of the two — it is stamped by the sign-in
+  /// itself, so it is already correct the first time the app looks, without
+  /// having to have been watching when it happened.
+  DateTime? _cutOff(CodexAccount account) {
+    final noticed = connection.accountChangedAt;
+    final signedIn = account.signedInAt;
+    if (noticed == null) return signedIn;
+    if (signedIn == null) return noticed;
+    return signedIn.isAfter(noticed) ? signedIn : noticed;
+  }
+
   /// Notices a sign-in as a different ChatGPT account, and records when.
   ///
   /// Returns the account Codex holds now. When it is not the one the stored
@@ -145,18 +167,25 @@ class ChatGptProvider extends ApiKeyUsageProvider {
 
     final changedAt = DateTime.now();
     if (connection.accountId != null) {
-      log.info('Codex signed in as a different account; earlier figures '
-          'no longer apply');
+      log.info(
+        'Codex signed in as a different account; earlier figures '
+        'no longer apply',
+      );
     }
 
-    await updateConnection(connection.copyWith(
-      accountId: current,
-      // Only a genuine switch resets the cut-off. The first time an account is
-      // seen there is nothing to exclude, and stamping it would throw away
-      // figures that do belong to it.
-      accountChangedAt: connection.accountId == null ? null : changedAt,
-      clearAccountLabel: connection.accountId != null,
-    ));
+    await updateConnection(
+      connection.copyWith(
+        accountId: current,
+        // Stamped only when there was a previous identifier to differ from. A
+        // first sighting excludes nothing, because figures recorded before the
+        // app ever ran can still belong to the account signed in now — and the
+        // sign-in time from the auth file covers the case this cannot: a
+        // reconnect clears the stored identifier, so a genuine switch would
+        // otherwise read as a first sighting and exclude nothing at all.
+        accountChangedAt: connection.accountId == null ? null : changedAt,
+        clearAccountLabel: connection.accountId != null,
+      ),
+    );
 
     return account;
   }
@@ -199,9 +228,9 @@ class ChatGptProvider extends ApiKeyUsageProvider {
       );
     }
 
-    // Anything Codex recorded before the account changed belongs to the
-    // account the user left, so it is not offered as this one's.
-    final since = connection.accountChangedAt;
+    // Anything Codex recorded before this sign-in belongs to the account the
+    // user left, so it is not offered as this one's.
+    final since = _cutOff(account);
     final reading = await _codex.read(notBefore: since);
 
     if (!reading.hasUsage) {
@@ -209,8 +238,8 @@ class ChatGptProvider extends ApiKeyUsageProvider {
         since == null
             ? 'Codex has not recorded an allowance on this Mac yet.'
             : 'Codex is signed in as a different ChatGPT account than before. '
-                'Run Codex once so OpenAI reports this account’s allowance — '
-                'until then there is nothing to show for it.',
+                  'Run Codex once so OpenAI reports this account’s allowance — '
+                  'until then there is nothing to show for it.',
       );
     }
 
@@ -238,21 +267,25 @@ class ChatGptProvider extends ApiKeyUsageProvider {
     final now = DateTime.now();
     final monthStart = DateTime(now.year, now.month);
 
-    final uri = _endpoint.replace(queryParameters: {
-      'start_time': (monthStart.millisecondsSinceEpoch ~/ 1000).toString(),
-      'bucket_width': '1d',
-      'limit': '31',
-    });
+    final uri = _endpoint.replace(
+      queryParameters: {
+        'start_time': (monthStart.millisecondsSinceEpoch ~/ 1000).toString(),
+        'bucket_width': '1d',
+        'limit': '31',
+      },
+    );
 
     http.Response response;
     try {
-      response = await client.get(
-        uri,
-        headers: {
-          'authorization': 'Bearer $apiKey',
-          'accept': 'application/json',
-        },
-      ).timeout(const Duration(seconds: 20));
+      response = await client
+          .get(
+            uri,
+            headers: {
+              'authorization': 'Bearer $apiKey',
+              'accept': 'application/json',
+            },
+          )
+          .timeout(const Duration(seconds: 20));
     } catch (e) {
       log.warn('openai request failed: ${e.runtimeType}');
       throw const UsageFailure(

@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -58,6 +57,18 @@ class _SettingsViewState extends State<SettingsView> {
         ? _page
         : (providers.any((p) => p.id == _page) ? _page : _general);
 
+    if (!settings.onboardingComplete) {
+      return PanelChrome(
+        title: 'Get started',
+        subtitle: 'Set up the edge widget before it appears on your desktop.',
+        child: _GetStartedPage(
+          providers: providers,
+          onGetStarted: () =>
+              update(settings.copyWith(onboardingComplete: true)),
+        ),
+      );
+    }
+
     return PanelChrome(
       title: 'Settings',
       onClose: shell.showRail,
@@ -79,23 +90,224 @@ class _SettingsViewState extends State<SettingsView> {
             child: switch (selected) {
               _about => const _AboutPage(),
               _general => _GeneralPage(
-                  settings: settings,
-                  screens: shell.screens,
-                  onUpdate: update,
-                  onReloadScreens: shell.reloadScreens,
-                ),
+                settings: settings,
+                screens: shell.screens,
+                onUpdate: update,
+                onReloadScreens: shell.reloadScreens,
+              ),
               final id => _ProviderPage(
-                  key: ValueKey(id),
-                  providerId: id,
-                  settings: settings,
-                  onUpdate: update,
-                ),
+                key: ValueKey(id),
+                providerId: id,
+                settings: settings,
+                onUpdate: update,
+              ),
             },
           ),
         ],
       ),
     );
   }
+}
+
+class _GetStartedPage extends StatelessWidget {
+  const _GetStartedPage({required this.providers, required this.onGetStarted});
+
+  final List<ProviderState> providers;
+  final Future<void> Function() onGetStarted;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final visibleProviders = providers.take(4).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 470),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Container(
+                    height: 126,
+                    decoration: BoxDecoration(
+                      color: palette.surfaceRaised,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: palette.border),
+                    ),
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: CustomPaint(
+                            painter: _GetStartedRailPainter(
+                              track: palette.track,
+                              border: palette.border,
+                              accent: palette.accentSystem,
+                            ),
+                          ),
+                        ),
+                        Center(
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (var i = 0; i < 3; i++) ...[
+                                if (i > 0) const SizedBox(width: 18),
+                                _PreviewRing(
+                                  state: i < visibleProviders.length
+                                      ? visibleProviders[i]
+                                      : null,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Choose what Flux should watch',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 24,
+                      height: 1.15,
+                      fontWeight: FontWeight.w700,
+                      color: palette.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Pick the AI tools you use, connect the accounts already '
+                    'on this Mac, and keep their usage visible from the edge '
+                    'of your screen.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.45,
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 22),
+                  SettingsSection(
+                    children: const [
+                      SettingsRow(
+                        label: 'Start with three rail slots',
+                        description:
+                            'Leave any slot empty until you know what belongs there.',
+                        control: Icon(Icons.view_sidebar_rounded, size: 18),
+                      ),
+                      SettingsRow(
+                        label: 'Connect local sessions first',
+                        description:
+                            'Codex, Claude Code, OpenCode, and similar tools can be found on this Mac.',
+                        control: Icon(Icons.key_rounded, size: 18),
+                      ),
+                      SettingsRow(
+                        label: 'Adjust the widget in Settings',
+                        description:
+                            'Move the rail, change its appearance, or hide it from the same panel.',
+                        control: Icon(Icons.tune_rounded, size: 18),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        Align(
+          alignment: Alignment.centerRight,
+          child: PillButton(
+            label: 'Get started',
+            emphasised: true,
+            onPressed: onGetStarted,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PreviewRing extends StatelessWidget {
+  const _PreviewRing({required this.state});
+
+  final ProviderState? state;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final accent = state == null
+        ? palette.textTertiary
+        : Color(state!.descriptor.accent);
+
+    return Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: palette.surface,
+        border: Border.all(color: accent.withValues(alpha: 0.62), width: 2),
+        boxShadow: [
+          BoxShadow(
+            color: palette.shadow.withValues(alpha: 0.16),
+            blurRadius: 14,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Center(
+        child: ProviderGlyph(
+          providerId: state?.id ?? '',
+          isEmpty: state == null,
+          color: accent,
+          size: 18,
+        ),
+      ),
+    );
+  }
+}
+
+class _GetStartedRailPainter extends CustomPainter {
+  const _GetStartedRailPainter({
+    required this.track,
+    required this.border,
+    required this.accent,
+  });
+
+  final Color track;
+  final Color border;
+  final Color accent;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+
+    for (var i = 0; i < 8; i++) {
+      final y = 18.0 + i * 14;
+      paint.color = i.isEven ? track : border;
+      canvas.drawLine(Offset(24, y), Offset(size.width - 24, y), paint);
+    }
+
+    final railPaint = Paint()
+      ..color = accent.withValues(alpha: 0.18)
+      ..style = PaintingStyle.fill;
+    final railRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width - 16, 18, 4, size.height - 36),
+      const Radius.circular(2),
+    );
+    canvas.drawRRect(railRect, railPaint);
+  }
+
+  @override
+  bool shouldRepaint(_GetStartedRailPainter oldDelegate) =>
+      oldDelegate.track != track ||
+      oldDelegate.border != border ||
+      oldDelegate.accent != accent;
 }
 
 /// The list on the left.
@@ -212,8 +424,8 @@ class _SidebarRowState extends State<_SidebarRow> {
             color: active
                 ? palette.accentSystem
                 : (_hovered
-                    ? palette.surfaceRaised.withValues(alpha: 0.8)
-                    : Colors.transparent),
+                      ? palette.surfaceRaised.withValues(alpha: 0.8)
+                      : Colors.transparent),
             borderRadius: BorderRadius.circular(7),
           ),
           child: Row(
@@ -532,7 +744,8 @@ class _ProviderPage extends StatelessWidget {
             if (slot != null)
               SettingsRow(
                 label: 'Position ${slot + 1} of ${settings.slots.length}',
-                description: 'Remove it to free the position for another app. '
+                description:
+                    'Remove it to free the position for another app. '
                     'Your account stays connected.',
                 control: PillButton(
                   label: 'Remove',
@@ -545,16 +758,19 @@ class _ProviderPage extends StatelessWidget {
             // looks live, is pressed, and leaves the user with no idea why.
             else if (settings.emptySlotIndices.isEmpty)
               SettingsRow(
-                label: 'Rail is full — '
+                label:
+                    'Rail is full — '
                     '${settings.slots.length} of ${settings.slots.length}',
-                description: 'Pick one to swap out, or remove one first. '
+                description:
+                    'Pick one to swap out, or remove one first. '
                     'Whatever you swap out stays connected.',
                 control: _SwapIntoRailButton(providerId: providerId),
               )
             else
               SettingsRow(
                 label: 'Not on the rail',
-                description: 'Add it to show its usage on the edge of your '
+                description:
+                    'Add it to show its usage on the edge of your '
                     'screen.',
                 control: PillButton(
                   label: 'Add to rail',
@@ -604,7 +820,8 @@ class _ProviderPage extends StatelessWidget {
             children: [
               SettingsRow(
                 label: keyLabel,
-                description: 'Adds a separate figure. Not needed for the '
+                description:
+                    'Adds a separate figure. Not needed for the '
                     'allowance above, which reads a tool already signed in on '
                     'this Mac.',
                 control: PillButton(
@@ -728,10 +945,7 @@ class _SwapIntoRailButton extends StatelessWidget {
                   child: Text(
                     'Replace ${occupant.displayName} '
                     '(position ${i + 1})',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: palette.textPrimary,
-                    ),
+                    style: TextStyle(fontSize: 12, color: palette.textPrimary),
                   ),
                 ),
           ],

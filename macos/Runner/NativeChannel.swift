@@ -104,6 +104,10 @@ final class NativeChannel {
             rail.setPinnedOpen(args["pinned"] as? Bool ?? false)
             result(nil)
 
+        case "rail.setCardVisible":
+            rail.setCardVisible(args["visible"] as? Bool ?? false)
+            result(nil)
+
         case "rail.expand":
             rail.expandNow()
             result(nil)

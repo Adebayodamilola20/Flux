@@ -5,7 +5,12 @@ import '../../core/logger.dart';
 
 /// Which ChatGPT account Codex is signed in as on this Mac.
 class CodexAccount {
-  const CodexAccount({this.accountId, this.authMode, this.isInstalled = false});
+  const CodexAccount({
+    this.accountId,
+    this.authMode,
+    this.isInstalled = false,
+    this.signedInAt,
+  });
 
   /// OpenAI's own identifier for the signed-in account.
   ///
@@ -20,9 +25,30 @@ class CodexAccount {
   /// True when Codex has been set up here at all.
   final bool isInstalled;
 
+  /// When Codex last wrote its credentials — the moment of the sign-in now in
+  /// force.
+  ///
+  /// This is the cut-off the transcripts cannot supply themselves. A signed-in
+  /// account is not enough to attribute a figure to it: the previous account's
+  /// transcripts are still on disk and still the newest thing with an allowance
+  /// in them. Anything recorded before this moment was recorded by whoever was
+  /// signed in before, so it is not this account's to show.
+  ///
+  /// A routine token refresh moves it too, which costs at most a few recent
+  /// figures — the alternative is showing the account the user just left.
+  final DateTime? signedInAt;
+
   bool get isSignedIn => accountId != null;
 
   static const CodexAccount none = CodexAccount();
+
+  /// The same account, stamped with when its credentials were written.
+  CodexAccount at({DateTime? signedInAt}) => CodexAccount(
+    accountId: accountId,
+    authMode: authMode,
+    isInstalled: isInstalled,
+    signedInAt: signedInAt,
+  );
 }
 
 /// Reads Codex's record of who is signed in.
@@ -40,8 +66,8 @@ class CodexAccount {
 /// business holding them.
 class CodexAccountSource {
   CodexAccountSource({String? homeDirectory, Logger? logger})
-      : _home = homeDirectory ?? Platform.environment['HOME'] ?? '',
-        _log = logger ?? const Logger('codex.account');
+    : _home = homeDirectory ?? Platform.environment['HOME'] ?? '',
+      _log = logger ?? const Logger('codex.account');
 
   final String _home;
   final Logger _log;
@@ -92,7 +118,7 @@ class CodexAccountSource {
       return const CodexAccount(isInstalled: true);
     }
 
-    return parse(contents);
+    return parse(contents).at(signedInAt: _modifiedAt());
   }
 
   /// Extracts the account identity from the auth file.

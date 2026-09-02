@@ -213,6 +213,25 @@ final class RailWindowController {
 
     // MARK: - Hover
 
+    /// Whether a hover card is drawn beside the rail right now.
+    ///
+    /// Flutter owns this: the card follows the pointer down the rail and is
+    /// only up while a ring is hovered, which is not something the window can
+    /// see for itself.
+    private var isCardVisible = false
+
+    func setCardVisible(_ visible: Bool) {
+        guard visible != isCardVisible else { return }
+        isCardVisible = visible
+
+        // A card that has just gone away can leave the pointer outside the
+        // narrowed zone, with no further mouse movement coming to notice it.
+        if !visible, isExpanded, !isPinnedOpen,
+           !hotZoneOnScreen().contains(NSEvent.mouseLocation) {
+            scheduleCollapse()
+        }
+    }
+
     private func installMonitors() {
         removeMonitors()
 
@@ -268,12 +287,19 @@ final class RailWindowController {
         let frame = window.frame
         let size = frame.size
 
-        // Two very different targets. At rest it is the sliver, so brushing
-        // past the edge does not open anything. Once open it is the rail plus
-        // its card, so moving the pointer onto the card never collapses the
-        // rail out from under it.
+        // Three different targets. At rest it is the sliver, so brushing past
+        // the edge does not open anything. Open, it is the rail itself — so
+        // leaving the rail closes it. Open *with a card up*, it takes the card
+        // in too: the card carries controls the pointer has to be able to
+        // reach, and the space between would otherwise close the rail on the
+        // way there.
         let local = isExpanded
-            ? RailMetrics.openHotZone(in: size, edge: edge, slots: slotCount)
+            ? RailMetrics.openHotZone(
+                in: size,
+                edge: edge,
+                slots: slotCount,
+                includingCard: isCardVisible
+            )
             : RailMetrics.restingHotZone(in: size, edge: edge)
 
         return local.offsetBy(dx: frame.minX, dy: frame.minY)

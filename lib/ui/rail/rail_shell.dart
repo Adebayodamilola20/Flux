@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 
@@ -42,6 +43,17 @@ class _RailShellState extends State<RailShell>
   /// is between rings, which shows no card rather than an arbitrary one.
   String? _hoveredId;
 
+  /// Sets the hovered ring and keeps the window's pointer target in step.
+  ///
+  /// The target widens to take the card in while one is drawn, so moving from
+  /// a ring onto its card does not close the rail on the way. The window
+  /// cannot work this out for itself — the card is Flutter's.
+  void _setHovered(String? id) {
+    if (id == _hoveredId) return;
+    setState(() => _hoveredId = id);
+    unawaited(context.read<NativeBridge>().setRailCardVisible(id != null));
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -57,7 +69,7 @@ class _RailShellState extends State<RailShell>
         // Drop the selection on the way out so re-opening does not flash the
         // previous provider's card before the pointer lands.
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) setState(() => _hoveredId = null);
+          if (mounted) _setHovered(null);
         });
       }
     }
@@ -111,7 +123,7 @@ class _RailShellState extends State<RailShell>
                     hoveredId: _hoveredId,
                     onRightEdge: onRight,
                     appearance: settings.railAppearance,
-                    onHoverSlot: (id) => setState(() => _hoveredId = id),
+                    onHoverSlot: _setHovered,
                     onOpenDetail: (id) => shell.openPanel(
                       ShellSurface.providerDetail,
                       providerId: id,

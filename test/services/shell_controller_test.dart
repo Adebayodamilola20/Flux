@@ -54,15 +54,13 @@ void main() {
   });
 
   group('startup surface', () {
-    test('goes straight to the rail on a first run', () async {
-      // There is nothing to set up: the rail opens empty and each position is
-      // a plus. A connect wall in front of that asks for the same decision in
-      // a worse place to make it.
+    test('opens the settings-sized get started panel on a first run', () async {
       await boot();
       await shell.start();
 
-      expect(shell.surface, ShellSurface.rail);
-      expect(native.isPanelVisible, isFalse);
+      expect(shell.surface, ShellSurface.settings);
+      expect(native.isPanelVisible, isTrue);
+      expect(native.panelSizes.last, ShellController.settingsSize);
     });
 
     test('goes straight to the rail once onboarding is done', () async {
@@ -75,15 +73,14 @@ void main() {
       expect(native.isRailVisible, isTrue);
     });
 
-    test('goes to the rail when a provider is already connected', () async {
+    test('still opens onboarding until it has been completed', () async {
       await boot();
       provider.seedConnected();
       await usage.start();
       await shell.start();
 
-      // Onboarding was never completed, but there is something to show, so the
-      // connect screen would be a wall in front of a working product.
-      expect(shell.surface, ShellSurface.rail);
+      expect(shell.surface, ShellSurface.settings);
+      expect(native.isPanelVisible, isTrue);
     });
 
     test('reads its geometry from the native layer', () async {
@@ -221,10 +218,7 @@ void main() {
       await boot();
       await shell.start();
 
-      await shell.openPanel(
-        ShellSurface.connectProvider,
-        providerId: 'claude',
-      );
+      await shell.openPanel(ShellSurface.connectProvider, providerId: 'claude');
 
       // Not a grid of every provider: the user has already said which one.
       expect(shell.surface, ShellSurface.connectProvider);

@@ -138,10 +138,18 @@ enum RailMetrics {
     /// to, and spanning it meant the rail stayed open across the width of the
     /// card — so leaving the rail did not close it, and the user had to clear
     /// the card as well before anything went away.
+    ///
+    /// - Parameter includingCard: widen to take the hover card in. Only true
+    ///   while a card is actually drawn: it is a readout the pointer can reach
+    ///   for — the retry and detail controls live on it — so while one is up,
+    ///   the space between the rail and it has to stay live or the card
+    ///   disappears on the way to being clicked. With no card up there is
+    ///   nothing out there to reach, and the zone stays the rail's own width.
     static func openHotZone(
         in windowSize: NSSize,
         edge: RailEdge,
-        slots: Int
+        slots: Int,
+        includingCard: Bool = false
     ) -> NSRect {
         let settings = settingsButtonRect(
             in: windowSize,
@@ -155,13 +163,14 @@ enum RailMetrics {
         let minY = min(settings.minY, rail.minY)
         let maxY = max(settings.maxY, rail.maxY)
         let height = min(maxY - minY, windowSize.height)
+        let width = includingCard ? expandedWidth : collapsedWidth
         let x: CGFloat = edge == .right
-            ? windowSize.width - shadowPadding - collapsedWidth
+            ? windowSize.width - shadowPadding - width
             : shadowPadding
         return NSRect(
             x: x,
             y: minY,
-            width: collapsedWidth,
+            width: width,
             height: height
         )
     }

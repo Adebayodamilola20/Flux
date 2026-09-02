@@ -45,10 +45,10 @@ class ShellController extends ChangeNotifier {
     required SettingsService settingsService,
     required UsageController usageController,
     Logger? logger,
-  })  : _native = native,
-        _settingsService = settingsService,
-        _usage = usageController,
-        _log = logger ?? const Logger('shell') {
+  }) : _native = native,
+       _settingsService = settingsService,
+       _usage = usageController,
+       _log = logger ?? const Logger('shell') {
     _native
       ..onExpansionChanged = _handleExpansionChanged
       ..onModeChanged = _handleModeChanged
@@ -117,10 +117,11 @@ class ShellController extends ChangeNotifier {
 
     await _applyPlacement(force: true);
 
-    // Straight to the rail. There is nothing to set up: the rail opens empty
-    // and every position is a plus the user fills when they want to. A
-    // full-screen connect wall in front of that would be asking them to make
-    // the same choice twice, in a worse place to make it.
+    if (!_settings.onboardingComplete) {
+      await openPanel(ShellSurface.settings);
+      return;
+    }
+
     await showRail();
   }
 
@@ -158,12 +159,12 @@ class ShellController extends ChangeNotifier {
   }
 
   static Size _sizeFor(ShellSurface surface) => switch (surface) {
-        ShellSurface.connectProvider => connectSize,
-        ShellSurface.settings => settingsSize,
-        ShellSurface.providerDetail => detailSize,
-        ShellSurface.slotPicker => slotPickerSize,
-        ShellSurface.rail => connectSize,
-      };
+    ShellSurface.connectProvider => connectSize,
+    ShellSurface.settings => settingsSize,
+    ShellSurface.providerDetail => detailSize,
+    ShellSurface.slotPicker => slotPickerSize,
+    ShellSurface.rail => connectSize,
+  };
 
   // MARK: - Rail behaviour
 
@@ -175,7 +176,10 @@ class ShellController extends ChangeNotifier {
       await showRail();
       return;
     }
-    next ? await _native.showRail(pinnedOpen: !_settings.railExpansion.autoCollapses)
+    next
+        ? await _native.showRail(
+            pinnedOpen: !_settings.railExpansion.autoCollapses,
+          )
         : await _native.hideRail();
   }
 
@@ -242,7 +246,8 @@ class ShellController extends ChangeNotifier {
   /// preference edits do not make the rail jump.
   Future<void> _applyPlacement({bool force = false}) async {
     final s = _settings;
-    final changed = force ||
+    final changed =
+        force ||
         s.railAppearance != _lastAppliedPlacement.railAppearance ||
         s.railEdge != _lastAppliedPlacement.railEdge ||
         s.railOffset != _lastAppliedPlacement.railOffset ||
@@ -263,9 +268,7 @@ class ShellController extends ChangeNotifier {
 
     if (_surface == ShellSurface.rail) {
       s.railVisible
-          ? await _native.showRail(
-              pinnedOpen: !s.railExpansion.autoCollapses,
-            )
+          ? await _native.showRail(pinnedOpen: !s.railExpansion.autoCollapses)
           : await _native.hideRail();
     }
   }
