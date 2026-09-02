@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../models/rail_placement.dart';
 import '../theme/app_theme.dart';
 
 class RailSettingsButton extends StatefulWidget {
@@ -10,11 +11,18 @@ class RailSettingsButton extends StatefulWidget {
     super.key,
     required this.railExpanded,
     required this.onRightEdge,
+    required this.appearance,
     required this.onPressed,
   });
 
   final bool railExpanded;
   final bool onRightEdge;
+
+  /// Solid or frosted, following the rail. The control sits against the rail
+  /// and reads as part of it, so a solid black disc beside a frosted rail
+  /// looks like a separate widget that happened to land there.
+  final RailAppearance appearance;
+
   final VoidCallback onPressed;
 
   static const autoFoldDelay = Duration(seconds: 5);
@@ -113,6 +121,12 @@ class _RailSettingsButtonState extends State<RailSettingsButton>
   @override
   Widget build(BuildContext context) {
     final palette = context.palette;
+    final isGlass = widget.appearance == RailAppearance.glass;
+    // Thinned to the same degree as the rail's own fill, so the two read as
+    // one material rather than two greys.
+    final fill = isGlass
+        ? palette.railFill.withValues(alpha: 0.28)
+        : palette.railFill;
 
     // No tooltip: the control sits against the rail, and a light label
     // appearing beside a dark widget was louder than the thing it described.
@@ -150,8 +164,10 @@ class _RailSettingsButtonState extends State<RailSettingsButton>
                       child: CustomPaint(
                         size: const Size(34, 34),
                         painter: _FoldedSettingsPainter(
-                          color: palette.railFill,
-                          shadow: palette.railShadow,
+                          color: fill,
+                          shadow: isGlass
+                              ? const Color(0x00000000)
+                              : palette.railShadow,
                           onRightEdge: widget.onRightEdge,
                         ),
                       ),
@@ -170,19 +186,26 @@ class _RailSettingsButtonState extends State<RailSettingsButton>
                           width: 34,
                           height: 34,
                           decoration: BoxDecoration(
-                            color: palette.railFill,
+                            color: fill,
                             shape: BoxShape.circle,
                             border: Border.all(
-                              color: palette.railBorder,
+                              color: isGlass
+                                  ? palette.textTertiary.withValues(alpha: 0.28)
+                                  : palette.railBorder,
                               width: 1,
                             ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: palette.railShadow,
-                                blurRadius: 12,
-                                offset: const Offset(0, 5),
-                              ),
-                            ],
+                            // No drop shadow on glass: the material is meant to
+                            // sit in the desktop, and a shadow under it puts it
+                            // back on top as a separate object.
+                            boxShadow: isGlass
+                                ? null
+                                : [
+                                    BoxShadow(
+                                      color: palette.railShadow,
+                                      blurRadius: 12,
+                                      offset: const Offset(0, 5),
+                                    ),
+                                  ],
                           ),
                           child: Center(
                             child: Transform.rotate(

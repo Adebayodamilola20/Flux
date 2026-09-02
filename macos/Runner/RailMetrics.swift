@@ -131,7 +131,13 @@ enum RailMetrics {
         )
     }
 
-    /// The pointer target while the rail is open: the rail and its card.
+    /// The pointer target while the rail is open: the rail and its control.
+    ///
+    /// Deliberately *not* widened to take in the hover card. The card is a
+    /// readout that follows the pointer down the rail, not somewhere to travel
+    /// to, and spanning it meant the rail stayed open across the width of the
+    /// card — so leaving the rail did not close it, and the user had to clear
+    /// the card as well before anything went away.
     static func openHotZone(
         in windowSize: NSSize,
         edge: RailEdge,
@@ -150,12 +156,12 @@ enum RailMetrics {
         let maxY = max(settings.maxY, rail.maxY)
         let height = min(maxY - minY, windowSize.height)
         let x: CGFloat = edge == .right
-            ? windowSize.width - shadowPadding - expandedWidth
+            ? windowSize.width - shadowPadding - collapsedWidth
             : shadowPadding
         return NSRect(
             x: x,
             y: minY,
-            width: expandedWidth,
+            width: collapsedWidth,
             height: height
         )
     }

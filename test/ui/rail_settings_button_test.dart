@@ -2,6 +2,7 @@ import 'dart:ui' show PointerDeviceKind;
 
 import 'package:ai_usage_monitor/ui/rail/rail_settings_button.dart';
 import 'package:ai_usage_monitor/ui/theme/app_theme.dart';
+import 'package:ai_usage_monitor/models/rail_placement.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -16,6 +17,7 @@ Future<void> pumpButton(
       home: Scaffold(
         body: Center(
           child: RailSettingsButton(
+            appearance: RailAppearance.solid,
             railExpanded: expanded,
             onRightEdge: true,
             onPressed: onPressed ?? () {},

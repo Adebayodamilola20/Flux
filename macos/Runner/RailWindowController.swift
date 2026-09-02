@@ -313,7 +313,7 @@ final class RailWindowController {
         // The frost is sized to the *open* rail. While collapsed, Flutter draws
         // only the nub, so leaving the material up put a full-height pane of
         // blurred desktop against the bezel with nothing drawn on it.
-        glass.setVisible(expanded && isRailVisible)
+        glass.setVisible(expanded && isRailVisible, animated: true)
 
         // Give the transparent part of the window back to whatever is beneath
         // it while collapsed, so the widget never eats a click meant for the
