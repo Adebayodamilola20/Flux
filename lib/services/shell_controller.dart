@@ -58,6 +58,7 @@ class ShellController extends ChangeNotifier {
       ..onRefreshRequested = _handleRefreshRequested
       ..onRailToggleRequested = hideRailFromMenu
       ..onRailRevealRequested = revealRail
+      ..onMetricsChanged = reloadMetrics
       // Braced deliberately: an arrow body would swallow the following
       // cascade into the closure.
       ..onSettingsRequested = () {
@@ -190,6 +191,16 @@ class ShellController extends ChangeNotifier {
             pinnedOpen: !_settings.railExpansion.autoCollapses,
           )
         : await _native.hideRail();
+  }
+
+  /// Re-reads the rail's measurements from the native side.
+  ///
+  /// Called when the rail moves to a display of a different size. Without it
+  /// the window resizes and the rings keep the size they had, which is worse
+  /// than either scale on its own.
+  Future<void> reloadMetrics() async {
+    _metrics = await _native.railMetrics();
+    notifyListeners();
   }
 
   /// Takes the rail off screen, because the user chose "Hide Rail".

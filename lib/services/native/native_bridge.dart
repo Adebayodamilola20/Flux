@@ -107,6 +107,7 @@ class RailMetrics {
     required this.windowWidth,
     required this.windowHeight,
     required this.slots,
+    this.scale = 1,
   });
 
   final double collapsedWidth;
@@ -120,6 +121,30 @@ class RailMetrics {
   final double windowWidth;
   final double windowHeight;
   final int slots;
+
+  /// How much larger or smaller than the base design this rail is drawn.
+  ///
+  /// Comes from the display it is on — see `RailMetrics.scale(for:)` on the
+  /// Swift side. Everything Flutter draws inside the rail derives from it, so
+  /// the rings, the sliver and the type keep their proportions instead of
+  /// staying a fixed size inside a window that changed.
+  final double scale;
+
+  /// The provider ring's diameter at this scale.
+  double get ringDiameter => AppMetrics.ringDiameter * scale;
+
+  /// Its stroke. Held to a minimum so the gauge never thins to a hairline on
+  /// a small display, where it would stop reading as a ring at all.
+  double get ringStroke =>
+      (AppMetrics.ringStroke * scale).clamp(2.0, 6.0);
+
+  /// The resting sliver at this scale.
+  double get nubWidth => AppMetrics.nubWidth * scale;
+  double get nubHeight => AppMetrics.nubHeight * scale;
+  double get nubRadius => AppMetrics.nubRadius * scale;
+
+  /// The percentage under each ring.
+  double get slotLabelSize => 12 * scale;
 
   /// Used before native replies, and under `flutter test` where there is no
   /// native side at all. Matches the Swift defaults.
@@ -186,6 +211,7 @@ class RailMetrics {
       windowWidth: width,
       windowHeight: height,
       slots: slots,
+      scale: number('scale') ?? fallback.scale,
     );
   }
 }
@@ -222,6 +248,10 @@ class NativeBridge {
   /// the rail back, it never takes it away.
   void Function()? onRailRevealRequested;
 
+  /// The rail's measurements changed, because it moved to a display of a
+  /// different size.
+  void Function()? onMetricsChanged;
+
   /// A provider's browser sign-in came back through the registered URL scheme.
   void Function(Uri url)? onAuthCallback;
 
@@ -242,6 +272,8 @@ class NativeBridge {
         onRailToggleRequested?.call();
       case 'railRevealRequested':
         onRailRevealRequested?.call();
+      case 'rail.metricsChanged':
+        onMetricsChanged?.call();
       case 'auth.callback':
         final raw = args?['url'];
         if (raw is String) {

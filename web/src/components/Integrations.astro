@@ -1,0 +1,142 @@
+---
+import { INTEGRATIONS, SLOT_COUNT } from '../config/site';
+---
+
+<section class="ints section" id="integrations">
+  <div class="wrap">
+    <div class="head center">
+      <h2 class="h2">
+        {INTEGRATIONS.length} tools.<br /><span class="dim"
+          >{SLOT_COUNT} slots. Your pick.</span
+        >
+      </h2>
+      <p class="lede">
+        The notch is laid out for exactly {SLOT_COUNT} rings, and which tools occupy
+        them is your choice. Each one is a first-class integration rather than a generic
+        adapter — which is why the list is short, and why every figure can say
+        where it came from.
+      </p>
+    </div>
+
+    <ul class="rows">
+      {
+        INTEGRATIONS.map((it) => (
+          <li class="row">
+            <span class="row__mark" style={`--a:${it.accent}`} aria-hidden="true" />
+            <h3 class="row__name">{it.name}</h3>
+            <p class="row__tag">{it.tagline}</p>
+            <span class:list={['row__grade', `is-${it.grade.toLowerCase()}`]}>
+              {it.grade}
+            </span>
+            <span class="row__src mono">{it.source}</span>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  .head {
+    margin-inline: auto;
+  }
+
+  .head {
+    max-width: 44rem;
+    margin-inline: auto;
+  }
+
+  .dim {
+    color: var(--ink-3);
+  }
+
+  .ints .lede {
+    color: var(--ink-2);
+    max-width: 52ch;
+  }
+
+  .rows {
+    margin-top: 3rem;
+    border-top: 1px solid var(--hair);
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 0.9375rem 0.25rem;
+    border-bottom: 1px solid var(--hair);
+    transition: background-color var(--fast) var(--ease-out);
+  }
+
+  .row:hover {
+    background: rgba(41, 37, 36, 0.03);
+  }
+
+  /* The provider's accent, as a ring segment — the shape the app uses. */
+  .row__mark {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid rgba(20, 24, 27, 0.13);
+    border-top-color: var(--a);
+    border-right-color: var(--a);
+    transform: rotate(-45deg);
+    flex: none;
+  }
+
+  .row__name {
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+  }
+
+  .row__tag {
+    font-size: 0.875rem;
+    color: var(--ink-2);
+    min-width: 0;
+  }
+
+  .row__grade {
+    padding: 0.125rem 0.4375rem;
+    border-radius: var(--r-sm);
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    white-space: nowrap;
+  }
+
+  .is-api {
+    background: var(--teal-tint);
+    color: var(--teal-ink);
+  }
+  .is-local {
+    background: rgba(20, 24, 27, 0.07);
+    color: var(--ink-2);
+  }
+  .is-cli {
+    background: rgba(216,74,22,0.14);
+    color: #a8360f;
+  }
+
+  .row__src {
+    color: var(--ink-3);
+    white-space: nowrap;
+  }
+
+  @media (max-width: 56rem) {
+    .row {
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      row-gap: 0.3125rem;
+    }
+    .row__tag {
+      grid-column: 2 / -1;
+      order: 3;
+    }
+    .row__src {
+      grid-column: 2 / -1;
+      order: 4;
+    }
+  }
+</style>

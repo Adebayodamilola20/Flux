@@ -387,7 +387,64 @@ void main() {
       expect(data.notes.join(), isNot(contains('Live from Anthropic')));
     });
 
-    group('a cached window that has already reset', () {
+    group('what the percentage cost', () {
+    test('carries this Mac’s token totals alongside Anthropic’s share',
+        () async {
+      // Anthropic reports a share of the plan limit and never a token count,
+      // so "38%" says how close the ceiling is and nothing about what was
+      // spent reaching it. The transcripts on this Mac do have real totals for
+      // the same two periods.
+      final provider = await build(
+        live: _StubLiveSource(reading: liveReading()),
+        local: _StubLocalSource(
+          result: const ClaudeLocalUsage(
+            windows: [
+              UsageWindow(
+                id: 'session',
+                label: 'Current session',
+                consumed: 1200000,
+                source: UsageSource.localTracking,
+              ),
+              UsageWindow(
+                id: 'weekly',
+                label: 'All models',
+                consumed: 48000000,
+                source: UsageSource.localTracking,
+              ),
+            ],
+          ),
+        ),
+      );
+
+      final data = await provider.fetchUsage(const AppSettings());
+      final session = data.windows.firstWhere((w) => w.id == 'five_hour');
+      final week = data.windows.firstWhere((w) => w.id == 'seven_day');
+
+      expect(session.tokensUsed, 1200000);
+      expect(week.tokensUsed, 48000000);
+      // The percentage is untouched — it is Anthropic's figure and stays so.
+      expect(session.unit, isNot('tokens'));
+    });
+
+    test('is absent rather than invented when nothing local is known',
+        () async {
+      // There is no published token ceiling to multiply the percentage by, so
+      // a number derived that way would look exact and mean nothing.
+      final provider = await build(
+        live: _StubLiveSource(reading: liveReading()),
+        local: _StubLocalSource(available: false),
+      );
+
+      final data = await provider.fetchUsage(const AppSettings());
+
+      expect(
+        data.windows.every((w) => w.tokensUsed == null),
+        isTrue,
+      );
+    });
+  });
+
+  group('a cached window that has already reset', () {
       test('is not reported as the current figure', () async {
         // The bug this fixes, with the real numbers: the cache was written at
         // 9:37 saying "66% used, resets 9:40". By 11:03 the window had rolled

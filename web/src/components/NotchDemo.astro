@@ -1,0 +1,593 @@
+---
+/**
+ * The product, drawn to its own measurements and made interactive.
+ *
+ * Every dimension is the app's: notch 46 wide, 66 per slot, 28 of vertical
+ * padding, a 32px ring at 2.8 stroke, a 218px card with a 12x18 tail. The
+ * whole assembly scales as a unit so the proportions stay true.
+ *
+ * It opens the way the real one does — on hover — because that is the product.
+ * Reading about a hover is not the same as doing it.
+ */
+
+interface Props {
+  /** Larger, with a caption. Used once, in the hero. */
+  hero?: boolean;
+}
+
+const { hero = false } = Astro.props;
+
+interface Slot {
+  name: string;
+  accent: string;
+  used: number;
+  windows: { label: string; percent: number; resets: string }[];
+  source: string;
+}
+
+const slots: Slot[] = [
+  {
+    name: 'Claude',
+    accent: '#D97757',
+    used: 0.62,
+    windows: [
+      { label: 'Current session', percent: 62, resets: '2h 14m' },
+      { label: 'All models · weekly', percent: 38, resets: '4d' },
+    ],
+    source: 'Live from Anthropic',
+  },
+  {
+    name: 'Codex',
+    accent: '#10A37F',
+    used: 0.24,
+    windows: [{ label: 'Codex allowance', percent: 24, resets: '3h 40m' }],
+    source: 'Recorded 12m ago',
+  },
+  {
+    name: 'Antigravity',
+    accent: '#4285F4',
+    used: 0.81,
+    windows: [{ label: 'Weekly · Gemini 3 Pro', percent: 81, resets: '2d 6h' }],
+    source: 'CLI-derived',
+  },
+];
+
+/** AppPalette.accentFor — the thresholds the app actually uses. */
+const accentFor = (f: number) =>
+  f >= 0.7 ? 'var(--crit-d)' : f >= 0.45 ? 'var(--warn-d)' : 'var(--ok-d)';
+
+const R = 14.6;
+const CIRC = 2 * Math.PI * R;
+---
+
+<figure class:list={['demo', hero && 'demo--hero']}>
+  <p class="sr-only">
+    An interactive illustration of the DevNotch notch on the left edge of a Mac
+    display. Open it to reveal one ring per tool, then focus a ring to read its
+    usage card.
+  </p>
+
+  <div class="screen" data-screen>
+    <div class="desktop"></div>
+
+    <div class="menubar" aria-hidden="true">
+      <span class="menubar__item">
+        <span class="menubar__mark"></span>62%
+      </span>
+      <span class="menubar__time">Thu 09:41</span>
+    </div>
+
+    <!-- The notch, flush against the display's left edge. -->
+    <div class="notch">
+      <button class="nub" type="button" data-toggle aria-expanded="false">
+        <span class="sr-only">Open the notch</span>
+        <span class="nub__bar" aria-hidden="true"></span>
+      </button>
+
+      <div class="rings" data-rings>
+        {
+          slots.map((s, i) => (
+            <button class="slot" type="button" data-slot={i} aria-label={`${s.name}, ${Math.round(s.used * 100)} percent used`}>
+              <svg class="ring" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
+                <circle cx="16" cy="16" r={R} fill="none" stroke="var(--track-d)" stroke-width="2.8" />
+                <circle
+                  cx="16" cy="16" r={R} fill="none"
+                  stroke={accentFor(s.used)} stroke-width="2.8" stroke-linecap="round"
+                  stroke-dasharray={CIRC}
+                  style={`--arc:${(CIRC * (1 - s.used)).toFixed(2)}; --d:${i * 80}ms`}
+                  transform="rotate(-90 16 16)"
+                  class="ring__arc"
+                />
+              </svg>
+              <span class="slot__dot" style={`background:${s.accent}`} aria-hidden="true"></span>
+            </button>
+          ))
+        }
+      </div>
+    </div>
+
+    <div class="callout" data-callout aria-live="polite">
+      {
+        slots.map((s, i) => (
+          <div class="card" data-card={i} hidden={i !== 0}>
+            <div class="card__head">
+              <span class="card__dot" style={`background:${s.accent}`} aria-hidden="true"></span>
+              <span class="card__title">{s.name} Usage</span>
+            </div>
+            {s.windows.map((w) => (
+              <div class="win">
+                <div class="win__top">
+                  <span class="win__label">{w.label}</span>
+                  <span class="win__resets">{w.resets}</span>
+                </div>
+                <div class="win__track">
+                  <span class="win__bar" style={`width:${w.percent}%; background:${accentFor(w.percent / 100)}`} />
+                </div>
+                <div class="win__pct">{w.percent}% used</div>
+              </div>
+            ))}
+            <div class="card__src">{s.source}</div>
+          </div>
+        ))
+      }
+    </div>
+  </div>
+
+  {
+    hero && (
+      <figcaption class="hint" data-hint>
+        <span class="hint__dot" aria-hidden="true" />
+        Psst — hover the notch. It really opens.
+      </figcaption>
+    )
+  }
+</figure>
+
+<script>
+  document.querySelectorAll<HTMLElement>('[data-screen]').forEach((screen) => {
+    const notch = screen.querySelector<HTMLElement>('.notch')!;
+    const toggle = screen.querySelector<HTMLButtonElement>('[data-toggle]')!;
+    const callout = screen.querySelector<HTMLElement>('[data-callout]')!;
+    const cards = [...screen.querySelectorAll<HTMLElement>('[data-card]')];
+    const slots = [...screen.querySelectorAll<HTMLElement>('[data-slot]')];
+    const hint = screen.parentElement?.querySelector<HTMLElement>('[data-hint]');
+
+    let open = false;
+    const setOpen = (v: boolean) => {
+      open = v;
+      screen.dataset.open = String(v);
+      toggle.setAttribute('aria-expanded', String(v));
+      if (v && hint) hint.dataset.done = 'true';
+    };
+
+    const focus = (i: number) => {
+      callout.style.setProperty('--slot', String(i));
+      cards.forEach((c, n) => (c.hidden = n !== i));
+      slots.forEach((s, n) => s.classList.toggle('is-active', n === i));
+    };
+
+    // Hover is how the real one works.
+    notch.addEventListener('mouseenter', () => setOpen(true));
+    screen.addEventListener('mouseleave', () => setOpen(false));
+
+    // Keyboard and touch get an explicit toggle.
+    toggle.addEventListener('click', () => setOpen(!open));
+    slots.forEach((slot, i) => {
+      slot.addEventListener('mouseenter', () => focus(i));
+      slot.addEventListener('focus', () => {
+        setOpen(true);
+        focus(i);
+      });
+    });
+
+    screen.addEventListener('focusout', (e) => {
+      if (!screen.contains(e.relatedTarget as Node)) setOpen(false);
+    });
+
+    focus(0);
+
+    // Show the payoff once, unprompted, so the interaction is discoverable.
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (!reduced) {
+      const io = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (!entry.isIntersecting) return;
+            io.disconnect();
+            setTimeout(() => {
+              if (!open) {
+                setOpen(true);
+                setTimeout(() => {
+                  if (!screen.matches(':hover')) setOpen(false);
+                }, 1900);
+              }
+            }, 900);
+          });
+        },
+        { threshold: 0.5 },
+      );
+      io.observe(screen);
+    }
+  });
+</script>
+
+<style>
+  .demo {
+    --w: 46px;
+    --h: 66px;
+    --pad: 28px;
+    margin: 0;
+  }
+
+  .screen {
+    position: relative;
+    aspect-ratio: 16 / 10;
+    min-height: 300px;
+    border-radius: var(--r-xl);
+    background: #082f36;
+    border: 0;
+    overflow: hidden;
+    box-shadow: var(--shadow-screen);
+  }
+
+  /* Cinematic band, so the notch clears the fold instead of sitting under it. */
+  .demo--hero .screen {
+    aspect-ratio: 21 / 9;
+    max-height: 34rem;
+  }
+
+  /* A real desktop behind the product, not a suggestion of one — that
+     contrast is what makes the notch read as an object on a screen. */
+  .desktop {
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(120% 90% at 14% 6%, #14b8a6 0%, transparent 56%),
+      radial-gradient(100% 80% at 86% 20%, #0e7490 0%, transparent 58%),
+      radial-gradient(140% 120% at 48% 118%, #5eead4 0%, transparent 60%),
+      linear-gradient(165deg, #0f766e 0%, #0c4a52 48%, #082f36 100%);
+  }
+
+  /* Two soft ridges, so the wallpaper has shape rather than being a blur. */
+  .desktop::before,
+  .desktop::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(60% 90% at 20% 100%, rgba(4, 30, 34, 0.75), transparent 60%);
+  }
+
+  .desktop::after {
+    background: radial-gradient(55% 80% at 78% 100%, rgba(6, 40, 46, 0.6), transparent 62%);
+  }
+
+  .menubar {
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 1rem;
+    padding-inline: 0.875rem;
+    background: rgba(0, 0, 0, 0.34);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 11px;
+    color: rgba(255,255,255,0.75);
+    z-index: 1;
+  }
+
+  .menubar__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .menubar__mark {
+    width: 3px;
+    height: 11px;
+    border-radius: 1.5px;
+    background: var(--warn-d);
+  }
+
+  .menubar__time {
+    color: rgba(255,255,255,0.55);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ------------------------------------------------------------- the notch */
+
+  .notch {
+    position: absolute;
+    left: 0;
+    /* Centred in the area below the menu bar, not in the whole screen —
+       otherwise the card rides over the menu bar on short screens. */
+    top: calc(50% + 13px);
+    transform: translateY(-50%);
+    z-index: 3;
+  }
+
+  /* Closed: a 7px sliver, at true size. */
+  .nub {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 110px;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    transition: opacity var(--fast) var(--ease-out);
+  }
+
+  .nub__bar {
+    width: 7px;
+    height: 84px;
+    border-radius: 3.5px;
+    background: #000;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.1),
+      0 4px 16px rgba(0, 0, 0, 0.6);
+  }
+
+  [data-open='true'] .nub {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* Open: the rings, in a tab that grows out of the edge. */
+  .rings {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    width: var(--w);
+    padding-block: var(--pad);
+    background: #000;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-left: none;
+    border-radius: 0 20px 20px 0;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.66);
+    display: flex;
+    flex-direction: column;
+    transform: translate(-60%, -50%);
+    opacity: 0;
+    pointer-events: none;
+    transition:
+      transform var(--mid) var(--ease-out),
+      opacity var(--mid) var(--ease-out);
+  }
+
+  [data-open='true'] .rings {
+    transform: translate(0, -50%);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .slot {
+    height: var(--h);
+    width: 100%;
+    display: grid;
+    place-items: center;
+    position: relative;
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    border-radius: var(--r-sm);
+  }
+
+  .ring {
+    transition: transform var(--fast) var(--ease-out);
+  }
+
+  .slot:hover .ring,
+  .slot.is-active .ring {
+    transform: scale(1.07);
+  }
+
+  .ring__arc {
+    stroke-dashoffset: var(--arc);
+  }
+
+  [data-open='true'] .ring__arc {
+    animation: draw 520ms var(--ease-out) both;
+    animation-delay: var(--d);
+  }
+
+  @keyframes draw {
+    from {
+      stroke-dashoffset: 91.75;
+    }
+  }
+
+  .slot__dot {
+    position: absolute;
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    opacity: 0.92;
+  }
+
+  /* -------------------------------------------------------------- the card */
+
+  .callout {
+    --slot: 0;
+    position: absolute;
+    left: calc(var(--w) + 2px);
+    top: calc(50% + 13px);
+    transform: translateY(calc(-50% + (var(--slot) - 1) * var(--h)));
+    transition:
+      transform var(--mid) var(--ease-out),
+      opacity var(--mid) var(--ease-out);
+    z-index: 4;
+    pointer-events: none;
+    opacity: 0;
+  }
+
+  [data-open='true'] .callout {
+    opacity: 1;
+  }
+
+  .card {
+    position: relative;
+    width: 218px;
+    padding: 10px 11px;
+    background: #050506;
+    border: 1px solid #1c1c1f;
+    border-radius: 14px;
+    color: #fff;
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.8);
+  }
+
+  /* CalloutShape's tail — 12 x 18 — so the card says which ring it means. */
+  .card::before {
+    content: '';
+    position: absolute;
+    left: -11px;
+    top: 50%;
+    width: 12px;
+    height: 18px;
+    transform: translateY(-50%);
+    background: #050506;
+    clip-path: polygon(100% 0, 0 50%, 100% 100%);
+  }
+
+  .card__head {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 9px;
+  }
+
+  .card__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex: none;
+  }
+
+  .card__title {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .win + .win {
+    margin-top: 9px;
+  }
+
+  .win__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .win__label {
+    font-size: 10.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .win__resets {
+    font-size: 10px;
+    color: rgba(255,255,255,0.55);
+    flex: none;
+  }
+
+  .win__track {
+    height: 4px;
+    border-radius: 2px;
+    background: var(--track-d);
+    margin-top: 5px;
+    overflow: hidden;
+  }
+
+  .win__bar {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+  }
+
+  .win__pct {
+    margin-top: 4px;
+    font-size: 10px;
+    color: rgba(255,255,255,0.75);
+  }
+
+  .card__src {
+    margin-top: 9px;
+    padding-top: 7px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: rgba(255,255,255,0.55);
+  }
+
+  /* -------------------------------------------------------------- the hint */
+
+  .hint {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    font-size: 0.875rem;
+    color: var(--ink-3);
+    transition: opacity var(--mid) var(--ease-out);
+  }
+
+  .hint[data-done='true'] {
+    opacity: 0.35;
+  }
+
+  .hint__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ok);
+    animation: pulse 2s var(--ease-in-out) infinite;
+  }
+
+  .hint[data-done='true'] .hint__dot {
+    animation: none;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.25;
+    }
+  }
+
+  @media (max-width: 40rem) {
+    .demo {
+      --w: 38px;
+      --h: 54px;
+      --pad: 20px;
+    }
+    .screen,
+    .demo--hero .screen {
+      aspect-ratio: 5 / 4;
+      min-height: 0;
+    }
+    .ring {
+      width: 26px;
+      height: 26px;
+    }
+    .card {
+      width: 168px;
+      padding: 9px 10px;
+    }
+    .win__label {
+      font-size: 10px;
+    }
+  }
+</style>

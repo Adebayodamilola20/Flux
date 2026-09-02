@@ -1,0 +1,92 @@
+---
+import { STEPS } from '../config/site';
+import NotchDemo from './NotchDemo.astro';
+---
+
+<section class="how section">
+  <div class="wrap">
+    <div class="head center">
+      <h2 class="h2">
+        Three steps,<br /><span class="dim">then it is just there.</span>
+      </h2>
+    </div>
+
+    <div class="grid">
+      <ol class="steps">
+        {
+          STEPS.map((s) => (
+            <li class="step">
+              <span class="step__n mono">{s.n}</span>
+              <div>
+                <h3 class="step__t">{s.title}</h3>
+                <p class="step__b">{s.body}</p>
+              </div>
+            </li>
+          ))
+        }
+      </ol>
+
+      <div class="demo">
+        <NotchDemo />
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .head {
+    max-width: 40rem;
+    margin-inline: auto;
+    margin-bottom: clamp(2.5rem, 5vw, 3.5rem);
+  }
+
+  .dim {
+    color: var(--ink-3);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: clamp(2rem, 5vw, 4rem);
+    align-items: center;
+  }
+
+  .steps {
+    border-top: 1px solid var(--hair);
+  }
+
+  .step {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 1rem;
+    padding: 1.25rem 0;
+    border-bottom: 1px solid var(--hair);
+  }
+
+  .step__n {
+    color: var(--ink-3);
+    padding-top: 0.25rem;
+  }
+
+  .step__t {
+    font-size: 1rem;
+    letter-spacing: -0.02em;
+  }
+
+  .step__b {
+    margin-top: 0.375rem;
+    font-size: 0.875rem;
+    line-height: 1.55;
+    color: var(--ink-2);
+    text-wrap: pretty;
+  }
+
+  @media (max-width: 64rem) {
+    .grid {
+      grid-template-columns: minmax(0, 1fr);
+    }
+    .demo {
+      order: -1;
+    }
+  }
+</style>

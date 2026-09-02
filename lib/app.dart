@@ -55,7 +55,7 @@ class AiUsageMonitorApp extends StatelessWidget {
       ],
       child: Consumer<SettingsService>(
         builder: (context, settings, _) => MaterialApp(
-          title: 'AI Usage Monitor',
+          title: 'DevNotch',
           debugShowCheckedModeBanner: false,
           theme: AppTheme.of(Brightness.light),
           darkTheme: AppTheme.of(Brightness.dark),

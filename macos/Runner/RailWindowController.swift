@@ -46,6 +46,10 @@ final class RailWindowController {
     /// Raised when the window switches between rail and setup panel.
     var onModeChanged: ((RailMode) -> Void)?
 
+    /// The rail's measurements changed, because it moved to a display of a
+    /// different size. Flutter has to re-read them.
+    var onMetricsChanged: (() -> Void)?
+
     init(window: RailWindow, slotCount: Int) {
         self.window = window
         self.slotCount = slotCount
@@ -92,6 +96,14 @@ final class RailWindowController {
     private func reposition() {
         guard let screen = targetScreen() else { return }
 
+        // Sized for the display it is about to sit on, before anything is
+        // measured from those metrics. Set here rather than once at launch
+        // because the rail follows the user between monitors, and a rail
+        // scaled for the laptop looks wrong the moment it moves to the 27-inch.
+        let wanted = RailMetrics.scale(for: screen)
+        let rescaled = abs(wanted - RailMetrics.scale) > 0.001
+        RailMetrics.scale = wanted
+
         let size = RailMetrics.windowSize(slots: slotCount)
         let visible = screen.visibleFrame
 
@@ -119,6 +131,11 @@ final class RailWindowController {
             glass.attach(to: contentView)
         }
         glass.layout(windowSize: size, edge: edge, slots: slotCount)
+
+        // Flutter lays the rail out inside these numbers, so it has to be told
+        // when they change or the rings keep their old size inside a resized
+        // window.
+        if rescaled { onMetricsChanged?() }
     }
 
     @objc private func screensChanged() {

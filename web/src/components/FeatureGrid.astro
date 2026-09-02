@@ -1,0 +1,160 @@
+---
+import { FEATURES } from '../config/site';
+
+/**
+ * Eight items, 4 x 2. A mark on top, a two-line bold label under it, nothing
+ * else — the reference carries no body copy here and neither does this.
+ */
+---
+
+<section class="feat section" id="features">
+  <div class="wrap">
+    <ul class="grid">
+      {
+        FEATURES.map((f) => (
+          <li class="item">
+            <div class="art" aria-hidden="true">
+              {f.art === 'rings' && (
+                <svg viewBox="0 0 60 32" width="60" height="32">
+                  <circle cx="10" cy="16" r="8" fill="none" stroke="currentColor" stroke-width="2.6" opacity="0.22" />
+                  <path d="M10 8a8 8 0 0 1 6.9 12" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
+                  <circle cx="30" cy="16" r="8" fill="none" stroke="currentColor" stroke-width="2.6" opacity="0.22" />
+                  <path d="M30 8a8 8 0 0 1 4 1.1" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
+                  <circle cx="50" cy="16" r="8" fill="none" stroke="currentColor" stroke-width="2.6" opacity="0.22" />
+                  <path d="M50 8a8 8 0 1 1-6.6 12.5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
+                </svg>
+              )}
+
+              {f.art === 'sliver' && (
+                <svg viewBox="0 0 40 32" width="40" height="32">
+                  <rect x="4" y="4" width="32" height="24" rx="5" fill="none" stroke="currentColor" stroke-width="2.2" opacity="0.3" />
+                  <rect x="6.5" y="10" width="3.5" height="12" rx="1.75" fill="currentColor" />
+                </svg>
+              )}
+
+              {f.art === 'menubar' && (
+                <svg viewBox="0 0 40 32" width="40" height="32">
+                  <rect x="3" y="6" width="34" height="20" rx="4" fill="none" stroke="currentColor" stroke-width="2.2" opacity="0.3" />
+                  <rect x="3" y="6" width="34" height="7" rx="3.5" fill="currentColor" opacity="0.9" />
+                  <rect x="28" y="8.4" width="6" height="2.2" rx="1.1" fill="var(--paper)" />
+                </svg>
+              )}
+
+              {f.art === 'spark' && (
+                <svg viewBox="0 0 44 32" width="44" height="32">
+                  <polyline points="3,25 11,20 17,22 24,12 31,15 41,5" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+                  <circle cx="41" cy="5" r="3" fill="currentColor" />
+                </svg>
+              )}
+
+              {f.art === 'grade' && (
+                <svg viewBox="0 0 40 32" width="40" height="32">
+                  <rect x="4" y="5" width="32" height="6" rx="3" fill="currentColor" />
+                  <rect x="4" y="14" width="24" height="6" rx="3" fill="currentColor" opacity="0.55" />
+                  <rect x="4" y="23" width="15" height="6" rx="3" fill="currentColor" opacity="0.28" />
+                </svg>
+              )}
+
+              {f.art === 'key' && (
+                <svg viewBox="0 0 40 32" width="40" height="32">
+                  <circle cx="14" cy="16" r="7" fill="none" stroke="currentColor" stroke-width="2.4" />
+                  <path d="M21 16h14M31 16v5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+                  <path d="M5 27 35 5" stroke="var(--crit)" stroke-width="2.6" stroke-linecap="round" />
+                </svg>
+              )}
+
+              {f.art === 'edges' && (
+                <svg viewBox="0 0 52 32" width="52" height="32">
+                  <rect x="2" y="5" width="22" height="22" rx="4" fill="none" stroke="currentColor" stroke-width="2.2" opacity="0.3" />
+                  <rect x="4.2" y="11" width="3" height="10" rx="1.5" fill="currentColor" />
+                  <rect x="28" y="5" width="22" height="22" rx="4" fill="none" stroke="currentColor" stroke-width="2.2" opacity="0.3" />
+                  <rect x="44.8" y="11" width="3" height="10" rx="1.5" fill="currentColor" />
+                </svg>
+              )}
+
+              {f.art === 'swift' && (
+                <svg viewBox="0 0 32 32" width="32" height="32">
+                  <path d="M18 3 7 18h7l-2 11 12-15h-7l1-11Z" fill="currentColor" />
+                </svg>
+              )}
+            </div>
+
+            <h3 class="label">
+              <span>{f.label[0]}</span>
+              <span class:list={['l2', f.circled && 'circled']}>
+                {f.label[1]}
+                {f.circled && (
+                  <svg class="ring" viewBox="0 0 120 44" preserveAspectRatio="none" aria-hidden="true">
+                    <ellipse
+                      cx="60" cy="22" rx="56" ry="18"
+                      fill="none" stroke="var(--pink)" stroke-width="2.4"
+                      stroke-linecap="round"
+                      stroke-dasharray="230" stroke-dashoffset="18"
+                      transform="rotate(-4 60 22)"
+                    />
+                  </svg>
+                )}
+              </span>
+            </h3>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+</section>
+
+<style>
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: clamp(2rem, 4vw, 3.5rem) 1rem;
+  }
+
+  .item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    min-width: 0;
+  }
+
+  .art {
+    height: 34px;
+    display: flex;
+    align-items: center;
+    color: var(--ink);
+    margin-bottom: 1rem;
+  }
+
+  .label {
+    font-size: clamp(0.9375rem, 1.5vw, 1.0625rem);
+    line-height: 1.28;
+    letter-spacing: -0.02em;
+  }
+
+  .label span {
+    display: block;
+  }
+
+  /* The reference marks exactly one item with a hand-drawn ring. */
+  .circled {
+    position: relative;
+    display: inline-block !important;
+    padding: 0.1em 0.45em;
+  }
+
+  .ring {
+    position: absolute;
+    inset: -0.28em -0.1em;
+    width: calc(100% + 0.2em);
+    height: calc(100% + 0.56em);
+    overflow: visible;
+    z-index: -1;
+  }
+
+  @media (max-width: 56rem) {
+    .grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+</style>

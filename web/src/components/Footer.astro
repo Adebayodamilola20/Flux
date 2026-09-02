@@ -1,0 +1,97 @@
+---
+import { PRODUCT, GITHUB, DOWNLOAD_PATH } from '../config/site';
+import Icon from './Icon.astro';
+
+const year = new Date().getFullYear();
+---
+
+<footer class="foot">
+  <div class="wrap center">
+    <a class="btn btn--primary btn--lg" href={DOWNLOAD_PATH}>
+      <Icon name="apple" size={18} />
+      Download for Mac
+    </a>
+
+    <ul class="social" aria-label="Links">
+      <li>
+        <a
+          class="soc"
+          href={GITHUB.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="DevNotch on GitHub"
+        >
+          <Icon name="github" size={16} />
+        </a>
+      </li>
+      <li>
+        <a
+          class="soc"
+          href={GITHUB.issuesUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Report an issue"
+        >
+          <Icon name="star" size={15} />
+        </a>
+      </li>
+    </ul>
+
+    <p class="legal">© {year} {PRODUCT.author} · {PRODUCT.license}</p>
+  </div>
+
+  <!-- The reference closes on an oversized, barely-there wordmark. -->
+  <div class="wordmark" aria-hidden="true">{PRODUCT.name}</div>
+</footer>
+
+<style>
+  .foot {
+    padding-top: clamp(3rem, 7vw, 5.5rem);
+    overflow: clip;
+  }
+
+  .social {
+    margin-top: 2rem;
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+  }
+
+  .soc {
+    display: grid;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    border-radius: var(--r);
+    background: rgba(20, 24, 27, 0.05);
+    color: var(--ink-2);
+    text-decoration: none;
+    transition:
+      background-color var(--fast) var(--ease-out),
+      color var(--fast) var(--ease-out);
+  }
+
+  .soc:hover {
+    background: var(--teal-tint);
+    color: var(--teal-ink);
+  }
+
+  .legal {
+    margin-top: 1.25rem;
+    font-size: 0.8125rem;
+    color: var(--ink-3);
+  }
+
+  .wordmark {
+    margin-top: clamp(1rem, 3vw, 2rem);
+    text-align: center;
+    font-size: clamp(5rem, 22vw, 18rem);
+    font-weight: 700;
+    letter-spacing: -0.05em;
+    line-height: 0.82;
+    color: rgba(20, 24, 27, 0.055);
+    user-select: none;
+    /* Cropped by the page edge, as the reference does. */
+    margin-bottom: -0.18em;
+  }
+</style>

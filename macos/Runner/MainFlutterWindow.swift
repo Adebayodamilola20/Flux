@@ -37,6 +37,10 @@ class MainFlutterWindow: RailWindow {
             slotCount: MainFlutterWindow.slotCount
         )
 
+        rail.onMetricsChanged = { [weak channel] in
+            channel?.notifyMetricsChanged()
+        }
+
         statusItem.onRevealRail = { [weak channel] in
             channel?.requestRevealRail()
         }

@@ -63,6 +63,10 @@ final class NativeChannel {
         channel.invokeMethod("railToggleRequested", arguments: nil)
     }
 
+    func notifyMetricsChanged() {
+        channel.invokeMethod("rail.metricsChanged", arguments: nil)
+    }
+
     func requestRevealRail() {
         channel.invokeMethod("railRevealRequested", arguments: nil)
     }

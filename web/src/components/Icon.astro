@@ -1,0 +1,43 @@
+---
+/**
+ * The small set of marks the site uses. Inline SVG so there is no icon
+ * dependency and no extra request.
+ */
+interface Props {
+  name: 'github' | 'apple' | 'windows' | 'star' | 'arrow';
+  size?: number;
+  class?: string;
+}
+
+const { name, size = 16, class: className } = Astro.props;
+
+const paths: Record<Props['name'], string> = {
+  github:
+    'M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z',
+  apple:
+    'M11.18 8.5c-.02-1.75 1.43-2.6 1.5-2.64-.82-1.2-2.09-1.36-2.54-1.38-1.08-.11-2.11.64-2.66.64-.55 0-1.4-.62-2.3-.61-1.18.02-2.27.69-2.88 1.74-1.23 2.13-.31 5.28.88 7.01.59.85 1.28 1.8 2.19 1.76.88-.03 1.21-.57 2.27-.57s1.36.57 2.29.55c.95-.02 1.55-.86 2.13-1.71.67-.98.95-1.93.96-1.98-.02-.01-1.84-.71-1.86-2.81ZM9.45 3.34c.48-.59.81-1.4.72-2.21-.7.03-1.54.47-2.04 1.05-.45.52-.84 1.35-.74 2.14.78.06 1.58-.4 2.06-.98Z',
+  windows:
+    'M0 2.27 6.53 1.4v6.3H0V2.27Zm7.32-.98L15.99 0v7.62H7.32V1.29ZM0 8.44h6.53v6.31L0 13.86V8.44Zm7.32 0h8.67V16l-8.67-1.2V8.44Z',
+  star: 'M8 1.2 10.06 5.6l4.74.62-3.48 3.3.9 4.72L8 11.95l-4.22 2.29.9-4.72L1.2 6.22l4.74-.62L8 1.2Z',
+  arrow: 'M6 3.5 10.5 8 6 12.5',
+};
+
+const stroked = name === 'arrow';
+---
+
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width={size}
+  height={size}
+  viewBox="0 0 16 16"
+  fill={stroked ? 'none' : 'currentColor'}
+  stroke={stroked ? 'currentColor' : undefined}
+  stroke-width={stroked ? 1.6 : undefined}
+  stroke-linecap={stroked ? 'round' : undefined}
+  stroke-linejoin={stroked ? 'round' : undefined}
+  aria-hidden="true"
+  focusable="false"
+  class={className}
+>
+  <path d={paths[name]} />
+</svg>

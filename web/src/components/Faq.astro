@@ -1,0 +1,127 @@
+---
+import { FAQS, GITHUB } from '../config/site';
+import Icon from './Icon.astro';
+---
+
+<section class="faq section" id="faq">
+  <div class="wrap center">
+    <h2 class="h2">The questions worth<br /><span class="dim">answering honestly.</span></h2>
+
+    <div class="list">
+      {
+        FAQS.map((f, i) => (
+          <details class="item" open={i === 0}>
+            <summary class="q">
+              <span>{f.q}</span>
+              <span class="q__i" aria-hidden="true" />
+            </summary>
+            <p class="a">{f.a}</p>
+          </details>
+        ))
+      }
+    </div>
+
+    <p class="more">
+      Something not covered?
+      <a href={GITHUB.issuesUrl} target="_blank" rel="noopener noreferrer">
+        Open an issue
+        <Icon name="arrow" size={12} />
+      </a>
+    </p>
+  </div>
+</section>
+
+<style>
+  .dim {
+    color: var(--ink-3);
+  }
+
+  .list {
+    margin-top: 3rem;
+    margin-inline: auto;
+    text-align: left;
+    border-top: 1px solid var(--hair);
+    max-width: 56rem;
+  }
+
+  .item {
+    border-bottom: 1px solid var(--hair);
+  }
+
+  .q {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.5rem 0;
+    font-size: 1.125rem;
+    font-weight: 550;
+    letter-spacing: -0.02em;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  .q::-webkit-details-marker {
+    display: none;
+  }
+
+  .q:hover {
+    color: var(--ink-2);
+  }
+
+  /* A plus that becomes a minus. Rotation only — no layout animation. */
+  .q__i {
+    position: relative;
+    flex: none;
+    width: 14px;
+    height: 14px;
+  }
+
+  .q__i::before,
+  .q__i::after {
+    content: '';
+    position: absolute;
+    inset: 50% 0 auto 0;
+    height: 1.5px;
+    background: var(--ink-3);
+    border-radius: 1px;
+    transition: transform var(--mid) var(--ease-out);
+  }
+
+  .q__i::after {
+    transform: rotate(90deg);
+  }
+
+  .item[open] .q__i::after {
+    transform: rotate(0deg);
+  }
+
+  .a {
+    padding-bottom: 1.5rem;
+    max-width: 62ch;
+    font-size: 0.875rem;
+    line-height: 1.62;
+    color: var(--ink-2);
+    text-wrap: pretty;
+  }
+
+  .more {
+    margin-top: 2rem;
+    font-size: 0.875rem;
+    color: var(--ink-3);
+  }
+
+  .more a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(20, 24, 27, 0.22);
+    padding-bottom: 1px;
+  }
+
+  .more a:hover {
+    border-color: var(--ink);
+  }
+</style>
