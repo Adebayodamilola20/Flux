@@ -248,6 +248,10 @@ class NativeBridge {
   /// the rail back, it never takes it away.
   void Function()? onRailRevealRequested;
 
+  /// The rail's measurements changed, because it moved to a display of a
+  /// different size.
+  void Function()? onMetricsChanged;
+
   /// A provider's browser sign-in came back through the registered URL scheme.
   void Function(Uri url)? onAuthCallback;
 
@@ -268,6 +272,8 @@ class NativeBridge {
         onRailToggleRequested?.call();
       case 'railRevealRequested':
         onRailRevealRequested?.call();
+      case 'rail.metricsChanged':
+        onMetricsChanged?.call();
       case 'auth.callback':
         final raw = args?['url'];
         if (raw is String) {
