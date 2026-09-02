@@ -45,15 +45,15 @@ void main() {
       expect(window.source, UsageSource.officialApi);
     });
 
-    test('names the window in days rather than minutes', () {
+    test('names the window by the span it covers', () {
       // 43200 minutes is the real value, and it means 30 days.
       final reading = CodexUsageSource.parse(rateLimits());
-      expect(reading.windows.single.label, 'Codex allowance (30 days)');
+      expect(reading.windows.single.label, 'Monthly limit');
     });
 
     test('labels shorter windows in hours', () {
       final reading = CodexUsageSource.parse(rateLimits(windowMinutes: 300));
-      expect(reading.windows.single.label, contains('5 hours'));
+      expect(reading.windows.single.label, '5-hour limit');
     });
 
     test('reports the plan the account is on', () {
@@ -97,7 +97,14 @@ void main() {
       );
 
       expect(reading.windows, hasLength(2));
-      expect(reading.windows.last.label, contains('7 days'));
+      expect(reading.windows.last.label, 'Weekly limit');
+
+      // The two windows have to be told apart on a card that truncates. Naming
+      // both after the allowance put the same row on screen twice.
+      expect(
+        reading.windows.first.label,
+        isNot(reading.windows.last.label),
+      );
     });
   });
 

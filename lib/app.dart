@@ -10,6 +10,7 @@ import 'services/shell_controller.dart';
 import 'services/usage_controller.dart';
 import 'ui/panel/provider_detail_view.dart';
 import 'ui/panel/provider_connect_view.dart';
+import 'ui/panel/onboarding_view.dart';
 import 'ui/panel/settings_view.dart';
 import 'ui/panel/slot_picker_view.dart';
 import 'ui/rail/rail_shell.dart';
@@ -81,6 +82,7 @@ class _SurfaceRouter extends StatelessWidget {
             shell.detailProviderId ?? context.read<ProviderRegistry>().all.first.id,
       ),
       ShellSurface.settings => const SettingsView(),
+      ShellSurface.onboarding => const OnboardingView(),
       ShellSurface.slotPicker => const SlotPickerView(),
       ShellSurface.providerDetail => ProviderDetailView(
           // The router only reaches this surface via `openPanel`, which always

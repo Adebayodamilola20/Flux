@@ -279,9 +279,7 @@ class CodexUsageSource {
 
     return UsageWindow(
       id: 'codex_$key',
-      label: minutes is num
-          ? 'Codex allowance (${_windowLabel(minutes)})'
-          : 'Codex allowance',
+      label: minutes is num ? _limitLabel(minutes) : 'Codex allowance',
       consumed: used.clamp(0, 100),
       limit: 100,
       unit: '%',
@@ -297,17 +295,27 @@ class CodexUsageSource {
     );
   }
 
-  /// `43200` minutes reads as "30 days", not as a number of minutes.
-  static String _windowLabel(num minutes) {
+  /// Names a window by the span it covers.
+  ///
+  /// OpenAI reports two buckets — a short rolling window and a long one — and
+  /// naming both after the thing they measure produced two rows reading
+  /// "Codex allowance (…)". The card truncates, so they arrived on screen as
+  /// the same row twice. The span is what actually tells them apart, so it is
+  /// what the label leads with, short enough to survive the truncation.
+  static String _limitLabel(num minutes) {
     if (minutes >= 1440 && minutes % 1440 == 0) {
-      final days = minutes ~/ 1440;
-      return days == 1 ? '1 day' : '$days days';
+      return switch (minutes ~/ 1440) {
+        1 => 'Daily limit',
+        7 => 'Weekly limit',
+        30 => 'Monthly limit',
+        final days => '$days-day limit',
+      };
     }
     if (minutes >= 60 && minutes % 60 == 0) {
       final hours = minutes ~/ 60;
-      return hours == 1 ? '1 hour' : '$hours hours';
+      return hours == 1 ? 'Hourly limit' : '$hours-hour limit';
     }
-    return '${minutes.toInt()} min';
+    return '${minutes.toInt()}-minute limit';
   }
 
   /// A human label for the ChatGPT plan Codex reported.

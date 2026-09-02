@@ -29,7 +29,10 @@ enum ShellSurface {
   providerDetail,
 
   /// Choosing which provider fills an empty rail position.
-  slotPicker;
+  slotPicker,
+
+  /// First run, before the widget has ever been shown.
+  onboarding;
 
   /// True for surfaces that need a centred, focusable window.
   bool get isPanel => this != ShellSurface.rail;
@@ -72,6 +75,11 @@ class ShellController extends ChangeNotifier {
   static const Size settingsSize = Size(760, 600);
   static const Size detailSize = Size(520, 560);
   static const Size slotPickerSize = Size(460, 460);
+
+  /// Taller than it is wide. The first-run pages are a name, a sentence and a
+  /// button — laid out at the width of the settings panel they would be a
+  /// short line of text stranded in a lot of empty space.
+  static const Size onboardingSize = Size(440, 660);
 
   final NativeBridge _native;
   final SettingsService _settingsService;
@@ -118,7 +126,7 @@ class ShellController extends ChangeNotifier {
     await _applyPlacement(force: true);
 
     if (!_settings.onboardingComplete) {
-      await openPanel(ShellSurface.settings);
+      await openPanel(ShellSurface.onboarding);
       return;
     }
 
@@ -163,6 +171,7 @@ class ShellController extends ChangeNotifier {
     ShellSurface.settings => settingsSize,
     ShellSurface.providerDetail => detailSize,
     ShellSurface.slotPicker => slotPickerSize,
+    ShellSurface.onboarding => onboardingSize,
     ShellSurface.rail => connectSize,
   };
 

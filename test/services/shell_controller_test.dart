@@ -54,13 +54,13 @@ void main() {
   });
 
   group('startup surface', () {
-    test('opens the settings-sized get started panel on a first run', () async {
+    test('opens the onboarding panel on a first run', () async {
       await boot();
       await shell.start();
 
-      expect(shell.surface, ShellSurface.settings);
+      expect(shell.surface, ShellSurface.onboarding);
       expect(native.isPanelVisible, isTrue);
-      expect(native.panelSizes.last, ShellController.settingsSize);
+      expect(native.panelSizes.last, ShellController.onboardingSize);
     });
 
     test('goes straight to the rail once onboarding is done', () async {
@@ -79,7 +79,7 @@ void main() {
       await usage.start();
       await shell.start();
 
-      expect(shell.surface, ShellSurface.settings);
+      expect(shell.surface, ShellSurface.onboarding);
       expect(native.isPanelVisible, isTrue);
     });
 
