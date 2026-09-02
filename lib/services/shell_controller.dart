@@ -53,7 +53,7 @@ class ShellController extends ChangeNotifier {
       ..onExpansionChanged = _handleExpansionChanged
       ..onModeChanged = _handleModeChanged
       ..onRefreshRequested = _handleRefreshRequested
-      ..onRailToggleRequested = toggleRailVisibility
+      ..onRailToggleRequested = hideRailFromMenu
       ..onRailRevealRequested = revealRail
       // Braced deliberately: an arrow body would swallow the following
       // cascade into the closure.
@@ -181,6 +181,19 @@ class ShellController extends ChangeNotifier {
             pinnedOpen: !_settings.railExpansion.autoCollapses,
           )
         : await _native.hideRail();
+  }
+
+  /// Takes the rail off screen, because the user chose "Hide Rail".
+  ///
+  /// Distinct from [toggleRailVisibility]: a menu item that says Hide must
+  /// hide. Toggling behind that label is how a second click on what looked
+  /// like the same action brought the rail back and made the state
+  /// unpredictable.
+  Future<void> hideRailFromMenu() async {
+    if (_settings.railVisible) {
+      await _settingsService.update(_settings.copyWith(railVisible: false));
+    }
+    if (_surface == ShellSurface.rail) await _native.hideRail();
   }
 
   /// Brings the rail back and opens it.

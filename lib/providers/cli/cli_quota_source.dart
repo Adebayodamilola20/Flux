@@ -138,9 +138,13 @@ class CliQuotaSource {
   /// is re-taken. This is what makes a figure move after a session instead of
   /// sitting at its last value until [ttl] happens to expire — the complaint
   /// that "I just used it and it still shows the same number".
+  /// Why a reading was not taken because nobody asked for one.
+  static const CliQuotaFailure notChecked = CliQuotaFailure.noPanel;
+
   Future<CliQuotaSourceReading> read({
     bool force = false,
     DateTime? staleIfOlderThan,
+    bool allowLaunch = true,
   }) {
     if (!force) {
       final cached = _cached;
@@ -160,6 +164,21 @@ class CliQuotaSource {
           DateTime.now().difference(failure.$2) < failureTtl) {
         return Future.value(CliQuotaSourceReading.failed(failure.$1));
       }
+    }
+
+    // Starting the CLI is not a background action.
+    //
+    // Driving these tools means launching the real thing, and a tool that
+    // decides it needs to authenticate opens the provider's sign-in page in
+    // the user's browser. On a refresh timer that becomes a browser window
+    // appearing out of nowhere, repeatedly, while the user is doing something
+    // else — which is what happened. So a launch only ever happens because the
+    // user asked: adding the provider, or pressing Refresh. A scheduled poll
+    // serves what is already cached and otherwise reports nothing.
+    if (!allowLaunch) {
+      final cached = _cached;
+      if (cached != null && cached.hasUsage) return Future.value(cached);
+      return Future.value(const CliQuotaSourceReading.failed(notChecked));
     }
 
     // A second caller during a probe gets the same run, not a second CLI.
