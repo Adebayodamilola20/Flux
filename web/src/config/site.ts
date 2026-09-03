@@ -85,7 +85,7 @@ export const DOWNLOADS: DownloadTarget[] = [
     url: GITHUB.macAssetUrl,
     available: true,
     supported: true,
-    status: `${PRODUCT.version} · 18 MB`,
+    status: `${PRODUCT.version} · 18.3 MB`,
     // Says the one thing a first-time download needs to know. The build is
     // ad-hoc signed, so Gatekeeper refuses it on a plain double-click, and a
     // download page that does not mention that produces a user who thinks the
