@@ -113,6 +113,40 @@ void main() {
     });
   });
 
+  group('the settings control', () {
+    const metrics = RailMetrics.fallback;
+
+    test('sits past the end of a top rail, not below it', () {
+      // Below a top rail is where the hover card goes, so the control would
+      // have stacked with it. Past the trailing end is the same relationship
+      // it has to a side rail, turned through ninety degrees.
+      final railRight =
+          (metrics.windowWidth - metrics.railLength(true)) / 2 +
+              metrics.railLength(true);
+
+      expect(metrics.settingsButtonLeft(3), closeTo(railRight - 4, 1));
+    });
+
+    test('is centred on the rail it belongs to', () {
+      // Measured off the rail's own depth. Reading a side rail's width here
+      // put it through the rings.
+      expect(
+        metrics.settingsButtonCrossCenter(),
+        metrics.shadowPadding + metrics.railThickness(true) / 2,
+      );
+    });
+
+    test('and stays inside the window', () {
+      // The window is sized to include it; if this ever fails the control is
+      // off the edge of the surface and simply cannot be seen — which is how
+      // it went missing.
+      expect(
+        metrics.settingsButtonLeft(3) + metrics.settingsButtonSize,
+        lessThanOrEqualTo(metrics.windowWidth),
+      );
+    });
+  });
+
   group('where the card is anchored', () {
     const metrics = RailMetrics.fallback;
 

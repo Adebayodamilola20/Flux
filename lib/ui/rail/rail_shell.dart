@@ -214,10 +214,18 @@ class _SettingsLayer extends StatelessWidget {
     final sideOffset =
         metrics.shadowPadding + (metrics.collapsedWidth - controlSize) / 2;
 
+    // Below a side rail, past the trailing end of a top one. A top rail has
+    // nothing below it but the hover card, so putting the control there would
+    // stack the two — and measuring it down the window, as a side rail does,
+    // put it well past the rail entirely, where it could not be seen at all.
     return Positioned(
-      top: metrics.settingsButtonTop(slotCount) - 4,
-      left: onRight ? null : sideOffset,
-      right: onRight ? sideOffset : null,
+      top: fromTop
+          ? metrics.settingsButtonCrossCenter() - controlSize / 2
+          : metrics.settingsButtonTop(slotCount) - 4,
+      left: fromTop
+          ? metrics.settingsButtonLeft(slotCount) - 4
+          : (onRight ? null : sideOffset),
+      right: fromTop ? null : (onRight ? sideOffset : null),
       child: IgnorePointer(
         ignoring: !enabled,
         child: FadeTransition(
