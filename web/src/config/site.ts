@@ -38,6 +38,17 @@ export const GITHUB = {
   releasesUrl: 'https://github.com/Adebayodamilola20/Flux/releases',
   licenseUrl: 'https://github.com/Adebayodamilola20/Flux/blob/main/LICENSE',
   readmeUrl: 'https://github.com/Adebayodamilola20/Flux#readme',
+  /**
+   * The current release, and the macOS asset on it.
+   *
+   * A release asset rather than a file in `public/`: the site stays static and
+   * deployable anywhere, and an 18 MB binary per version does not accumulate
+   * in the repository. Nothing here needs a server — the link is a redirect
+   * GitHub serves.
+   */
+  latestTag: 'v1.0.0',
+  macAssetUrl:
+    'https://github.com/Adebayodamilola20/Flux/releases/download/v1.0.0/DevNotch-1.0.0.dmg',
 } as const;
 
 /**
@@ -71,12 +82,16 @@ export const DOWNLOADS: DownloadTarget[] = [
     id: 'macos',
     label: 'macOS',
     detail: 'Apple silicon & Intel',
-    url: null,
-    available: false,
+    url: GITHUB.macAssetUrl,
+    available: true,
     supported: true,
-    status: 'Release pending',
-    note: 'The app is built and runs — no binary has been published yet. Run it from source below.',
-    watch: { label: 'Watch for the first release', url: GITHUB.releasesUrl },
+    status: `${PRODUCT.version} · 18 MB`,
+    // Says the one thing a first-time download needs to know. The build is
+    // ad-hoc signed, so Gatekeeper refuses it on a plain double-click, and a
+    // download page that does not mention that produces a user who thinks the
+    // app is broken.
+    note: 'Universal build for Apple silicon and Intel. Not notarised yet — right-click the app and choose Open the first time.',
+    watch: { label: 'Release notes', url: GITHUB.releasesUrl },
   },
   {
     id: 'windows',
