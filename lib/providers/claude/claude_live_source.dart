@@ -222,7 +222,7 @@ class ClaudeLiveUsageSource {
       return (null, ClaudeLiveFailure.badResponse);
     }
 
-    final reading = _parse(response.body);
+    final reading = _carryForward(_parse(response.body));
     if (reading == null) return (null, ClaudeLiveFailure.badResponse);
     return (reading, null);
   }
@@ -351,6 +351,9 @@ class ClaudeLiveUsageSource {
   /// dialog, or who has since signed in to Claude Code, should not have to wait
   /// out [keychainBackoff] to try again.
   void reset() {
+    // Including the carried windows: a figure held from the previous account
+    // would be somebody else's.
+    _lastGood = null;
     _token = null;
     _seenStamp = null;
     _tokenReadAt = null;
@@ -388,6 +391,61 @@ class ClaudeLiveUsageSource {
           : null,
     );
   }
+
+  /// The last response that carried the most windows, so a partial one does
+  /// not look like a window that ceased to exist.
+  ClaudeLiveReading? _lastGood;
+
+  /// Fills in any window this response left out, from the last one that had it.
+  ///
+  /// Anthropic sometimes returns a bucket with no numeric `utilization`. The
+  /// parser cannot make a window from that, so the window was dropped and the
+  /// card simply stopped listing "This week" — with nothing said about why. A
+  /// quota does not cease to exist between two polls; only the figure for it
+  /// went missing, and the honest thing is to keep showing the last one.
+  ///
+  /// The carried window keeps the time it was actually measured, so the ring
+  /// marks it as not current rather than passing it off as this poll's answer.
+  ClaudeLiveReading? _carryForward(ClaudeLiveReading? reading) {
+    if (reading == null || !reading.hasUsage) return reading;
+
+    final previous = _lastGood;
+    var result = reading;
+
+    if (previous != null) {
+      final present = reading.windows.map((w) => w.id).toSet();
+      final missing = [
+        for (final old in previous.windows)
+          if (!present.contains(old.id))
+            old.copyWith(observedAt: old.observedAt ?? previous.fetchedAt),
+      ];
+
+      if (missing.isNotEmpty) {
+        _log.info('the live response omitted '
+            '${missing.map((w) => w.id).join(', ')}; keeping the last figure');
+        result = ClaudeLiveReading(
+          windows: [...reading.windows, ...missing]
+            ..sort((a, b) => _order(a.id).compareTo(_order(b.id))),
+          fetchedAt: reading.fetchedAt,
+        );
+      }
+    }
+
+    // Only a response that carried at least as much becomes the new baseline.
+    // Otherwise one short response would quietly redefine the expected shape
+    // and the missing window would never come back.
+    if (reading.windows.length >= (previous?.windows.length ?? 0)) {
+      _lastGood = reading;
+    }
+    return result;
+  }
+
+  /// Session before week, the order the card reads in.
+  static int _order(String id) => switch (id) {
+        'five_hour' => 0,
+        'seven_day' => 1,
+        _ => 2,
+      };
 
   /// Parses the live response into windows.
   ///

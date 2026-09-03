@@ -64,11 +64,33 @@ final class RailWindowController {
             name: NSApplication.didChangeScreenParametersNotification,
             object: nil
         )
+
+        // Put the rail back if the system takes it away.
+        //
+        // Nothing re-asserted the window after `showRail` ordered it front, so
+        // anything that ordered it out — switching Spaces, a full-screen app
+        // taking over, the display waking — left it gone with no way back
+        // except the menu bar. The widget is supposed to be there; if it is
+        // meant to be visible and is not, that is a fault to correct rather
+        // than a state to sit in.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(spaceChanged),
+            name: NSWorkspace.activeSpaceDidChangeNotification,
+            object: nil
+        )
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(spaceChanged),
+            name: NSWorkspace.didActivateApplicationNotification,
+            object: nil
+        )
     }
 
     deinit {
         removeMonitors()
         NotificationCenter.default.removeObserver(self)
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
     }
 
     // MARK: - Placement
@@ -171,6 +193,19 @@ final class RailWindowController {
     @objc private func screensChanged() {
         guard isRailVisible, window.mode == .rail else { return }
         reposition()
+    }
+
+    /// Re-asserts the rail after the system has had a chance to hide it.
+    ///
+    /// Only when it is supposed to be on screen, and only if it is not: this
+    /// never overrides the user's own choice to hide it, and ordering an
+    /// already-visible window front would steal it from whatever the user has
+    /// just switched to.
+    @objc private func spaceChanged() {
+        guard isRailVisible, window.mode == .rail else { return }
+        guard !window.isVisible else { return }
+        window.isPresentationAllowed = true
+        window.orderFront(nil)
     }
 
     // MARK: - Rail visibility
