@@ -214,6 +214,15 @@ enum PtySession {
         let settleAfterLastStep: TimeInterval = 6
         var settleDeadline: Date?
 
+        // Once the panel has drawn numbers and the CLI has gone quiet, there
+        // is nothing left to wait for. Holding the session open for the full
+        // settle regardless meant every refresh cost the same worst case even
+        // when the answer had already arrived — which is most of what made
+        // pressing Refresh feel like it had hung.
+        let quietEnough: TimeInterval = 1.5
+        var lastByteAt = Date()
+        var sawFigures = false
+
         var buffer = [UInt8](repeating: 0, count: 65536)
 
         while Date() < deadline {
@@ -228,6 +237,10 @@ enum PtySession {
                 let count = read(master, &buffer, buffer.count)
                 if count > 0 {
                     bytes.append(contentsOf: buffer[0..<count])
+                    lastByteAt = Date()
+                    if !sawFigures {
+                        sawFigures = Self.containsFigures(buffer[0..<count])
+                    }
                 } else {
                     // EOF: the child exited on its own.
                     break
@@ -250,11 +263,41 @@ enum PtySession {
             if let settleDeadline, Date() > settleDeadline {
                 return (bytes, false)
             }
+
+            // Left early only with something to show for it. A quiet terminal
+            // that never drew a figure is a CLI still starting up, or one
+            // waiting on a prompt that was typed too soon — leaving then would
+            // report "no panel" for a session that was about to produce one.
+            if sawFigures,
+               !pending.isEmpty,
+               Date().timeIntervalSince(lastByteAt) > quietEnough {
+                return (bytes, false)
+            }
         }
 
         // Running out of the budget with steps still queued means the CLI never
         // got far enough to accept them — a stalled sign-in, most likely.
         return (bytes, !pending.isEmpty || Date() >= deadline)
+    }
+
+    /// Whether a chunk of terminal output contains a figure — a digit next to
+    /// a percent sign.
+    ///
+    /// Deliberately crude. The native side does not parse these panels and
+    /// must not start; this only answers "has the CLI printed a number yet",
+    /// which is enough to tell a drawn panel from a banner.
+    private static func containsFigures(_ chunk: ArraySlice<UInt8>) -> Bool {
+        var sawDigit = false
+        for byte in chunk {
+            if byte >= 0x30 && byte <= 0x39 {
+                sawDigit = true
+            } else if byte == 0x25 {  // '%'
+                if sawDigit { return true }
+            } else if byte != 0x2E && byte != 0x20 {  // '.' and space
+                sawDigit = false
+            }
+        }
+        return false
     }
 
     private static func terminate(_ process: Process) {

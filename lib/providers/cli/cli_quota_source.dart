@@ -224,7 +224,12 @@ class CliQuotaSource {
       workingDirectory: _probeDirectory(),
       steps: [
         CliProbeStep.confirm(5),
-        CliProbeStep.confirm(9),
+        // Asked twice, early and late. The early attempt is usually swallowed by
+        // the workspace-trust gate, which costs nothing; when it is not, the
+        // panel draws around ten seconds sooner and the probe leaves as soon
+        // as the CLI goes quiet. The later one is the guarantee.
+        CliProbeStep.command(9, usageCommand),
+        CliProbeStep.confirm(11),
         CliProbeStep.command(17, usageCommand),
         CliProbeStep.confirm(20),
       ],
