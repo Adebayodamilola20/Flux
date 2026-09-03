@@ -68,7 +68,39 @@ const CIRC = 2 * Math.PI * R;
   </p>
 
   <div class="screen" data-screen>
-    <div class="desktop"></div>
+    <div class="desktop" aria-hidden="true">
+      <svg class="paper" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id="wpBase" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#04262b" />
+            <stop offset="0.55" stop-color="#06333a" />
+            <stop offset="1" stop-color="#031b21" />
+          </linearGradient>
+          <linearGradient id="wpA" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#12b8a6" stop-opacity="0.85" />
+            <stop offset="1" stop-color="#0b7f8f" stop-opacity="0.25" />
+          </linearGradient>
+          <linearGradient id="wpB" x1="1" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#5fdcc9" stop-opacity="0.75" />
+            <stop offset="1" stop-color="#0d9488" stop-opacity="0.1" />
+          </linearGradient>
+          <linearGradient id="wpC" x1="0" y1="1" x2="1" y2="0">
+            <stop offset="0" stop-color="#0891b2" stop-opacity="0.6" />
+            <stop offset="1" stop-color="#083344" stop-opacity="0" />
+          </linearGradient>
+          <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="46" />
+          </filter>
+        </defs>
+        <rect width="1200" height="700" fill="url(#wpBase)" />
+        <g filter="url(#soft)">
+          <path d="M-120 470C160 330 360 560 640 400s420-190 700-330v760h-1460Z" fill="url(#wpA)" />
+          <path d="M-120 610C200 470 420 660 700 520s360-120 640-240v460h-1460Z" fill="url(#wpB)" />
+          <path d="M-120 250C120 150 340 330 600 230s400-160 720-250v300c-320 130-560 40-820 150S140 380-120 430Z" fill="url(#wpC)" />
+        </g>
+        <ellipse cx="330" cy="620" rx="440" ry="220" fill="#5fdcc9" opacity="0.16" filter="url(#soft)" />
+      </svg>
+    </div>
 
     <div class="menubar" aria-hidden="true">
       <span class="menubar__item">
@@ -236,29 +268,19 @@ const CIRC = 2 * Math.PI * R;
     max-height: 34rem;
   }
 
-  /* A real desktop behind the product, not a suggestion of one — that
-     contrast is what makes the notch read as an object on a screen. */
+  /* A real desktop behind the product — layered ribbons rather than a flat
+     blob wash, so the screen reads as a screen and the notch reads as an
+     object sitting on it. Clipped by both .desktop and .screen. */
   .desktop {
     position: absolute;
     inset: 0;
-    background:
-      radial-gradient(120% 90% at 14% 6%, #14b8a6 0%, transparent 56%),
-      radial-gradient(100% 80% at 86% 20%, #0e7490 0%, transparent 58%),
-      radial-gradient(140% 120% at 48% 118%, #5eead4 0%, transparent 60%),
-      linear-gradient(165deg, #0f766e 0%, #0c4a52 48%, #082f36 100%);
+    overflow: hidden;
   }
 
-  /* Two soft ridges, so the wallpaper has shape rather than being a blur. */
-  .desktop::before,
-  .desktop::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(60% 90% at 20% 100%, rgba(4, 30, 34, 0.75), transparent 60%);
-  }
-
-  .desktop::after {
-    background: radial-gradient(55% 80% at 78% 100%, rgba(6, 40, 46, 0.6), transparent 62%);
+  .paper {
+    width: 100%;
+    height: 100%;
+    display: block;
   }
 
   .menubar {

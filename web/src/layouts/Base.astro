@@ -8,7 +8,19 @@ interface Props {
 }
 
 const { title = SEO.title, description = SEO.description } = Astro.props;
-const canonical = new URL(Astro.url.pathname, Astro.site).href;
+
+/**
+ * Canonical URL.
+ *
+ * `Astro.site` is only defined when `site` is set in astro.config, and it is
+ * absent in some dev contexts — `new URL(path, undefined)` throws "Invalid
+ * URL" and takes the whole page down with it. A missing canonical is a minor
+ * SEO gap; a render crash is not. So it degrades to null and the tags that
+ * need an absolute URL are simply omitted.
+ */
+const canonical = Astro.site
+  ? new URL(Astro.url.pathname, Astro.site).href
+  : null;
 ---
 
 <!doctype html>
@@ -18,7 +30,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={canonical} />
+    {canonical && <link rel="canonical" href={canonical} />}
     <meta name="color-scheme" content="light" />
     <meta name="theme-color" content="#e6f5f1" />
 
@@ -28,7 +40,7 @@ const canonical = new URL(Astro.url.pathname, Astro.site).href;
     <meta property="og:site_name" content={PRODUCT.name} />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
-    <meta property="og:url" content={canonical} />
+    {canonical && <meta property="og:url" content={canonical} />}
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />

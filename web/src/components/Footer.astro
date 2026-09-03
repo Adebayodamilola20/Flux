@@ -1,5 +1,5 @@
 ---
-import { PRODUCT, GITHUB, DOWNLOAD_PATH } from '../config/site';
+import { PRODUCT, GITHUB } from '../config/site';
 import Icon from './Icon.astro';
 
 const year = new Date().getFullYear();
@@ -7,11 +7,8 @@ const year = new Date().getFullYear();
 
 <footer class="foot">
   <div class="wrap center">
-    <a class="btn btn--primary btn--lg" href={DOWNLOAD_PATH}>
-      <Icon name="apple" size={18} />
-      Download for Mac
-    </a>
-
+    <!-- No download CTA here: the nav carries one on every page, and the
+         download page has the card itself a few hundred pixels above. -->
     <ul class="social" aria-label="Links">
       <li>
         <a
@@ -46,12 +43,12 @@ const year = new Date().getFullYear();
 
 <style>
   .foot {
-    padding-top: clamp(3rem, 7vw, 5.5rem);
+    padding-top: clamp(1.5rem, 3vw, 2.5rem);
     overflow: clip;
   }
 
   .social {
-    margin-top: 2rem;
+    margin-top: 0;
     display: flex;
     justify-content: center;
     gap: 0.5rem;

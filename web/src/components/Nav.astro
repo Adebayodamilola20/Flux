@@ -1,6 +1,7 @@
 ---
-import { PRODUCT, GITHUB, NAV_LINKS, DOWNLOAD_PATH } from '../config/site';
+import { PRODUCT, NAV_LINKS, DOWNLOAD_PATH } from '../config/site';
 import Icon from './Icon.astro';
+import GitHubStars from './GitHubStars.astro';
 ---
 
 <header class="bar">
@@ -22,15 +23,7 @@ import Icon from './Icon.astro';
           </a>
         ))
       }
-      <a
-        class="btn btn--ghost btn--sm"
-        href={GITHUB.url}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <Icon name="github" size={15} />
-        GitHub
-      </a>
+      <GitHubStars size="sm" />
     </nav>
 
     <a class="btn btn--soft btn--sm cta" href={DOWNLOAD_PATH}>

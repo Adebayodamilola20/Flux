@@ -1,266 +1,261 @@
 ---
-import { DOWNLOADS, BUILD_FROM_SOURCE, PRODUCT, GITHUB } from '../config/site';
-import Icon from './Icon.astro';
+import { PRIMARY_DOWNLOAD, PRODUCT, GITHUB } from '../config/site';
 
-interface Props {
-  /** Rendered as its own page rather than as a section of the homepage. */
-  standalone?: boolean;
-}
-
-const { standalone = false } = Astro.props;
-
-/** Availability is read from config, never assumed. */
-const anyAvailable = DOWNLOADS.some((d) => d.available && d.url);
+/**
+ * One card, the way the reference does it: the app's own icon, its name, the
+ * minimum OS, the artefact line, and a single button.
+ *
+ * The button is driven entirely by config. While `available` is false there is
+ * no binary to hand over, so it says so rather than linking nowhere — set
+ * `DOWNLOADS[0].url` and `available: true` and this becomes a real download.
+ */
+const d = PRIMARY_DOWNLOAD;
+const ready = d.available && d.url;
 ---
 
-<section class:list={['dl', 'section', standalone && 'dl--page']} id="download">
-  <div class="wrap">
-    <div class="head center">
-      {standalone ? (
-        <h1 class="h2">Download {PRODUCT.name}</h1>
-      ) : (
-        <h2 class="h2">Download {PRODUCT.name}</h2>
-      )}
-      <p class="lede">{PRODUCT.platforms}. Free, and {PRODUCT.license}-licensed.</p>
-    </div>
+<section class="dl">
+  <div class="wrap center">
+    <h1 class="display title">
+      Download {PRODUCT.name}<br />for <span class="mark">Mac</span>
+    </h1>
 
-    <div class="plats">
+    <p class="sub">
+      Once downloaded, run the DMG and move <strong>{PRODUCT.name}</strong> to
+      your Applications folder <em>before</em> launching it.
+    </p>
+
+    <div class="card">
+      <div class="icon" aria-hidden="true">
+        <svg viewBox="0 0 128 128" width="112" height="112" class="appicon">
+          <defs>
+            <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#323a41" />
+              <stop offset="0.55" stop-color="#1b2126" />
+              <stop offset="1" stop-color="#0e1317" />
+            </linearGradient>
+            <linearGradient id="arc" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#5fdcc9" />
+              <stop offset="1" stop-color="#0d9488" />
+            </linearGradient>
+            <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stop-color="#fff" stop-opacity="0.16" />
+              <stop offset="1" stop-color="#fff" stop-opacity="0" />
+            </linearGradient>
+          </defs>
+
+          <!-- Squircle body, with the top highlight a real app icon carries. -->
+          <path
+            d="M64 6c34.6 0 45.4 2.5 52.5 9.5S126 29.4 126 64s-2.5 45.4-9.5 52.5S98.6 126 64 126s-45.4-2.5-52.5-9.5S2 98.6 2 64s2.5-45.4 9.5-52.5S29.4 6 64 6Z"
+            fill="url(#body)"
+          />
+          <path
+            d="M64 6c34.6 0 45.4 2.5 52.5 9.5 5.2 5.2 8.2 13.6 9.2 30.5-8 6-34 10-61.7 10S18.3 52 10.3 46c1-16.9 4-25.3 9.2-30.5C26.6 8.5 29.4 6 64 6Z"
+            fill="url(#gloss)"
+          />
+
+          <!-- The mark: the usage ring, with the notch standing inside it. -->
+          <circle cx="64" cy="66" r="30" fill="none" stroke="#fff" stroke-opacity="0.14" stroke-width="8" />
+          <path
+            d="M64 36a30 30 0 0 1 21.2 51.2"
+            fill="none"
+            stroke="url(#arc)"
+            stroke-width="8"
+            stroke-linecap="round"
+          />
+          <rect x="59.5" y="52" width="9" height="28" rx="4.5" fill="#fff" />
+        </svg>
+      </div>
+
+      <h2 class="name">{PRODUCT.name}</h2>
+      <p class="req">Minimum {PRODUCT.minOS}</p>
+      <p class="meta">DMG · v{PRODUCT.version}{ready ? '' : ' · not yet published'}</p>
+
       {
-        DOWNLOADS.map((d) => (
-          <div class:list={['plat', !d.supported && 'plat--off']}>
-            <div class="plat__head">
-              <Icon name={d.id === 'macos' ? 'apple' : 'windows'} size={18} />
-              <h3 class="plat__name">{d.label}</h3>
-              <span class:list={['tag', d.supported && 'tag--pending']}>{d.status}</span>
-            </div>
-
-            <p class="plat__detail">{d.detail}</p>
-
-            {d.available && d.url ? (
-              <a class="btn btn--primary plat__btn" href={d.url}>
-                Download for {d.label}
-              </a>
-            ) : (
-              <span class="btn btn--disabled plat__btn" aria-disabled="true">
-                {d.supported ? 'No build published yet' : 'Not available'}
-              </span>
-            )}
-
-            <p class="plat__note">{d.note}</p>
-
-            {d.watch && (
-              <a class="plat__watch" href={d.watch.url} target="_blank" rel="noopener noreferrer">
-                {d.watch.label}
-                <Icon name="arrow" size={12} />
-              </a>
-            )}
-          </div>
-        ))
+        ready ? (
+          <a class="btn get" href={d.url} download>
+            <span class="get__arrow">
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                <path d="M8 2v9m0 0 3.5-3.5M8 11 4.5 7.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            Download
+          </a>
+        ) : (
+          <span class="btn get get--off" aria-disabled="true">
+            No build published yet
+          </span>
+        )
       }
     </div>
 
-    {
-      !anyAvailable && (
-        <div class="src">
-          <div class="src__head">
-            <h3 class="src__t">Run it from source</h3>
-            <a class="src__link" href={GITHUB.readmeUrl} target="_blank" rel="noopener noreferrer">
-              Setup guide
-              <Icon name="arrow" size={12} />
-            </a>
-          </div>
-          <p class="src__n">
-            Requires the Flutter SDK and Xcode. Until a release is published, this is
-            how you get it.
-          </p>
-          <pre class="code"><code>{BUILD_FROM_SOURCE.join('\n')}</code></pre>
-        </div>
-      )
-    }
+    <p class="alt">
+      <a
+        href={ready ? GITHUB.releasesUrl : d.watch?.url ?? GITHUB.releasesUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        {ready ? 'All releases' : 'Watch the repo for the first release'}
+      </a>
+    </p>
   </div>
 </section>
 
 <style>
-  /* On its own page the section carries the whole viewport. */
-  .dl--page {
-    padding-top: clamp(3rem, 7vw, 5rem);
-    min-height: 68vh;
+  .dl {
+    padding-block: clamp(3rem, 8vw, 6rem) clamp(4rem, 9vw, 7rem);
   }
 
-
-
-  .head {
-    max-width: 44rem;
+  .title {
+    max-width: 16ch;
     margin-inline: auto;
+    animation: rise 0.6s var(--ease-out) both;
   }
 
-  .dl .lede {
+  .sub {
+    margin: clamp(1.5rem, 3vw, 2.25rem) auto 0;
+    max-width: 40ch;
+    font-size: clamp(1rem, 1.6vw, 1.125rem);
+    line-height: 1.5;
+    color: var(--ink-2);
+    text-wrap: pretty;
+    animation: rise 0.6s var(--ease-out) 90ms both;
+  }
+
+  .sub strong {
+    font-weight: 650;
+    color: var(--ink);
+  }
+
+  .card {
+    margin: clamp(2.5rem, 5vw, 3.5rem) auto 0;
+    width: min(23rem, 100%);
+    padding: 2rem 1.75rem 1.75rem;
+    background: var(--paper-2);
+    border-radius: var(--r-lg);
+    box-shadow: 0 1px 2px rgba(20, 24, 27, 0.04);
+    animation: card-in 0.7s var(--ease-out) 180ms both;
+    transition:
+      transform var(--mid) var(--ease-out),
+      box-shadow var(--mid) var(--ease-out);
+  }
+
+  .card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 14px 40px -14px rgba(20, 24, 27, 0.28);
+  }
+
+  @keyframes card-in {
+    from {
+      opacity: 0;
+      transform: translateY(18px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .icon {
+    display: flex;
+    justify-content: center;
+    filter: drop-shadow(0 14px 26px rgba(20, 24, 27, 0.3));
+    animation: float 5s var(--ease-in-out) infinite;
+  }
+
+  /* A slow drift, so the icon reads as an object rather than a sticker. */
+  @keyframes float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-5px);
+    }
+  }
+
+  .card:hover .icon {
+    animation-play-state: paused;
+  }
+
+  .name {
+    margin-top: 1.25rem;
+    font-size: 1.25rem;
+    letter-spacing: -0.03em;
+  }
+
+  .req {
+    margin-top: 0.375rem;
+    font-size: 0.9375rem;
     color: var(--ink-2);
   }
 
-  .plats {
-    margin-top: 3rem;
-    max-width: 56rem;
-    margin-inline: auto;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
+  .meta {
+    margin-top: 0.25rem;
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--ink-3);
   }
 
-  .plat {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 1.5rem;
-    border: 1px solid var(--hair);
-    border-radius: var(--r);
-    background: var(--paper-2);
-    min-width: 0;
+  .get {
+    margin-top: 1.5rem;
+    width: 100%;
+    background: var(--paper-3);
+    color: var(--ink);
   }
 
-  .plat--off {
+  .get:hover {
+    background: var(--teal);
+    color: #fff;
+  }
+
+  .get__arrow {
+    display: inline-flex;
+  }
+
+  .get:hover .get__arrow {
+    animation: nudge 0.9s var(--ease-in-out) infinite;
+  }
+
+  @keyframes nudge {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(2px);
+    }
+  }
+
+  .get--off {
+    background: transparent;
+    box-shadow: inset 0 0 0 1px var(--hair);
+    color: var(--ink-3);
+    cursor: not-allowed;
+  }
+
+  .get--off:hover {
     background: transparent;
     color: var(--ink-3);
   }
 
-  .plat__head {
-    display: flex;
-    align-items: center;
-    gap: 0.5625rem;
-    flex-wrap: wrap;
-  }
-
-  .plat__name {
-    font-size: 1.125rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-  }
-
-  .tag {
-    padding: 0.125rem 0.4375rem;
-    border: 1px solid var(--hair);
-    border-radius: 999px;
-    font-family: var(--mono);
-    font-size: 0.625rem;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    color: var(--ink-3);
-    white-space: nowrap;
-  }
-
-  .tag--pending {
-    color: #565e06;
-    border-color: rgba(138,153,8,0.35);
-    background: rgba(138,153,8,0.12);
-  }
-
-  .plat__detail {
-    margin-top: 0.375rem;
-    font-size: 0.875rem;
-    color: var(--ink-2);
-  }
-
-  .plat--off .plat__detail {
-    color: var(--ink-3);
-  }
-
-  .plat__btn {
+  .alt {
     margin-top: 1.5rem;
-    width: 100%;
-    max-width: 18rem;
+    font-size: 0.875rem;
+    animation: rise 0.6s var(--ease-out) 300ms both;
   }
 
-  .on-ink .btn--disabled {
-    border-color: rgba(255,255,255,0.12);
-    color: var(--ink-3);
-  }
-
-  .plat__note {
-    margin-top: 0.625rem;
-    font-size: 0.75rem;
-    line-height: 1.5;
-    color: var(--ink-3);
-  }
-
-  .plat__watch {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3125rem;
-    margin-top: 0.625rem;
-    font-size: 0.75rem;
+  .alt a {
     color: var(--ink-2);
     text-decoration: none;
+    border-bottom: 1px solid var(--hair);
+    padding-bottom: 1px;
+    transition:
+      color var(--fast) var(--ease-out),
+      border-color var(--fast) var(--ease-out);
   }
 
-  .plat__watch:hover {
-    color: var(--ink);
-  }
-
-  /* ------------------------------------------------------ build from source */
-
-  .src {
-    margin-top: 1rem;
-    max-width: 56rem;
-    margin-inline: auto;
-    text-align: left;
-    padding: 1.5rem;
-    border: 1px solid var(--hair);
-    border-radius: var(--r);
-  }
-
-  .src__head {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
-
-  .src__t {
-    font-size: 1rem;
-    font-weight: 600;
-    letter-spacing: -0.02em;
-  }
-
-  .src__link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3125rem;
-    font-size: 0.875rem;
-    color: var(--ink-2);
-    text-decoration: none;
-    white-space: nowrap;
-  }
-
-  .src__link:hover {
-    color: var(--ink);
-  }
-
-  .src__n {
-    margin-top: 0.375rem;
-    font-size: 0.875rem;
-    color: var(--ink-2);
-  }
-
-  .code {
-    margin: 1rem 0 0;
-    padding: 1rem;
-    background: #14181b;
-    border: 0;
-    border-radius: var(--r-sm);
-    overflow-x: auto;
-    font-family: var(--mono);
-    font-size: 0.75rem;
-    line-height: 1.8;
-    color: rgba(255,255,255,0.82);
-  }
-
-  @media (max-width: 48rem) {
-    .plats {
-      grid-template-columns: minmax(0, 1fr);
-    }
-    .plat__btn {
-      max-width: none;
-    }
+  .alt a:hover {
+    color: var(--teal-ink);
+    border-color: var(--teal);
   }
 </style>

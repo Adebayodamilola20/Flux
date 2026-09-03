@@ -23,6 +23,8 @@ export const PRODUCT = {
   version: '1.0.0',
   /** From the app's own platform support: only `macos/` exists. */
   platforms: 'macOS 11 or later',
+  /** The bare floor, for the "Minimum …" line on the download card. */
+  minOS: 'macOS 11',
   license: 'MIT',
   author: 'Stephen Adebayo',
 } as const;

@@ -1,7 +1,8 @@
 ---
-import { PRODUCT, GITHUB, DOWNLOAD_PATH } from '../config/site';
+import { PRODUCT, DOWNLOAD_PATH } from '../config/site';
 import Icon from './Icon.astro';
 import NotchDemo from './NotchDemo.astro';
+import GitHubStars from './GitHubStars.astro';
 ---
 
 <section class="hero" id="top">
@@ -19,15 +20,7 @@ import NotchDemo from './NotchDemo.astro';
         <Icon name="apple" size={18} />
         Download for Mac
       </a>
-      <a
-        class="btn btn--soft btn--lg"
-        href={GITHUB.url}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        <Icon name="star" size={16} />
-        Star on GitHub
-      </a>
+      <GitHubStars size="lg" />
     </div>
   </div>
 

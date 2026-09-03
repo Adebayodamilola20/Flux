@@ -6,8 +6,8 @@
  */
 
 :root {
-  /* The reference's warm cream, rendered in teal instead — same lightness
-     band, same "tinted paper" feel, brand hue. */
+  /* Light teal paper, at the same lightness band as the reference's cream.
+     The swipe is a deeper teal than the ground so it still separates. */
   --paper: #e6f5f1;
   --paper-2: #f2faf8;
   --paper-3: #d5ece5;

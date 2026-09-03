@@ -1,0 +1,161 @@
+---
+import { GITHUB } from '../config/site';
+import Icon from './Icon.astro';
+
+/**
+ * The repository's real star count, fetched from the GitHub API in the browser.
+ *
+ * The number is never baked into the build — a static site would go stale the
+ * moment someone starred it. It is fetched on load and cached briefly, so the
+ * count is current without hammering an endpoint that rate-limits
+ * unauthenticated callers at 60 requests an hour.
+ *
+ * If the fetch fails there is deliberately no number: the button falls back to
+ * the word "Star" rather than showing a stale or invented figure.
+ */
+interface Props {
+  /** `sm` for the nav, `lg` for the hero. */
+  size?: 'sm' | 'lg';
+  class?: string;
+}
+
+const { size = 'lg', class: className } = Astro.props;
+---
+
+<a
+  class:list={['gh', `gh--${size}`, className]}
+  href={GITHUB.url}
+  target="_blank"
+  rel="noopener noreferrer"
+  data-gh-stars
+  data-gh-repo={`${GITHUB.owner}/${GITHUB.repo}`}
+  aria-label={`Star ${GITHUB.repo} on GitHub`}
+>
+  <Icon name="github" size={size === 'lg' ? 18 : 15} />
+  <span class="gh__count" data-gh-count>Star</span>
+</a>
+
+<script>
+  const CACHE_KEY = 'devnotch:gh-stars';
+  const TTL = 5 * 60 * 1000;
+
+  /** 27234 -> "27.2k", 1200000 -> "1.2M", 1000 -> "1k", 999 -> "999". */
+  const format = (n: number): string => {
+    const scale = (v: number, suffix: string) =>
+      // Drop a trailing ".0" so 12000 reads "12k", not "12.0k".
+      `${v >= 100 ? Math.round(v) : Number(v.toFixed(1))}${suffix}`;
+    if (n >= 1_000_000) return scale(n / 1_000_000, 'M');
+    if (n >= 1000) return scale(n / 1000, 'k');
+    return String(n);
+  };
+
+  const paint = (count: number) => {
+    document
+      .querySelectorAll<HTMLElement>('[data-gh-count]')
+      .forEach((el) => {
+        el.textContent = format(count);
+        el.dataset.loaded = 'true';
+      });
+  };
+
+  const nodes = document.querySelectorAll<HTMLElement>('[data-gh-stars]');
+  if (nodes.length) {
+    const repo = nodes[0]!.dataset.ghRepo!;
+
+    // Serve the cached figure immediately, then refresh it behind the scenes.
+    let stale = true;
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY);
+      if (raw) {
+        const { count, at, repo: cachedRepo } = JSON.parse(raw);
+        if (cachedRepo === repo && typeof count === 'number') {
+          paint(count);
+          stale = Date.now() - at > TTL;
+        }
+      }
+    } catch {
+      // A blocked or full sessionStorage is not a reason to skip the fetch.
+    }
+
+    if (stale) {
+      fetch(`https://api.github.com/repos/${repo}`, {
+        headers: { Accept: 'application/vnd.github+json' },
+      })
+        .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+        .then((data) => {
+          const count = data?.stargazers_count;
+          if (typeof count !== 'number') return;
+          paint(count);
+          try {
+            sessionStorage.setItem(
+              CACHE_KEY,
+              JSON.stringify({ count, at: Date.now(), repo }),
+            );
+          } catch {
+            // Cache is an optimisation, not a requirement.
+          }
+        })
+        .catch(() => {
+          // Rate-limited or offline. The button keeps saying "Star", which is
+          // true, rather than showing a number we cannot stand behind.
+        });
+    }
+  }
+</script>
+
+<style>
+  .gh {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    white-space: nowrap;
+    border-radius: var(--r);
+    background: rgba(20, 24, 27, 0.06);
+    color: var(--ink);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+    transition:
+      background-color var(--fast) var(--ease-out),
+      transform var(--fast) var(--ease-out);
+  }
+
+  .gh:hover {
+    background: rgba(20, 24, 27, 0.1);
+  }
+
+  .gh:active {
+    transform: translateY(1px);
+  }
+
+  .gh--lg {
+    padding: 1.125rem 1.5rem;
+    font-size: 1rem;
+  }
+
+  .gh--sm {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+  }
+
+  /* Tabular figures so the count does not shift the button as it changes. */
+  .gh__count {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* The number arrives after the icon; fade it rather than snapping it in. */
+  .gh__count[data-loaded='true'] {
+    animation: count-in 0.35s var(--ease-out) both;
+  }
+
+  @keyframes count-in {
+    from {
+      opacity: 0;
+      transform: translateY(-2px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+</style>
