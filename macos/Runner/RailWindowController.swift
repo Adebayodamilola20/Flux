@@ -103,11 +103,8 @@ final class RailWindowController {
         // because the rail follows the user between monitors, and a rail
         // scaled for the laptop looks wrong the moment it moves to the 27-inch.
         let wanted = RailMetrics.scale(for: screen)
-        let boost = edge.isHorizontal ? RailMetrics.topEdgeBoost : 1
         let rescaled = abs(wanted - RailMetrics.scale) > 0.001
-            || abs(boost - RailMetrics.edgeBoost) > 0.001
         RailMetrics.scale = wanted
-        RailMetrics.edgeBoost = boost
 
         let size = RailMetrics.windowSize(slots: slotCount, edge: edge)
         let visible = screen.visibleFrame

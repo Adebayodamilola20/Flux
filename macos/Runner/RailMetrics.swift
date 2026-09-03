@@ -44,26 +44,16 @@ enum RailMetrics {
         return min(max(height / referenceHeight, minScale), maxScale)
     }
 
-    /// Extra size given to a rail hanging from the top of the screen.
-    ///
-    /// A side rail is read out of the corner of the eye, against a bezel the
-    /// user is not looking at. A top one sits under the menu bar, in the part
-    /// of the screen they are already looking at, and at the side rail's
-    /// proportions it reads as a strip of nothing. A multiplier rather than a
-    /// second set of numbers, so it still scales with the display.
-    static let topEdgeBoost: CGFloat = 1.12
-
-    /// Which multiplier the geometry is currently using.
-    ///
-    /// Set alongside `scale` when the rail is positioned, because the two
-    /// answer the same question — how big is this rail — and splitting them
-    /// across two call sites is how one of them gets forgotten.
-    static var edgeBoost: CGFloat = 1
-
     /// Scales a base measurement and lands it on a whole point, so an edge
     /// never falls on a half pixel.
+    ///
+    /// One scale, from the display, whichever edge the rail is on. A top rail
+    /// was briefly drawn larger on the theory that it needs more presence in
+    /// the part of the screen the user is already looking at; in practice it
+    /// just made it bulky next to everything else up there. The rings are the
+    /// same rings wherever the rail is.
     private static func s(_ value: CGFloat) -> CGFloat {
-        (value * scale * edgeBoost).rounded()
+        (value * scale).rounded()
     }
 
     // MARK: - Geometry
@@ -345,7 +335,7 @@ enum RailMetrics {
             "slots": slots,
             // What Flutter draws inside the rail has to grow by the same
             // amount, or a bigger top notch would hold the same small rings.
-            "scale": Double(scale * edgeBoost),
+            "scale": Double(scale),
         ]
     }
 }
