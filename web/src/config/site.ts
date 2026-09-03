@@ -222,7 +222,7 @@ export const FEATURES: Feature[] = [
   { label: ['Local', 'history'], art: 'spark' },
   { label: ['Stated', 'provenance'], art: 'grade' },
   { label: ['Nothing to', 'sign in to'], art: 'key' },
-  { label: ['Either', 'edge'], art: 'edges' },
+  { label: ['Either edge,', 'or the top'], art: 'edges' },
   { label: ['Blazing fast', 'native app'], art: 'swift', circled: true },
 ];
 
@@ -264,7 +264,15 @@ export const FAQS = [
   },
   {
     q: 'Why is Codex’s number sometimes old?',
-    a: 'OpenAI reports the Codex allowance only in the reply to a model request — there is no endpoint to ask. Codex records each figure locally, so DevNotch reads the newest one. Polling would mean spending the allowance in order to measure it, so the card states the reading’s age instead.',
+    a: 'OpenAI reports the Codex allowance only in the reply to a model request — there is no endpoint to ask. Codex records each figure locally, so DevNotch reads the newest one. Polling would mean spending the allowance in order to measure it, so instead the ring marks the figure as unconfirmed and the card says how old it is.',
+  },
+  {
+    q: 'How do I know a number is current?',
+    a: 'A short arc sweeps inside the ring whenever the figure is not a current reading — either the provider could not be reached, or the number is more than fifteen minutes old. The card then shows the figure with its age rather than presenting it as now. An unmarked ring is a reading DevNotch just confirmed.',
+  },
+  {
+    q: 'What happens if I switch accounts in one of the tools?',
+    a: 'The figure changes with it. DevNotch notices the new account and stops counting anything the previous one recorded, so an old allowance is never shown against a new sign-in. For Claude it picks up a fresh login within a few seconds; for Codex, everything logged before the switch is excluded, and until the new account has recorded something the ring shows no number rather than the wrong one.',
   },
   {
     q: 'Does it scrape anything?',
