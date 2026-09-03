@@ -140,7 +140,16 @@ abstract class CliUsageProvider implements UsageProvider {
     if (reading.hasUsage) {
       final observedAt = reading.observedAt;
       return CliUsageReading(
-        windows: reading.windows,
+        // Stamped on every window, not just mentioned in a note underneath.
+        //
+        // These panels are only read when the user asks — driving the CLI
+        // opens a sign-in page if it feels like it, so it cannot run on a
+        // timer — which means the figure on the rail can be hours old. A
+        // number with nothing marking its age reads as current, and the user
+        // compares it against what the CLI prints now and concludes the app
+        // is wrong. It was not wrong; it was old, and said so nowhere the
+        // number was.
+        windows: _stamped(reading.windows, observedAt),
         accountLabel: reading.accountLabel,
         notes: [
           if (reading.planLabel != null) reading.planLabel!,
@@ -165,7 +174,7 @@ abstract class CliUsageProvider implements UsageProvider {
         reading.failure != CliQuotaFailure.notInstalled) {
       final observedAt = previous.observedAt;
       return CliUsageReading(
-        windows: previous.windows,
+        windows: _stamped(previous.windows, observedAt),
         accountLabel: previous.accountLabel,
         notes: [
           if (previous.planLabel != null) previous.planLabel!,
@@ -178,6 +187,15 @@ abstract class CliUsageProvider implements UsageProvider {
     }
 
     return unavailableFor(reading.failure);
+  }
+
+  /// Puts the reading's age on each window it produced.
+  static List<UsageWindow> _stamped(
+    List<UsageWindow> windows,
+    DateTime? observedAt,
+  ) {
+    if (observedAt == null) return windows;
+    return [for (final w in windows) w.copyWith(observedAt: observedAt)];
   }
 
   /// One clause explaining why the figure above is not newer.

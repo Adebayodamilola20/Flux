@@ -128,6 +128,7 @@ class UsageWindow {
     DateTime? resetsAt,
     UsageSource? source,
     num? tokensUsed,
+    DateTime? observedAt,
   }) {
     return UsageWindow(
       id: id ?? this.id,
@@ -137,7 +138,7 @@ class UsageWindow {
       unit: unit ?? this.unit,
       resetsAt: resetsAt ?? this.resetsAt,
       source: source ?? this.source,
-      observedAt: observedAt,
+      observedAt: observedAt ?? this.observedAt,
       tokensUsed: tokensUsed ?? this.tokensUsed,
     );
   }

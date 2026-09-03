@@ -132,6 +132,43 @@ void main() {
     });
   });
 
+  group('how old the figure is', () {
+    test('is stamped on the window, not only footnoted', () async {
+      // The panel is read only when the user asks, so the number on the rail
+      // can be hours old. Antigravity's CLI printed "66% remaining" while the
+      // rail showed 31% used — 66 remaining is 34 used, so the conversion was
+      // right and the *age* was the whole difference. A figure with nothing
+      // marking it reads as current, and the user concludes the app is wrong.
+      final at = DateTime.now().subtract(const Duration(hours: 2));
+      final provider = build(_StubQuotaSource()..succeedWith(at));
+
+      final reading = await provider.readUsage(const AppSettings());
+
+      expect(reading.windows.single.observedAt, at);
+      expect(reading.windows.single.isStale, isTrue);
+    });
+
+    test('and a figure read just now is not called stale', () async {
+      final provider = build(_StubQuotaSource()..succeedWith(DateTime.now()));
+
+      final reading = await provider.readUsage(const AppSettings());
+
+      expect(reading.windows.single.isStale, isFalse);
+    });
+
+    test('the stale fallback carries its age too', () async {
+      final at = DateTime.now().subtract(const Duration(minutes: 40));
+      final source = _StubQuotaSource()..succeedWith(at);
+      final provider = build(source);
+      await provider.readUsage(const AppSettings());
+
+      source.nextFailure = CliQuotaFailure.noPanel;
+      final stale = await provider.readUsage(const AppSettings());
+
+      expect(stale.windows.single.observedAt, at);
+    });
+  });
+
   group('a probe that did not answer', () {
     test('keeps the figure it read earlier', () async {
       // Driving a real CLI under a pseudo-terminal loses to a busy machine
