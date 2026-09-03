@@ -25,7 +25,6 @@ export const PRODUCT = {
   platforms: 'macOS 11 or later',
   /** The bare floor, for the "Minimum …" line on the download card. */
   minOS: 'macOS 11',
-  license: 'MIT',
   author: 'Stephen Adebayo',
 } as const;
 
@@ -110,12 +109,6 @@ export const DOWNLOADS: DownloadTarget[] = [
 
 export const PRIMARY_DOWNLOAD = DOWNLOADS[0]!;
 
-export const BUILD_FROM_SOURCE = [
-  `git clone ${GITHUB.url}.git devnotch`,
-  'cd devnotch',
-  'flutter pub get',
-  'flutter run -d macos',
-] as const;
 
 /**
  * The integrations that exist in `ProviderCatalog.available`, in catalogue
@@ -284,7 +277,7 @@ export const FAQS = [
   },
   {
     q: 'What does it cost?',
-    a: 'Nothing. It is MIT-licensed and the whole source is on GitHub.',
+    a: 'Nothing. DevNotch is free to download and use.',
   },
 ] as const;
 

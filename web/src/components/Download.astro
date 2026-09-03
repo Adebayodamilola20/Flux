@@ -1,5 +1,5 @@
 ---
-import { PRIMARY_DOWNLOAD, PRODUCT, GITHUB } from '../config/site';
+import { PRIMARY_DOWNLOAD, PRODUCT } from '../config/site';
 
 /**
  * One card, the way the reference does it: the app's own icon, its name, the
@@ -93,15 +93,6 @@ const ready = d.available && d.url;
       }
     </div>
 
-    <p class="alt">
-      <a
-        href={ready ? GITHUB.releasesUrl : d.watch?.url ?? GITHUB.releasesUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        {ready ? 'All releases' : 'Watch the repo for the first release'}
-      </a>
-    </p>
   </div>
 </section>
 

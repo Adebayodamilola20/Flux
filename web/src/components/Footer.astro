@@ -1,6 +1,5 @@
 ---
-import { PRODUCT, GITHUB } from '../config/site';
-import Icon from './Icon.astro';
+import { PRODUCT } from '../config/site';
 
 const year = new Date().getFullYear();
 ---
@@ -9,32 +8,8 @@ const year = new Date().getFullYear();
   <div class="wrap center">
     <!-- No download CTA here: the nav carries one on every page, and the
          download page has the card itself a few hundred pixels above. -->
-    <ul class="social" aria-label="Links">
-      <li>
-        <a
-          class="soc"
-          href={GITHUB.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="DevNotch on GitHub"
-        >
-          <Icon name="github" size={16} />
-        </a>
-      </li>
-      <li>
-        <a
-          class="soc"
-          href={GITHUB.issuesUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Report an issue"
-        >
-          <Icon name="star" size={15} />
-        </a>
-      </li>
-    </ul>
 
-    <p class="legal">© {year} {PRODUCT.author} · {PRODUCT.license}</p>
+    <p class="legal">© {year} {PRODUCT.author}</p>
   </div>
 
   <!-- The reference closes on an oversized, barely-there wordmark. -->

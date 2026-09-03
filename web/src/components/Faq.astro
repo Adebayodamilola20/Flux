@@ -1,6 +1,5 @@
 ---
-import { FAQS, GITHUB } from '../config/site';
-import Icon from './Icon.astro';
+import { FAQS } from '../config/site';
 ---
 
 <section class="faq section" id="faq">
@@ -21,13 +20,6 @@ import Icon from './Icon.astro';
       }
     </div>
 
-    <p class="more">
-      Something not covered?
-      <a href={GITHUB.issuesUrl} target="_blank" rel="noopener noreferrer">
-        Open an issue
-        <Icon name="arrow" size={12} />
-      </a>
-    </p>
   </div>
 </section>
 
