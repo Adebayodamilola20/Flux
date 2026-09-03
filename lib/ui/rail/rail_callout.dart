@@ -201,7 +201,7 @@ class RailCallout extends StatelessWidget {
 
     return [
       for (final window in data.windows) ...[
-        _WindowRow(window: window, isReaching: state.isReaching),
+        _WindowRow(window: window, isRetrying: state.isRetrying),
         if (window != data.windows.last) const SizedBox(height: 9),
       ],
     ];
@@ -242,12 +242,13 @@ class _Header extends StatelessWidget {
 /// One quota window, laid out as in the reference: label and reset time on one
 /// line, the bar beneath it, then the percentage.
 class _WindowRow extends StatelessWidget {
-  const _WindowRow({required this.window, this.isReaching = false});
+  const _WindowRow({required this.window, this.isRetrying = false});
 
   final UsageWindow window;
 
-  /// The provider could not be reached, so this figure is the previous one.
-  final bool isReaching;
+  /// The provider could not be reached at all, so there is no figure behind
+  /// this row rather than merely an old one.
+  final bool isRetrying;
 
   @override
   Widget build(BuildContext context) {
@@ -283,7 +284,7 @@ class _WindowRow extends StatelessWidget {
           fraction: fraction,
           color: palette.accentFor(fraction),
           height: 3,
-          indeterminate: fraction == null || isReaching,
+          indeterminate: fraction == null || isRetrying,
         ),
         const SizedBox(height: 4),
         Text(
@@ -293,7 +294,7 @@ class _WindowRow extends StatelessWidget {
             // Says the figure is being fetched rather than presenting the last
             // one as current. The rail showed 26% while Claude's own menu bar
             // showed 31%, with nothing on screen to say which was live.
-            if (isReaching)
+            if (isRetrying)
               'Connecting…'
             else
               percent == null

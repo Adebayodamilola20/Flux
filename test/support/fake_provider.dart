@@ -46,6 +46,10 @@ class FakeProvider implements UsageProvider {
   /// When set, the next fetch throws this instead of returning data.
   UsageFailure? failure;
 
+  /// When the *provider* measured the figure, as distinct from when this
+  /// fetched it. Lets a test build a reading that is old rather than wrong.
+  DateTime? observedAt;
+
   /// When set, the fetch succeeds but reports usage as permanently absent.
   String? permanentlyUnavailable;
 
@@ -171,6 +175,7 @@ class FakeProvider implements UsageProvider {
             consumed: percent!,
             limit: 100,
             source: UsageSource.localTracking,
+            observedAt: observedAt,
           ),
       ],
       connection: _connection.status,

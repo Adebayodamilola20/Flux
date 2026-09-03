@@ -452,6 +452,44 @@ void main() {
       expect(state.percent, 26);
     });
 
+    test('an old figure raises the indicator too, not only a failure', () async {
+      // Antigravity's CLI printed 66% remaining while the rail showed 31%
+      // used. Both were right; the rail's was simply older, and nothing on it
+      // said so. A figure the provider measured hours ago is the commonest way
+      // the rail ends up disagreeing with the tool it reports on, so it gets
+      // the same indicator a dropped request does.
+      final provider = FakeProvider(id: 'claude', percent: 31)
+        ..seedConnected()
+        ..observedAt = DateTime.now().subtract(const Duration(hours: 2));
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+        slots: const ['claude', null, null],
+      );
+
+      await controller.refresh('claude');
+      final state = controller.stateFor('claude');
+
+      expect(state.isReaching, isTrue);
+      // But nothing failed, so the card keeps showing the number and its age
+      // rather than replacing it with "Connecting…".
+      expect(state.isRetrying, isFalse);
+      expect(state.percent, 31);
+    });
+
+    test('a figure measured just now raises nothing', () async {
+      final provider = FakeProvider(id: 'claude', percent: 31)
+        ..seedConnected()
+        ..observedAt = DateTime.now();
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+        slots: const ['claude', null, null],
+      );
+
+      await controller.refresh('claude');
+
+      expect(controller.stateFor('claude').isReaching, isFalse);
+    });
+
     test('is not marked while a healthy poll is in flight', () async {
       // Polling every thirty seconds means a fetch is in flight for a moment
       // on every tick. A spinner that flickers twice a minute on a working

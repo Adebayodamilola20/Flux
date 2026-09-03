@@ -90,7 +90,9 @@ export const DOWNLOADS: DownloadTarget[] = [
     // ad-hoc signed, so Gatekeeper refuses it on a plain double-click, and a
     // download page that does not mention that produces a user who thinks the
     // app is broken.
-    note: 'Universal build for Apple silicon and Intel. Not notarised yet — right-click the app and choose Open the first time.',
+    // Right-click → Open no longer clears this on current macOS. The only
+    // reliable route is the Privacy & Security pane, so that is what it says.
+    note: 'Universal build for Apple silicon and Intel. Not notarised yet: macOS will block the first launch — open System Settings → Privacy & Security and press “Open Anyway”.',
     watch: { label: 'Release notes', url: GITHUB.releasesUrl },
   },
   {

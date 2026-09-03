@@ -138,6 +138,26 @@ class ProviderState {
   bool get isReaching {
     if (!connection.isConnected) return false;
 
+    // A figure the provider measured a while ago is the commonest way the
+    // rail ends up disagreeing with the tool it reports on — Antigravity's
+    // panel is only read when the user asks, and OpenAI reports the Codex
+    // allowance only in the reply to a prompt, so both can be hours old. The
+    // number is still the best available, but it is not a current reading and
+    // must not be presented as one.
+    if (data?.windows.any((w) => w.isStale) ?? false) return true;
+
+    return isRetrying;
+  }
+
+  /// True when the last attempt failed for a reason that will be retried.
+  ///
+  /// Narrower than [isReaching], and the difference matters in the card: a
+  /// figure that is merely old still has a number worth reading, so the row
+  /// keeps showing it and says how old it is. A figure the app could not
+  /// fetch has nothing behind it, so the row says it is trying instead.
+  bool get isRetrying {
+    if (!connection.isConnected) return false;
+
     // Deliberately not "a fetch is in flight". Polling every thirty seconds
     // means that is true for a moment on every tick, and a spinner that
     // flickers twice a minute on a healthy provider teaches the user to
