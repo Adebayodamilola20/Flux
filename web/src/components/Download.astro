@@ -68,7 +68,7 @@ const ready = d.available && d.url;
 
       <h2 class="name">{PRODUCT.name}</h2>
       <p class="req">Minimum {PRODUCT.minOS}</p>
-      <p class="meta">DMG · v{PRODUCT.version}{ready ? '' : ' · not yet published'}</p>
+      <p class="meta">DMG · v{PRODUCT.version} · {d.detail}{ready ? '' : ' · not yet published'}</p>
 
       {
         ready ? (
@@ -85,6 +85,11 @@ const ready = d.available && d.url;
             No build published yet
           </span>
         )
+      }
+      {
+        ready && d.note ? (
+          <p class="note">{d.note}</p>
+        ) : null
       }
     </div>
 
@@ -194,6 +199,21 @@ const ready = d.available && d.url;
     font-family: var(--mono);
     font-size: 0.75rem;
     color: var(--ink-3);
+  }
+
+  /* The first-launch warning. Set apart from the metadata above it, because
+     it is the one thing on this card the user has to act on: the build is not
+     notarised, so macOS refuses it until they say otherwise. Leaving it out —
+     as this card did — sends every downloader into a malware dialog with no
+     idea it was expected. */
+  .note {
+    margin-top: 1rem;
+    padding-top: 0.875rem;
+    border-top: 1px solid var(--line, rgba(255, 255, 255, 0.1));
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    text-align: left;
+    color: var(--ink-2);
   }
 
   .get {
