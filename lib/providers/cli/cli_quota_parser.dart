@@ -236,8 +236,45 @@ abstract final class CliQuotaParser {
 
   /// The label rows in the current section inherit.
   static String? _sectionLabel(String? group, String? row) {
-    if (group != null) return group;
-    return row;
+    if (group == null) return row;
+
+    // The group names *what* is limited — "Gemini models" — and the row
+    // heading above it names *over what period* — "Weekly Limit Remaining".
+    // Returning the group alone dropped the period, so a weekly allowance
+    // appeared on the rail as an unqualified figure and there was no way to
+    // tell it from a per-session one. The CLI states it; so does this.
+    final period = _periodOf(row);
+    return period == null ? group : '$group ($period)';
+  }
+
+  /// The period a heading names, if it names one.
+  ///
+  /// Matched against whole words so "weekly" is found and "biweekly" is not
+  /// mistaken for it, and ordered longest-first so "5-hour" wins over "hour".
+  static String? _periodOf(String? heading) {
+    if (heading == null) return null;
+    final lower = heading.toLowerCase();
+    for (final period in const [
+      'weekly',
+      'monthly',
+      'daily',
+      'hourly',
+      'per week',
+      'per day',
+      'per month',
+    ]) {
+      if (RegExp('\\b${RegExp.escape(period)}\\b').hasMatch(lower)) {
+        // Normalised, so "per week" and "weekly" do not read as two different
+        // things on two different rows of the same rail.
+        return switch (period) {
+          'per week' => 'weekly',
+          'per day' => 'daily',
+          'per month' => 'monthly',
+          _ => period,
+        };
+      }
+    }
+    return null;
   }
 
   static bool _meansRemaining(String? text) {

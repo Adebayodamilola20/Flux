@@ -272,10 +272,12 @@ CLAUDE AND GPT MODELS
     test('reads one window per model group', () {
       final reading = CliQuotaParser.parse(panel, now: _now);
 
-      // Two groups, not four: the bar and its restatement are one quota.
+      // Two groups, not four: the bar and its restatement are one quota. Each
+      // carries the period its row heading names, so a weekly allowance is not
+      // shown as an unqualified figure beside a per-session one.
       expect(reading.windows.map((w) => w.label), [
-        'Gemini models',
-        'Claude and GPT models',
+        'Gemini models (weekly)',
+        'Claude and GPT models (weekly)',
       ]);
     });
 

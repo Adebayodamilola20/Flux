@@ -195,10 +195,30 @@ class _WindowDetail extends StatelessWidget {
                 ),
               ),
             ),
-            Text(
-              window.percentUsed == null
-                  ? Format.compactNumber(window.consumed)
-                  : '${window.percentUsed}%',
+            // "used", not a bare percentage. Several of these tools report
+            // what is *left* — Antigravity prints "66% remaining" for the same
+            // window this shows as 33% — and a number with no word on it
+            // beside a CLI saying the opposite reads as a contradiction rather
+            // than as the other end of the same bar.
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: window.percentUsed == null
+                        ? Format.compactNumber(window.consumed)
+                        : '${window.percentUsed}%',
+                  ),
+                  if (window.percentUsed != null)
+                    TextSpan(
+                      text: ' used',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                        color: palette.textTertiary,
+                      ),
+                    ),
+                ],
+              ),
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
