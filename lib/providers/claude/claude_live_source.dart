@@ -120,9 +120,19 @@ class ClaudeLiveUsageSource {
   /// How long to wait before asking the Keychain again after a refusal.
   ///
   /// Without this, a user who dismisses the approval dialog once would be shown
-  /// it again on the next poll, and every poll after that. A refusal is an
-  /// answer, and it is respected for a while.
-  static const Duration keychainBackoff = Duration(minutes: 30);
+  /// it again on the next poll, and every poll after that — several times a
+  /// minute, which is harassment rather than a request.
+  ///
+  /// Five minutes rather than thirty, because a refusal here is usually a
+  /// mis-click or a dialog that arrived at a bad moment, and the app has
+  /// nothing live to show until it is granted: the alternative to asking again
+  /// is a rail that quietly reports figures from a cache for half an hour.
+  ///
+  /// This is deliberately held in memory and not persisted. Quitting the app
+  /// is the way to stop being asked, and it works because nothing about the
+  /// refusal survives the process. A user who does not want this simply closes
+  /// it; a user who denied by accident gets another chance shortly.
+  static const Duration keychainBackoff = Duration(minutes: 5);
 
   /// How long a token is trusted without re-checking the store behind it.
   ///

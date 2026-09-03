@@ -87,8 +87,11 @@ void main() {
       expect(metrics.slotExtent(false), metrics.slotHeight);
       expect(metrics.railThickness(false), metrics.collapsedWidth);
 
-      expect(metrics.slotExtent(true), metrics.collapsedWidth);
       expect(metrics.railThickness(true), metrics.slotHeight);
+      // Across the rail a slot gets its own width plus a gap, because three
+      // rings and three percentages side by side at exactly ring width read as
+      // one crowded block.
+      expect(metrics.slotExtent(true), greaterThan(metrics.collapsedWidth));
     });
 
     test('a top rail is thick enough to hold a ring and its label', () {
@@ -119,7 +122,9 @@ void main() {
       final first = metrics.slotCenterX(0);
       final second = metrics.slotCenterX(1);
 
-      expect(second - first, metrics.slotHeight);
+      // One slot's worth of travel per slot, measured on the axis the rail
+      // actually runs along.
+      expect(second - first, metrics.slotExtent(true));
       expect(first, greaterThan(0));
     });
 

@@ -136,9 +136,13 @@ class RailMetrics {
   // contain it, which is the bug this whole file exists to prevent.
   static const double _baseRingDiameter = 32;
   static const double _baseRingStroke = 2.8;
-  static const double _baseNubWidth = 7;
+  // The sliver is what the rail is, ninety-five per cent of the time. At seven
+  // points it was a hairline against the bezel — easy to miss entirely, and
+  // easy to miss with the pointer. Wider gives it a hump that reads as an
+  // affordance without taking real screen space.
+  static const double _baseNubWidth = 11;
   static const double _baseNubHeight = 84;
-  static const double _baseNubRadius = 3.5;
+  static const double _baseNubRadius = 5.5;
   static const double _baseSlotLabelSize = 12;
 
   /// The provider ring's diameter at this scale.
@@ -197,11 +201,33 @@ class RailMetrics {
   double railThickness(bool horizontal) =>
       horizontal ? slotHeight : collapsedWidth;
 
-  double slotExtent(bool horizontal) =>
-      horizontal ? collapsedWidth : slotHeight;
+  /// Slots on a top rail get a little more room than their box needs.
+  ///
+  /// Stacked down a side, a ring's neighbours are its own width away and the
+  /// eye reads them as a column. Laid out across, at the same spacing, they
+  /// crowd — three rings and three percentages in a row with nothing between
+  /// them. This is the gap, not a bigger ring.
+  static const double _horizontalSlotSpacing = 1.22;
+
+  double slotExtent(bool horizontal) => horizontal
+      ? (collapsedWidth * _horizontalSlotSpacing).roundToDouble()
+      : slotHeight;
 
   double railLength(bool horizontal) =>
       slots * slotExtent(horizontal) + collapsedVerticalPadding * 2;
+
+  /// Gap between the rail and the card that points at it. Mirrors
+  /// `AppMetrics.calloutGap`, which cannot be imported here — this file is a
+  /// service and the theme is UI.
+  static const double _calloutGap = 2;
+
+  /// How far the hover card sits from the rail, in the direction it hangs.
+  ///
+  /// Measured off the rail's thickness *in the direction it runs*. A top rail
+  /// is as deep as a slot, not as deep as a side rail is wide, so reading the
+  /// wrong one laid the card over the rings it was meant to describe.
+  double calloutInset(bool horizontal) =>
+      shadowPadding + railThickness(horizontal) + _calloutGap;
 
   double settingsButtonTop(int slotCount) {
     final railHeight = slotCount * slotHeight + collapsedVerticalPadding * 2;
@@ -215,13 +241,17 @@ class RailMetrics {
   /// is the same relationship it has to a side rail turned through ninety
   /// degrees.
   double settingsButtonLeft(int slotCount) {
-    final railWidth = slotCount * slotHeight + collapsedVerticalPadding * 2;
+    final railWidth = railLength(true);
     return (windowWidth - railWidth) / 2 + railWidth + settingsButtonGap;
   }
 
   /// Its centre on the other axis, so it lines up with the rings.
+  ///
+  /// Measured off the rail's thickness in the direction it actually runs. A
+  /// top rail is as deep as a slot, not as deep as a side rail is wide, and
+  /// reading the wrong one puts the control through the rings.
   double settingsButtonCrossCenter() =>
-      shadowPadding + collapsedWidth / 2;
+      shadowPadding + railThickness(true) / 2;
 
   /// Vertical centre of a provider's ring, in the window's coordinate space.
   ///
@@ -242,11 +272,9 @@ class RailMetrics {
   /// across the window rather than down it, so the card is placed from here
   /// and its tail points up at the ring instead of sideways.
   double slotCenterX(int index) {
-    final rowLeft = (windowWidth - collapsedHeight) / 2;
-    return rowLeft +
-        collapsedVerticalPadding +
-        index * slotHeight +
-        slotHeight / 2;
+    final extent = slotExtent(true);
+    final rowLeft = (windowWidth - railLength(true)) / 2;
+    return rowLeft + collapsedVerticalPadding + index * extent + extent / 2;
   }
 
   static RailMetrics? fromMap(Object? value) {

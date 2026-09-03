@@ -51,7 +51,7 @@ enum RailMetrics {
     /// of the screen they are already looking at, and at the side rail's
     /// proportions it reads as a strip of nothing. A multiplier rather than a
     /// second set of numbers, so it still scales with the display.
-    static let topEdgeBoost: CGFloat = 1.34
+    static let topEdgeBoost: CGFloat = 1.12
 
     /// Which multiplier the geometry is currently using.
     ///
@@ -95,8 +95,8 @@ enum RailMetrics {
     static var settingsButtonGap: CGFloat { s(-4) }
     static var settingsHotZonePadding: CGFloat { s(8) }
 
-    /// The resting sliver, as drawn.
-    static var nubWidth: CGFloat { s(7) }
+    /// The resting sliver, as drawn. Mirrors `_baseNubWidth` in Dart.
+    static var nubWidth: CGFloat { s(11) }
     static var nubHeight: CGFloat { s(84) }
 
     /// The pointer target for that sliver.
@@ -117,11 +117,44 @@ enum RailMetrics {
         CGFloat(slots) * slotHeight + collapsedVerticalPadding * 2
     }
 
+    /// Slots on a top rail get a little more room than their box needs.
+    ///
+    /// Stacked down a side, a ring's neighbours are its own width away and the
+    /// eye reads them as a column. Laid out across at that spacing they crowd —
+    /// three rings and three percentages in a row with nothing between them.
+    /// This is the gap, not a bigger ring. Mirrors `_horizontalSlotSpacing` in
+    /// `RailMetrics` on the Dart side.
+    private static let horizontalSlotSpacing: CGFloat = 1.22
+
+    /// A slot's box, in the two directions the rail can run.
+    ///
+    /// The content is the same shape either way — a ring with its percentage
+    /// beneath — so the box is too: `collapsedWidth` across the rail and
+    /// `slotHeight` along it. What changes is which of those lies along the
+    /// rail. Getting it backwards makes the rail exactly as thick as a ring
+    /// and pushes every label out of it.
+    static func railThickness(edge: RailEdge) -> CGFloat {
+        edge.isHorizontal ? slotHeight : collapsedWidth
+    }
+
+    static func slotExtent(edge: RailEdge) -> CGFloat {
+        edge.isHorizontal
+            ? (collapsedWidth * horizontalSlotSpacing).rounded()
+            : slotHeight
+    }
+
+    static func railLength(slots: Int, edge: RailEdge) -> CGFloat {
+        CGFloat(slots) * slotExtent(edge: edge) + collapsedVerticalPadding * 2
+    }
+
     /// Full window size. Fixed across every state so the window never resizes
     /// while animating — Flutter animates inside a stationary window, which is
     /// what keeps the motion smooth.
     static func windowSize(slots: Int, edge: RailEdge = .right) -> NSSize {
-        let alongWithSettings = collapsedHeight(slots: slots)
+        // The rail's own length in the direction it runs, which is not the
+        // same number for the two axes: a top rail's slots are wider than they
+        // are tall and carry extra spacing between them.
+        let alongWithSettings = railLength(slots: slots, edge: edge)
             + settingsButtonGap
             + settingsButtonSize
             + settingsHotZonePadding
@@ -180,28 +213,29 @@ enum RailMetrics {
         edge: RailEdge,
         slots: Int
     ) -> NSRect {
-        let along = min(collapsedHeight(slots: slots), edge.isHorizontal
+        let along = min(railLength(slots: slots, edge: edge), edge.isHorizontal
             ? windowSize.width
             : windowSize.height)
+        let thickness = railThickness(edge: edge)
 
         if edge.isHorizontal {
             // Hanging from the top: flat against the bezel, so it is pinned to
             // the top of the window rather than centred in it.
             return NSRect(
                 x: (windowSize.width - along) / 2,
-                y: windowSize.height - shadowPadding - collapsedWidth,
+                y: windowSize.height - shadowPadding - thickness,
                 width: along,
-                height: collapsedWidth
+                height: thickness
             )
         }
 
         let x: CGFloat = edge == .right
-            ? windowSize.width - shadowPadding - collapsedWidth
+            ? windowSize.width - shadowPadding - thickness
             : shadowPadding
         return NSRect(
             x: x,
             y: (windowSize.height - along) / 2,
-            width: collapsedWidth,
+            width: thickness,
             height: along
         )
     }
@@ -213,9 +247,22 @@ enum RailMetrics {
         slots: Int
     ) -> NSRect {
         let rail = railRect(in: windowSize, edge: edge, slots: slots)
-        let x = rail.midX - settingsButtonSize / 2
+
+        // Beyond the far end of the rail, whichever way it runs. Below a side
+        // rail, past the trailing edge of a top one — a top rail has nothing
+        // below it but the hover card, and putting the control there would
+        // stack the two.
+        if edge.isHorizontal {
+            return NSRect(
+                x: rail.maxX + settingsButtonGap,
+                y: rail.midY - settingsButtonSize / 2,
+                width: settingsButtonSize,
+                height: settingsButtonSize
+            )
+        }
+
         return NSRect(
-            x: x,
+            x: rail.midX - settingsButtonSize / 2,
             y: rail.minY - settingsButtonGap - settingsButtonSize,
             width: settingsButtonSize,
             height: settingsButtonSize
@@ -251,10 +298,25 @@ enum RailMetrics {
             dy: -settingsHotZonePadding
         )
         let rail = railRect(in: windowSize, edge: edge, slots: slots)
+
+        // A top rail runs the other way, so the union is taken across and the
+        // zone deepens downward for the card rather than widening sideways.
+        if edge.isHorizontal {
+            let minX = min(settings.minX, rail.minX)
+            let maxX = max(settings.maxX, rail.maxX)
+            let depth = includingCard ? expandedWidth : railThickness(edge: edge)
+            return NSRect(
+                x: minX,
+                y: windowSize.height - shadowPadding - depth,
+                width: min(maxX - minX, windowSize.width),
+                height: min(depth, windowSize.height)
+            )
+        }
+
         let minY = min(settings.minY, rail.minY)
         let maxY = max(settings.maxY, rail.maxY)
         let height = min(maxY - minY, windowSize.height)
-        let width = includingCard ? expandedWidth : collapsedWidth
+        let width = includingCard ? expandedWidth : railThickness(edge: edge)
         let x: CGFloat = edge == .right
             ? windowSize.width - shadowPadding - width
             : shadowPadding

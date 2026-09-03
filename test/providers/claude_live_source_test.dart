@@ -347,6 +347,42 @@ void main() {
       expect(failure, ClaudeLiveFailure.keychainDenied);
     });
 
+    test('asks again five minutes later, not half an hour', () async {
+      // A refusal here is usually a mis-click or a dialog that landed at a bad
+      // moment, and until it is granted the rail has nothing live to show. The
+      // back-off has to be long enough that declining is possible and short
+      // enough that changing your mind does not mean waiting out an afternoon.
+      expect(
+        ClaudeLiveUsageSource.keychainBackoff,
+        const Duration(minutes: 5),
+      );
+    });
+
+    test('and forgets the refusal entirely when the app is quit', () async {
+      // Nothing about a refusal is written down: it lives on the source, which
+      // dies with the process. Quitting is how a user stops being asked, and
+      // it works because there is nothing to survive the quit. A fresh source
+      // stands in for a fresh launch.
+      var keychainReads = 0;
+      ClaudeLiveUsageSource build() => ClaudeLiveUsageSource(
+            homeDirectory: home.path,
+            keychainReader: () async {
+              keychainReads++;
+              return const ClaudeCodeCredentialAccess.denied();
+            },
+            client: MockClient((_) async => http.Response('{}', 200)),
+          );
+
+      final first = build();
+      await first.fetch();
+      await first.fetch();
+      expect(keychainReads, 1);
+
+      await build().fetch();
+
+      expect(keychainReads, 2);
+    });
+
     test('asks again when the user deliberately refreshes', () async {
       var keychainReads = 0;
       final source = ClaudeLiveUsageSource(

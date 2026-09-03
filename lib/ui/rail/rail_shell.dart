@@ -331,8 +331,7 @@ class _CalloutLayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final inset =
-        metrics.shadowPadding + metrics.collapsedWidth + AppMetrics.calloutGap;
+    final inset = metrics.calloutInset(fromTop);
 
     // Animated, not plain: moving between rings changes only `top`, and a
     // plain Positioned teleports the card there. The switcher below cross-fades

@@ -1,4 +1,5 @@
 import 'package:ai_usage_monitor/services/native/native_bridge.dart';
+import 'package:ai_usage_monitor/ui/theme/app_theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// The rail is sized from the display it is on, so what Flutter draws inside it
@@ -33,7 +34,7 @@ void main() {
     final base = at(1);
 
     expect(base.ringDiameter, 32);
-    expect(base.nubWidth, 7);
+    expect(base.nubWidth, 11);
     expect(base.nubHeight, 84);
     expect(base.slotLabelSize, 12);
   });
@@ -81,5 +82,20 @@ void main() {
 
     expect(parsed!.scale, 1.3);
     expect(parsed.ringDiameter, closeTo(41.6, 0.001));
+  });
+
+  test('the card sits the same distance off a side rail as it always did', () {
+    // The inset moved into RailMetrics so a top rail could measure off its own
+    // thickness. The side rail's spacing must not have changed on the way —
+    // and the gap is duplicated across a UI/service boundary, so it is checked
+    // rather than trusted.
+    const m = RailMetrics.fallback;
+
+    expect(
+      m.calloutInset(false),
+      m.shadowPadding + m.collapsedWidth + AppMetrics.calloutGap,
+    );
+    // A top rail is deeper, so its card sits further out.
+    expect(m.calloutInset(true), greaterThan(m.calloutInset(false)));
   });
 }
