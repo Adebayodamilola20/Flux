@@ -122,8 +122,15 @@ final class RailWindowController {
             // Centred across the top. The offset does not apply: a notch that
             // slid along the top bezel would sit under the menu bar's clock at
             // one end and the menu titles at the other.
-            x = visible.midX - size.width / 2
-            y = visible.maxY - size.height + RailMetrics.shadowPadding
+            //
+            // Measured from `frame`, not `visibleFrame`. The visible frame
+            // begins *below* the menu bar, so anchoring to it left the notch
+            // hanging in the content area with a strip of desktop above it —
+            // which is the one thing a notch must never do. This is the whole
+            // screen, so the rail's flat side lands on the physical top edge.
+            let full = screen.frame
+            x = full.midX - size.width / 2
+            y = full.maxY - size.height + RailMetrics.shadowPadding
         } else {
             x = edge == .right
                 ? visible.maxX - size.width + RailMetrics.shadowPadding
@@ -133,6 +140,16 @@ final class RailWindowController {
             // the screen; AppKit's origin is at the bottom.
             let usable = visible.height - size.height
             y = visible.maxY - size.height - usable * offsetFraction
+        }
+
+        // Above the menu bar for a top rail, below it for a side one.
+        //
+        // `.floating` is above ordinary windows and below the menu bar, which
+        // is right for a rail against a side bezel and wrong for one that has
+        // to occupy the same band as the clock. `.statusBar` sits just above
+        // `.mainMenu`, which is where a notch belongs.
+        if window.mode == .rail {
+            window.level = edge.isHorizontal ? .statusBar : .floating
         }
 
         window.setFrame(

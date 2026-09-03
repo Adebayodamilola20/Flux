@@ -30,6 +30,21 @@ class RailWindow: NSPanel {
     /// the user's focus — away from whatever they were doing.
     override var canBecomeKey: Bool { true }
 
+    /// Keeps the frame exactly where it was put.
+    ///
+    /// AppKit otherwise pulls a window back inside the screen's usable area,
+    /// which for a rail hanging off the top edge means dropping it below the
+    /// menu bar — the position that made it look like a panel floating in the
+    /// content area rather than a notch growing out of the bezel. The rail
+    /// window is borderless and positioned deliberately, so there is nothing
+    /// here for that rule to protect.
+    override func constrainFrameRect(
+        _ frameRect: NSRect,
+        to screen: NSScreen?
+    ) -> NSRect {
+        mode == .rail ? frameRect : super.constrainFrameRect(frameRect, to: screen)
+    }
+
     /// Only the setup panel is a "main" window. Letting the rail claim that
     /// would make macOS treat a passive widget as the user's current document.
     override var canBecomeMain: Bool { mode == .panel }
