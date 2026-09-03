@@ -70,6 +70,14 @@ class RailColumn extends StatelessWidget {
     // would need nothing more here.
     final axis = fromTop ? Axis.horizontal : Axis.vertical;
 
+    // How far the rail runs, and how thick it is across. A slot's content is
+    // a ring with its percentage beneath it whichever way the rail runs, so
+    // the box keeps its shape and only its orientation changes.
+    final extent = metrics.slotExtent(fromTop);
+    final along =
+        metrics.collapsedVerticalPadding * 2 + states.length * extent;
+    final thickness = metrics.railThickness(fromTop);
+
     return NotchShape(
       // Denser than a floating panel — the rail sits flush against the bezel
       // and reads as part of the display — but still themed. A black bar on a
@@ -95,22 +103,29 @@ class RailColumn extends StatelessWidget {
       // what is behind it.
       shadowColor: isGlass ? null : palette.railShadow,
       onRightEdge: onRightEdge,
+      fromTop: fromTop,
       cornerRadius: metrics.notchCornerRadius,
       filletRadius: metrics.notchFilletRadius,
       child: SizedBox(
-        width: metrics.collapsedWidth,
         // Sized from what is actually rendered, not from the slot count the
         // metrics were built with. The two can drift — a provider added to the
         // catalog without the native side agreeing — and the symptom is a
         // clipped ring rather than anything that names the cause.
-        height:
-            metrics.collapsedVerticalPadding * 2 +
-            states.length * metrics.slotHeight,
+        //
+        // The rail's thickness is `collapsedWidth` on whichever axis it is
+        // *not* running along, and the slots claim the other.
+        width: fromTop ? along : thickness,
+        height: fromTop ? thickness : along,
         child: Padding(
-          padding: EdgeInsets.symmetric(
-            vertical: metrics.collapsedVerticalPadding,
-          ),
-          child: Column(
+          padding: fromTop
+              ? EdgeInsets.symmetric(
+                  horizontal: metrics.collapsedVerticalPadding,
+                )
+              : EdgeInsets.symmetric(
+                  vertical: metrics.collapsedVerticalPadding,
+                ),
+          child: Flex(
+            direction: axis,
             mainAxisSize: MainAxisSize.min,
             children: [
               for (var index = 0; index < states.length; index++)
@@ -124,7 +139,7 @@ class RailColumn extends StatelessWidget {
                     final state? => _RailSlot(
                       state: state,
                       metrics: metrics,
-                      extent: metrics.slotHeight,
+                      extent: extent,
                       axis: axis,
                       isHovered: state.id == hoveredId,
                       onEnter: () => onHoverSlot(state.id),
@@ -132,7 +147,7 @@ class RailColumn extends StatelessWidget {
                     ),
                     null => _EmptySlot(
                       metrics: metrics,
-                      extent: metrics.slotHeight,
+                      extent: extent,
                       axis: axis,
                       // Clears the card on the way in. An empty position has
                       // no provider to describe, and without this the previous

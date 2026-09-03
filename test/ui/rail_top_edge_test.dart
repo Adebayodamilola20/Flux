@@ -77,6 +77,39 @@ void main() {
     });
   });
 
+  group('which dimension runs along the rail', () {
+    const metrics = RailMetrics.fallback;
+
+    test('a slot keeps its shape and only changes orientation', () {
+      // The content is a ring with its percentage beneath it whichever way the
+      // rail runs, so the box is the same box — `collapsedWidth` across the
+      // rail, `slotHeight` along it. Only which of those lies along it moves.
+      expect(metrics.slotExtent(false), metrics.slotHeight);
+      expect(metrics.railThickness(false), metrics.collapsedWidth);
+
+      expect(metrics.slotExtent(true), metrics.collapsedWidth);
+      expect(metrics.railThickness(true), metrics.slotHeight);
+    });
+
+    test('a top rail is thick enough to hold a ring and its label', () {
+      // Taking `collapsedWidth` as the thickness made the rail exactly as deep
+      // as a ring, and every percentage overflowed out of the bottom of it.
+      final ringAndLabel = metrics.ringDiameter + metrics.slotLabelSize;
+
+      expect(metrics.railThickness(true), greaterThan(ringAndLabel));
+    });
+
+    test('and the two orientations do not report the same rail', () {
+      // Three slots across is a different length from three slots down,
+      // because the slot boxes are not square. If these ever agree, one
+      // orientation is measuring the other's dimension.
+      expect(
+        metrics.railLength(true),
+        isNot(closeTo(metrics.railLength(false), 0.001)),
+      );
+    });
+  });
+
   group('where the card is anchored', () {
     const metrics = RailMetrics.fallback;
 

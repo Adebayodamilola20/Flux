@@ -187,6 +187,22 @@ class RailMetrics {
   double get collapsedHeight =>
       slots * slotHeight + collapsedVerticalPadding * 2;
 
+  /// A slot's box, in the two directions the rail can run.
+  ///
+  /// The content inside a slot is the same shape either way — a ring with its
+  /// percentage beneath — so the box is too: [collapsedWidth] across it and
+  /// [slotHeight] down it. What changes is which of those lies along the rail.
+  /// Getting that backwards makes the rail exactly as thick as a ring and
+  /// pushes every label out of it.
+  double railThickness(bool horizontal) =>
+      horizontal ? slotHeight : collapsedWidth;
+
+  double slotExtent(bool horizontal) =>
+      horizontal ? collapsedWidth : slotHeight;
+
+  double railLength(bool horizontal) =>
+      slots * slotExtent(horizontal) + collapsedVerticalPadding * 2;
+
   double settingsButtonTop(int slotCount) {
     final railHeight = slotCount * slotHeight + collapsedVerticalPadding * 2;
     return (windowHeight - railHeight) / 2 + railHeight + settingsButtonGap;
