@@ -20,6 +20,7 @@ class HermesInsightsSource implements AgentUsageReader {
   HermesInsightsSource({
     required this.executable,
     this.sessionsDirectory,
+    this.authPath,
     Logger? logger,
   }) : _log = logger ?? const Logger('hermes.insights');
 
@@ -30,21 +31,18 @@ class HermesInsightsSource implements AgentUsageReader {
   /// paying for the report, which starts a Python process.
   final String? sessionsDirectory;
 
+  /// Where Hermes keeps its sign-in. Statted for the same reason: a change of
+  /// account should reach the rail without waiting for the next poll.
+  final String? authPath;
+
   final Logger _log;
 
   @override
   bool get isAvailable => File(executable).existsSync();
 
   @override
-  DateTime? get changedAt {
-    final path = sessionsDirectory;
-    if (path == null) return null;
-    try {
-      return Directory(path).statSync().modified;
-    } on FileSystemException {
-      return null;
-    }
-  }
+  DateTime? get changedAt =>
+      AgentSessionStore.newestOf([?sessionsDirectory, ?authPath]);
 
   /// The model Hermes is set to, from `hermes status`.
   ///

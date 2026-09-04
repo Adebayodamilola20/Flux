@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../../core/merge_streams.dart';
 import '../../core/formatting.dart';
 import '../../models/app_settings.dart';
 import '../../models/connection_status.dart';
@@ -100,39 +101,9 @@ class ChatGptProvider extends ApiKeyUsageProvider {
     ];
     if (sources.isEmpty) return null;
     if (sources.length == 1) return sources.first;
-    return _merge(sources);
+    return mergeStreams(sources);
   }
 
-  /// Two watchers as one stream, for the single listener that subscribes.
-  ///
-  /// Hand-rolled rather than pulling in a package for one merge. The sources
-  /// are infinite polling loops, so cancelling has to reach both of them or
-  /// they keep statting files after the provider is gone.
-  static Stream<void> _merge(List<Stream<DateTime>> sources) {
-    final subscriptions = <StreamSubscription<DateTime>>[];
-    late final StreamController<void> controller;
-
-    controller = StreamController<void>(
-      onListen: () {
-        for (final source in sources) {
-          subscriptions.add(
-            source.listen(
-              (_) => controller.add(null),
-              onError: controller.addError,
-            ),
-          );
-        }
-      },
-      onCancel: () async {
-        for (final subscription in subscriptions) {
-          await subscription.cancel();
-        }
-        subscriptions.clear();
-      },
-    );
-
-    return controller.stream;
-  }
 
   /// The moment before which no figure belongs to the account signed in now.
   ///

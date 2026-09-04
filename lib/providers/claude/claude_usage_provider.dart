@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import '../../core/merge_streams.dart';
 import '../../core/formatting.dart';
 import '../../core/logger.dart';
 import '../../models/active_session.dart';
@@ -127,7 +128,7 @@ class ClaudeUsageProvider implements UsageProvider {
   /// account's figure on the rail until a scheduled poll happened to notice —
   /// which is exactly the "I signed in again and nothing changed" case.
   @override
-  Stream<void>? get changes => _merge([
+  Stream<void>? get changes => mergeStreams([
     _account.watch(),
     _signInChanges(),
   ]);
@@ -158,35 +159,6 @@ class ClaudeUsageProvider implements UsageProvider {
   /// How often the stored credential is checked for a re-login.
   static const Duration signInPollInterval = Duration(seconds: 3);
 
-  /// Both watches as one stream, for the single listener that subscribes.
-  ///
-  /// The sources are infinite loops, so cancelling has to reach both of them
-  /// or they keep polling after the provider is gone.
-  static Stream<void> _merge(List<Stream<void>> sources) {
-    final subscriptions = <StreamSubscription<void>>[];
-    late final StreamController<void> controller;
-
-    controller = StreamController<void>(
-      onListen: () {
-        for (final source in sources) {
-          subscriptions.add(
-            source.listen(
-              (_) => controller.add(null),
-              onError: controller.addError,
-            ),
-          );
-        }
-      },
-      onCancel: () async {
-        for (final subscription in subscriptions) {
-          await subscription.cancel();
-        }
-        subscriptions.clear();
-      },
-    );
-
-    return controller.stream;
-  }
 
   /// Claude usage moves with every prompt, and reading it is one small GET
   /// against Anthropic's own endpoint. Polling it on the user's general

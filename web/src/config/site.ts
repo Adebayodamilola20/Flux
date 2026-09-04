@@ -265,7 +265,7 @@ export const FAQS = [
   },
   {
     q: 'What happens if I switch accounts in one of the tools?',
-    a: 'The figure changes with it. DevNotch notices the new account and stops counting anything the previous one recorded, so an old allowance is never shown against a new sign-in. For Claude it picks up a fresh login within a few seconds; for Codex, everything logged before the switch is excluded, and until the new account has recorded something the ring shows no number rather than the wrong one.',
+    a: 'The figure changes with it. DevNotch notices the new account and stops counting anything the previous one recorded, so an old allowance is never shown against a new sign-in. For Claude it picks up a fresh login within a few seconds. For Antigravity, OpenCode, Kilo Code and Hermes it watches the tool’s own sign-in file, drops the previous account’s figure and reads the new one without you opening the tool. For Codex, everything logged before the switch is excluded, and until the new account has recorded something the ring shows no number rather than the wrong one.',
   },
   {
     q: 'Does it scrape anything?',

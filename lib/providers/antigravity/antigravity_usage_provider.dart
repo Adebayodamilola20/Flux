@@ -46,6 +46,16 @@ class AntigravityUsageProvider extends CliUsageProvider {
   @override
   String get activityDirectory => '.gemini/antigravity-cli/log';
 
+  /// What `agy` rewrites when the signed-in Google account changes: the
+  /// account list and its OAuth grant, shared with the Gemini CLI, and its own
+  /// state file. Any of them moving means the figure is about someone else.
+  @override
+  List<String> get credentialFiles => const [
+        '.gemini/google_accounts.json',
+        '.gemini/oauth_creds.json',
+        '.gemini/antigravity-cli/jetski_state.pbtxt',
+      ];
+
   /// A weekly limit moves slowly, but the user who just ran a long session
   /// wants to see it move. Short enough to feel current, long enough that the
   /// half-minute probe is not paid for on every poll.

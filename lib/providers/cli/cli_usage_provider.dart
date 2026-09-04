@@ -1,8 +1,11 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
+
 import '../../core/formatting.dart';
 import '../../core/logger.dart';
+import '../../core/merge_streams.dart';
 import '../../models/active_session.dart';
 import '../../models/app_settings.dart';
 import '../../models/connection_status.dart';
@@ -114,6 +117,23 @@ abstract class CliUsageProvider implements UsageProvider {
   ///
   /// Null when the tool has no such directory.
   String? get activityDirectory => null;
+
+  /// Files the CLI rewrites when the signed-in account changes, relative to
+  /// the home directory.
+  ///
+  /// The figure on the rail is about *an* account, and the moment the user
+  /// signs in as someone else the cached figure is about the wrong one. These
+  /// are watched so the switch is reflected without the user having to open
+  /// the CLI: a change drops the cache and permits one launch, because the
+  /// switch is something the user just did, and a sign-in page it might open
+  /// is explainable in a way a timer-driven one never is.
+  ///
+  /// Empty when the tool keeps its sign-in somewhere that cannot be watched.
+  List<String> get credentialFiles => const [];
+
+  /// The home directory these relative paths resolve against. Overridden in
+  /// tests, which must not stat the developer's own sign-in files.
+  String? get homeDirectory => Platform.environment['HOME'];
 
   /// Reads usage. The default drives the CLI's usage panel; a provider whose
   /// tool has no such panel overrides this to explain that instead.
@@ -300,27 +320,88 @@ abstract class CliUsageProvider implements UsageProvider {
   }
 
   /// Fires when the CLI writes something, so a session that just ended is
-  /// reflected without waiting for the next scheduled poll.
+  /// reflected without waiting for the next scheduled poll — and when its
+  /// sign-in changes, so a switch of account is too.
   @override
   Stream<void>? get changes {
-    if (activityDirectory == null) return null;
-    return _watchActivity();
+    final sources = <Stream<DateTime>>[
+      if (activityDirectory != null) _watchActivity(),
+      if (credentialFiles.isNotEmpty) watchCredentials(),
+    ];
+    if (sources.isEmpty) return null;
+    if (sources.length == 1) return sources.first;
+    return mergeStreams(sources);
+  }
+
+  /// Fires once the sign-in files have changed and then been left alone.
+  ///
+  /// The pause is deliberate. A sign-in writes these files more than once as
+  /// it goes, and starting the CLI in the middle of that races the very
+  /// sign-in it is meant to pick up. So a change is reported only once the
+  /// files have been quiet for [settle], and the report itself drops the
+  /// cached reading — which belonged to the previous account — and permits
+  /// the launch that will fetch the new one.
+  ///
+  /// Built on a periodic stream rather than a generator loop: a generator only
+  /// notices cancellation at a `yield`, so one that mostly finds nothing to
+  /// report would outlive the provider that subscribed to it.
+  @visibleForTesting
+  Stream<DateTime> watchCredentials({
+    Duration interval = const Duration(seconds: 5),
+    Duration settle = const Duration(seconds: 3),
+  }) {
+    DateTime? seen = _credentialsChangedAt();
+
+    return Stream<void>.periodic(interval)
+        .map((_) => _credentialsChangedAt())
+        .where((current) {
+          if (current == null) return false;
+          final previous = seen;
+          if (previous != null && !current.isAfter(previous)) return false;
+          if (DateTime.now().difference(current) < settle) return false;
+
+          seen = current;
+          log.info('$executable sign-in changed; re-reading for the account');
+          invalidateCaches();
+          return true;
+        })
+        .cast<DateTime>();
+  }
+
+  /// The newest modification across [credentialFiles]; null when none exist.
+  DateTime? _credentialsChangedAt() {
+    final home = homeDirectory;
+    if (home == null) return null;
+
+    DateTime? newest;
+    for (final relative in credentialFiles) {
+      final file = File('$home/$relative');
+      try {
+        if (!file.existsSync()) continue;
+        final modified = file.statSync().modified;
+        if (newest == null || modified.isAfter(newest)) newest = modified;
+      } on FileSystemException {
+        continue;
+      }
+    }
+    return newest;
   }
 
   Stream<DateTime> _watchActivity({
     Duration interval = const Duration(seconds: 5),
-  }) async* {
+  }) {
     DateTime? last = _lastActivity();
 
-    while (true) {
-      await Future<void>.delayed(interval);
-      final current = _lastActivity();
-      if (current == null) continue;
-      if (last == null || current.isAfter(last)) {
-        last = current;
-        yield current;
-      }
-    }
+    return Stream<void>.periodic(interval)
+        .map((_) => _lastActivity())
+        .where((current) {
+          if (current == null) return false;
+          final previous = last;
+          if (previous != null && !current.isAfter(previous)) return false;
+          last = current;
+          return true;
+        })
+        .cast<DateTime>();
   }
 
   /// The newest modification anywhere under [activityDirectory].
@@ -332,7 +413,7 @@ abstract class CliUsageProvider implements UsageProvider {
     final relative = activityDirectory;
     if (relative == null) return null;
 
-    final home = Platform.environment['HOME'];
+    final home = homeDirectory;
     if (home == null) return null;
 
     final directory = Directory('$home/$relative');

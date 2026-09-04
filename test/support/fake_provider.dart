@@ -145,9 +145,15 @@ class FakeProvider implements UsageProvider {
   @override
   Future<List<ActiveSession>> detectActivity() async => sessions;
 
+  /// When set, [fetchUsage] waits on it before answering, so a test can hold
+  /// a fetch open and see what the controller does with a second request.
+  Completer<void>? gate;
+
   @override
   Future<UsageData> fetchUsage(AppSettings settings) async {
     fetchCount++;
+    final gate = this.gate;
+    if (gate != null) await gate.future;
     final f = failure;
     if (f != null) throw f;
 

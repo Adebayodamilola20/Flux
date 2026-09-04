@@ -30,6 +30,7 @@ class OpenCodeUsageProvider extends AgentUsageProvider {
       // Where OpenCode caches models.dev, which carries each model's published
       // context window — the limit the percentage is against.
       modelCatalogPath: '$home/.cache/opencode/models.json',
+      authPath: '$home/.local/share/opencode/auth.json',
       displayName: descriptor.displayName,
       logger: log,
     );

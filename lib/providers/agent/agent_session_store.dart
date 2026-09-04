@@ -125,6 +125,7 @@ class AgentSessionStore implements AgentUsageReader {
     required this.databasePath,
     required this.displayName,
     this.modelCatalogPath,
+    this.authPath,
     Logger? logger,
     String sqlitePath = '/usr/bin/sqlite3',
   })  : _sqlite = sqlitePath,
@@ -147,14 +148,32 @@ class AgentSessionStore implements AgentUsageReader {
   @override
   bool get isAvailable => File(databasePath).existsSync();
 
+  /// Where the tool keeps its sign-in, if it has one. Null when it does not.
+  ///
+  /// Watched alongside the database because a sign-in changes whose figures
+  /// these are, and that should land on the rail without waiting for the
+  /// user to open the tool or for the next poll.
+  final String? authPath;
+
   /// When the store last changed, for deciding a cached reading is stale.
+  ///
+  /// The later of the database and the sign-in file: either one moving is a
+  /// reason to read again.
   @override
-  DateTime? get changedAt {
-    try {
-      return File(databasePath).statSync().modified;
-    } on FileSystemException {
-      return null;
+  DateTime? get changedAt => newestOf([databasePath, ?authPath]);
+
+  /// The newest modification among [paths], skipping any that do not exist.
+  static DateTime? newestOf(Iterable<String> paths) {
+    DateTime? newest;
+    for (final path in paths) {
+      // A missing path does not throw here: it stats as "not found" with an
+      // epoch date, which would otherwise count as a real, ancient change.
+      final stat = FileStat.statSync(path);
+      if (stat.type == FileSystemEntityType.notFound) continue;
+      final modified = stat.modified;
+      if (newest == null || modified.isAfter(newest)) newest = modified;
     }
+    return newest;
   }
 
   /// Totals per model over the last [window].

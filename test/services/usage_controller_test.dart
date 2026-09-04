@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:ai_usage_monitor/models/active_session.dart';
 import 'package:ai_usage_monitor/models/connection_status.dart';
 import 'package:ai_usage_monitor/models/usage_failure.dart';
@@ -99,6 +101,51 @@ void main() {
   });
 
   group('refresh', () {
+    test('a Refresh pressed during a fetch runs after it, not never', () async {
+      // The complaint: press Refresh while a poll happens to be running and
+      // nothing happens — the press was dropped, and with it the cache
+      // invalidation the user pressed for.
+      final provider = FakeProvider(id: 'claude', percent: 52)..seedConnected();
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+      );
+
+      provider.gate = Completer<void>();
+      final scheduled = controller.refresh('claude');
+      await controller.refresh('claude', manual: true);
+      expect(provider.invalidateCount, 0, reason: 'the poll is still running');
+
+      provider.gate!.complete();
+      provider.gate = null;
+      await scheduled;
+      await Future<void>.delayed(
+        UsageController.manualRefreshHold + const Duration(milliseconds: 60),
+      );
+
+      expect(provider.invalidateCount, 1);
+      expect(provider.fetchCount, 2);
+      expect(controller.stateFor('claude').isRefreshing, isFalse);
+    });
+
+    test('a manual refresh shows as working long enough to be seen', () async {
+      final provider = FakeProvider(id: 'claude', percent: 52)..seedConnected();
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+      );
+
+      final started = DateTime.now();
+      final refresh = controller.refresh('claude', manual: true);
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(controller.stateFor('claude').isRefreshing, isTrue);
+
+      await refresh;
+      expect(
+        DateTime.now().difference(started),
+        greaterThanOrEqualTo(UsageController.manualRefreshHold),
+      );
+      expect(controller.stateFor('claude').isRefreshing, isFalse);
+    });
+
     test('skips providers that are not connected', () async {
       final (controller: controller, primary: primary) = buildController();
 

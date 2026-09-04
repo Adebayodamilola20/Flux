@@ -38,6 +38,7 @@ class HermesUsageProvider extends AgentUsageProvider {
     return HermesInsightsSource(
       executable: '$home/.local/bin/hermes',
       sessionsDirectory: '$home/.hermes/sessions',
+      authPath: '$home/.hermes/auth.json',
       logger: log,
     );
   }

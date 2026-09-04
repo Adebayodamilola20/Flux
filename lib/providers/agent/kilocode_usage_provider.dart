@@ -36,6 +36,7 @@ class KiloCodeUsageProvider extends AgentUsageProvider {
     return AgentSessionStore(
       databasePath: '$home/.local/share/kilo/kilo.db',
       modelCatalogPath: '$home/.cache/kilo/models.json',
+      authPath: '$home/.local/share/kilo/auth.json',
       displayName: descriptor.displayName,
       logger: log,
     );

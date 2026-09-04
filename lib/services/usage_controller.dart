@@ -243,6 +243,13 @@ class UsageController extends ChangeNotifier {
   /// immediate, long enough that a multi-write update fetches once.
   static const Duration changeDebounce = Duration(milliseconds: 400);
 
+  /// The least time a manual refresh shows as in progress, so a press that is
+  /// answered instantly still visibly does something.
+  static const Duration manualRefreshHold = Duration(milliseconds: 650);
+
+  /// Providers whose Refresh was pressed while a fetch was already running.
+  final Set<String> _manualQueued = {};
+
   final List<StreamSubscription<void>> _watchers = [];
   bool _disposed = false;
 
@@ -478,10 +485,17 @@ class UsageController extends ChangeNotifier {
     if (provider == null) return;
 
     final state = _states[providerId]!;
-    if (state.isRefreshing) return;
+    if (state.isRefreshing) {
+      // A press that arrives while a poll is running must not be dropped: the
+      // poll may be serving a cache the user is pressing precisely to bypass.
+      // It runs again as soon as this one finishes.
+      if (manual) _manualQueued.add(providerId);
+      return;
+    }
 
     if (manual) provider.invalidateCaches();
 
+    final startedAt = DateTime.now();
     _states[providerId] = state.copyWith(isRefreshing: true);
     _safeNotify();
 
@@ -514,9 +528,24 @@ class UsageController extends ChangeNotifier {
         stack,
       );
     } finally {
+      // A manual refresh that answers from cache is over in a frame, which
+      // reads as the button having done nothing. Show the working state for
+      // long enough to be seen; the figure itself is already updated above.
+      if (manual) {
+        final remaining =
+            manualRefreshHold - DateTime.now().difference(startedAt);
+        if (remaining > Duration.zero) {
+          _safeNotify();
+          await Future<void>.delayed(remaining);
+        }
+      }
       _states[providerId] = _states[providerId]!.copyWith(isRefreshing: false);
       _safeNotify();
       await _syncMenuBar();
+
+      if (_manualQueued.remove(providerId) && !_disposed) {
+        unawaited(refresh(providerId, manual: true));
+      }
     }
   }
 
