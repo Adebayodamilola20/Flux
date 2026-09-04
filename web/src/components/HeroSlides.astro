@@ -1,0 +1,202 @@
+---
+/**
+ * The hero: product shots of the rail, one at a time.
+ *
+ * A crossfade rather than a carousel that slides — the shots share a
+ * composition (rail on the right, card beside it), so a fade reads as the
+ * wallpaper changing behind the same product, which is the point. The first
+ * frame is in the HTML so there is something on screen before any script.
+ */
+
+interface Shot {
+  src: string;
+  alt: string;
+}
+
+const shots: Shot[] = [
+  {
+    src: '/shots/devnotch-1.jpg',
+    alt: 'The DevNotch rail on a Mac desktop with a stone wallpaper: three rings for Claude, Codex and Antigravity, and the Claude card open showing the current session at 73% used.',
+  },
+  {
+    src: '/shots/devnotch-2.jpg',
+    alt: 'Two DevNotch rails over a lava wallpaper, one with the settings button showing.',
+  },
+  {
+    src: '/shots/devnotch-3.jpg',
+    alt: 'The DevNotch rail over a purple wallpaper with the Claude usage card open.',
+  },
+];
+
+/** Seconds each shot stays before the next fades in. */
+const DWELL = 4.5;
+---
+
+<figure class="slides" data-slides data-dwell={DWELL}>
+  <div class="frame">
+    {
+      shots.map((shot, i) => (
+        <img
+          class:list={['shot', i === 0 && 'is-active']}
+          src={shot.src}
+          alt={shot.alt}
+          width="1400"
+          height="1400"
+          loading={i === 0 ? 'eager' : 'lazy'}
+          decoding="async"
+          fetchpriority={i === 0 ? 'high' : 'auto'}
+        />
+      ))
+    }
+  </div>
+
+  <div class="dots" role="tablist" aria-label="Product shots">
+    {
+      shots.map((_, i) => (
+        <button
+          class:list={['dot', i === 0 && 'is-active']}
+          type="button"
+          role="tab"
+          aria-selected={i === 0 ? 'true' : 'false'}
+          aria-label={`Shot ${i + 1} of ${shots.length}`}
+          data-go={i}
+        />
+      ))
+    }
+  </div>
+</figure>
+
+<script>
+  // Cycles the shots. Pauses while the pointer is over the frame, while the
+  // tab is hidden, and for good once the viewer picks a dot themselves.
+  for (const root of document.querySelectorAll<HTMLElement>('[data-slides]')) {
+    const shots = [...root.querySelectorAll<HTMLImageElement>('.shot')];
+    const dots = [...root.querySelectorAll<HTMLButtonElement>('.dot')];
+    const dwell = Number(root.dataset.dwell ?? 4.5) * 1000;
+    if (shots.length < 2) continue;
+
+    let index = 0;
+    let timer: number | undefined;
+    let paused = false;
+
+    const show = (next: number) => {
+      index = (next + shots.length) % shots.length;
+      shots.forEach((s, i) => s.classList.toggle('is-active', i === index));
+      dots.forEach((d, i) => {
+        d.classList.toggle('is-active', i === index);
+        d.setAttribute('aria-selected', i === index ? 'true' : 'false');
+      });
+    };
+
+    const stop = () => {
+      if (timer !== undefined) window.clearInterval(timer);
+      timer = undefined;
+    };
+    const start = () => {
+      stop();
+      if (paused || document.hidden) return;
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      timer = window.setInterval(() => show(index + 1), dwell);
+    };
+
+    root.addEventListener('pointerenter', () => {
+      paused = true;
+      stop();
+    });
+    root.addEventListener('pointerleave', () => {
+      paused = false;
+      start();
+    });
+    document.addEventListener('visibilitychange', start);
+    dots.forEach((d) =>
+      d.addEventListener('click', () => {
+        show(Number(d.dataset.go));
+        // A viewer who chose a shot wants to look at it.
+        paused = true;
+        stop();
+      }),
+    );
+
+    start();
+  }
+</script>
+
+<style>
+  .slides {
+    margin: 0;
+    max-width: 44rem;
+    margin-inline: auto;
+  }
+
+  .frame {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    border-radius: clamp(1rem, 2.4vw, 1.75rem);
+    overflow: hidden;
+    background: var(--ink);
+    box-shadow: var(--shadow-screen);
+    /* Keeps the rounded corners honest while the images fade under them. */
+    isolation: isolate;
+  }
+
+  .shot {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transform: scale(1.03);
+    transition:
+      opacity 900ms var(--ease-out, ease),
+      transform 5.5s linear;
+    will-change: opacity;
+  }
+
+  .shot.is-active {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .dots {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+  }
+
+  .dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: var(--ink-3);
+    opacity: 0.35;
+    cursor: pointer;
+    transition:
+      opacity 200ms,
+      transform 200ms;
+  }
+
+  .dot:hover {
+    opacity: 0.7;
+  }
+
+  .dot.is-active {
+    opacity: 1;
+    transform: scale(1.35);
+  }
+
+  .dot:focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .shot {
+      transition: opacity 300ms ease;
+      transform: none;
+    }
+  }
+</style>
