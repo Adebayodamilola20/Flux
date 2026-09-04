@@ -36,16 +36,21 @@ const DWELL = 4.5;
   <div class="frame">
     {
       shots.map((shot, i) => (
-        <img
-          class:list={['shot', i === 0 && 'is-active']}
-          src={shot.src}
-          alt={shot.alt}
-          width="1400"
-          height="1400"
-          loading={i === 0 ? 'eager' : 'lazy'}
-          decoding="async"
-          fetchpriority={i === 0 ? 'high' : 'auto'}
-        />
+        <div class:list={['shot', i === 0 && 'is-active']}>
+          {/* The same picture, blown up and thrown out of focus, so a wide
+              frame has something to hold either side of a square shot. */}
+          <img class="wash" src={shot.src} alt="" aria-hidden="true" loading="lazy" decoding="async" />
+          <img
+            class="plate"
+            src={shot.src}
+            alt={shot.alt}
+            width="1400"
+            height="1400"
+            loading={i === 0 ? 'eager' : 'lazy'}
+            decoding="async"
+            fetchpriority={i === 0 ? 'high' : 'auto'}
+          />
+        </div>
       ))
     }
   </div>
@@ -124,13 +129,16 @@ const DWELL = 4.5;
 <style>
   .slides {
     margin: 0;
-    max-width: 44rem;
+    max-width: 64rem;
     margin-inline: auto;
   }
 
+  /* Landscape, the way a screen is: the shots are square, so the frame
+     shows the middle band of each — where the card and the rail are — and
+     lets the wallpaper run off the top and bottom. */
   .frame {
     position: relative;
-    aspect-ratio: 1 / 1;
+    aspect-ratio: 16 / 10;
     border-radius: clamp(1rem, 2.4vw, 1.75rem);
     overflow: hidden;
     background: var(--ink);
@@ -142,20 +150,35 @@ const DWELL = 4.5;
   .shot {
     position: absolute;
     inset: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
     opacity: 0;
-    transform: scale(1.03);
-    transition:
-      opacity 900ms var(--ease-out, ease),
-      transform 5.5s linear;
+    transition: opacity 900ms var(--ease-out, ease);
     will-change: opacity;
   }
 
   .shot.is-active {
     opacity: 1;
-    transform: scale(1);
+  }
+
+  /* Fills the width. Blurred and dimmed so it never competes with the
+     product sitting on top of it. */
+  .wash {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: blur(42px) saturate(1.15);
+    transform: scale(1.25);
+    opacity: 0.55;
+  }
+
+  /* The shot itself, whole: nothing of the rail or its card is cropped. */
+  .plate {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
 
   .dots {
@@ -196,7 +219,6 @@ const DWELL = 4.5;
   @media (prefers-reduced-motion: reduce) {
     .shot {
       transition: opacity 300ms ease;
-      transform: none;
     }
   }
 </style>
