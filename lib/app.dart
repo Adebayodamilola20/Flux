@@ -7,6 +7,7 @@ import 'services/history_service.dart';
 import 'services/native/native_bridge.dart';
 import 'services/settings_service.dart';
 import 'services/shell_controller.dart';
+import 'services/update_checker.dart';
 import 'services/usage_controller.dart';
 import 'ui/panel/provider_detail_view.dart';
 import 'ui/panel/provider_connect_view.dart';
@@ -31,6 +32,7 @@ class AiUsageMonitorApp extends StatelessWidget {
     required this.usageController,
     required this.shellController,
     required this.oauthRegistry,
+    required this.updateChecker,
   });
 
   final NativeBridge native;
@@ -40,6 +42,7 @@ class AiUsageMonitorApp extends StatelessWidget {
   final UsageController usageController;
   final ShellController shellController;
   final OAuthRegistry oauthRegistry;
+  final UpdateChecker updateChecker;
 
   @override
   Widget build(BuildContext context) {
@@ -52,6 +55,7 @@ class AiUsageMonitorApp extends StatelessWidget {
         ChangeNotifierProvider<SettingsService>.value(value: settingsService),
         ChangeNotifierProvider<UsageController>.value(value: usageController),
         ChangeNotifierProvider<ShellController>.value(value: shellController),
+        ChangeNotifierProvider<UpdateChecker>.value(value: updateChecker),
       ],
       child: Consumer<SettingsService>(
         builder: (context, settings, _) => MaterialApp(

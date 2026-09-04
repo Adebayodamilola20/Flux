@@ -5,11 +5,13 @@ import '../../core/formatting.dart';
 import '../../models/app_settings.dart';
 import '../../models/rail_placement.dart';
 import '../../providers/provider_registry.dart';
+import '../../services/update_checker.dart';
 import '../../services/native/native_bridge.dart';
 import '../../services/settings_service.dart';
 import '../../services/shell_controller.dart';
 import '../../services/usage_controller.dart';
 import '../theme/app_theme.dart';
+import 'update_section.dart';
 import '../widgets/pill_button.dart';
 import '../widgets/provider_glyph.dart';
 import '../widgets/settings_controls.dart';
@@ -654,6 +656,8 @@ class _AboutPage extends StatelessWidget {
             color: palette.textSecondary,
           ),
         ),
+        const SizedBox(height: 20),
+        const UpdateSection(version: UpdateChecker.compiledVersion),
         const SizedBox(height: 20),
         SettingsSection(
           title: 'What it reads',

@@ -264,6 +264,10 @@ export const FAQS = [
     a: 'A short arc sweeps inside the ring whenever the figure is not a current reading — either the provider could not be reached, or the number is more than fifteen minutes old. The card then shows the figure with its age rather than presenting it as now. An unmarked ring is a reading DevNotch just confirmed.',
   },
   {
+    q: 'How do I get updates?',
+    a: 'DevNotch checks for a newer build shortly after launch and every few hours, using one small request that carries nothing about your Mac. When there is one, Settings → About says so and offers the download. Quit DevNotch, open the disk image and drag the new copy over the old one; your slots and settings stay.',
+  },
+  {
     q: 'What happens if I switch accounts in one of the tools?',
     a: 'The figure changes with it. DevNotch notices the new account and stops counting anything the previous one recorded, so an old allowance is never shown against a new sign-in. For Claude it picks up a fresh login within a few seconds. For Antigravity, OpenCode, Kilo Code and Hermes it watches the tool’s own sign-in file, drops the previous account’s figure and reads the new one without you opening the tool. For Codex, everything logged before the switch is excluded, and until the new account has recorded something the ring shows no number rather than the wrong one.',
   },

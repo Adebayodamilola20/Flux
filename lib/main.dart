@@ -18,6 +18,7 @@ import 'services/history_service.dart';
 import 'services/native/native_bridge.dart';
 import 'services/settings_service.dart';
 import 'services/shell_controller.dart';
+import 'services/update_checker.dart';
 import 'services/usage_controller.dart';
 
 /// Composition root.
@@ -75,6 +76,12 @@ Future<void> main() async {
     usageController: usageController,
   );
 
+  // Looks for a newer published build, later and then every few hours. It
+  // only ever reports; installing is the user's, see UpdateChecker.
+  final updateChecker = UpdateChecker(
+    installedBuild: UpdateChecker.compiledBuild,
+  )..start();
+
   runApp(
     AiUsageMonitorApp(
       native: native,
@@ -84,6 +91,7 @@ Future<void> main() async {
       usageController: usageController,
       shellController: shellController,
       oauthRegistry: oauthRegistry,
+      updateChecker: updateChecker,
     ),
   );
 

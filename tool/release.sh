@@ -72,9 +72,14 @@ fi
 echo "notary profile:   ${KEYCHAIN_PROFILE}"
 
 # --- build -----------------------------------------------------------------
-step "Building ${APP_NAME} ${VERSION}"
+BUILD_STAMP="$(date -u +%Y%m%d%H%M)"
+step "Building ${APP_NAME} ${VERSION} (build ${BUILD_STAMP})"
 rm -rf "${BUILT}"
-flutter build macos --release
+# The stamp is what installed copies compare against latest.json; see
+# tool/package_dmg.sh, which publishes that manifest.
+flutter build macos --release \
+  --dart-define=APP_VERSION="${VERSION}" \
+  --dart-define=BUILD_STAMP="${BUILD_STAMP}"
 
 [[ -d "${BUILT}" ]] || fail "the build produced no app at ${BUILT}"
 

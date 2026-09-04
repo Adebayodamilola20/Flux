@@ -123,7 +123,7 @@ class _WelcomePage extends StatelessWidget {
         const Spacer(),
         Center(
           child: PillButton(
-            label: 'Start',
+            label: 'Next',
             emphasised: true,
             onPressed: onStart,
           ),
