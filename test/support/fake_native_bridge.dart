@@ -49,6 +49,9 @@ class FakeNativeBridge extends NativeBridge {
   /// the user has the item disabled in System Settings.
   set allowLoginItemChanges(bool value) => _state.allowLoginItemChanges = value;
 
+  /// Makes the named native methods fail, for the paths that must cope.
+  Set<String> get failingMethods => _state.failingMethods;
+
   /// When false, `url.open` reports failure, as macOS does when no handler is
   /// registered for the scheme.
   set allowUrlOpen(bool value) => _state.allowUrlOpen = value;
@@ -144,6 +147,10 @@ class _FakeNativeState {
   final placements = <RailPlacementCall>[];
   final secrets = <String, String>{};
   final openedUrls = <String>[];
+
+  /// Methods that answer with a platform error, as a native call does when
+  /// the handler throws or the window is not there to be measured.
+  final failingMethods = <String>{};
   final panelSizes = <Size>[];
 
   bool launchAtLogin = false;
@@ -168,6 +175,9 @@ class _FakeNativeState {
   };
 
   Future<Object?> handle(MethodCall call) async {
+    if (failingMethods.contains(call.method)) {
+      throw PlatformException(code: 'fake', message: '${call.method} failed');
+    }
     final args = (call.arguments as Map?)?.cast<String, Object?>() ?? {};
 
     switch (call.method) {

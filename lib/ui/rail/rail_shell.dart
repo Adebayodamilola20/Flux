@@ -53,6 +53,36 @@ class _RailShellState extends State<RailShell>
     unawaited(context.read<NativeBridge>().setRailCardVisible(id != null));
   }
 
+  /// The window size a re-read has already been asked for, so a mismatch
+  /// that native cannot resolve does not become a request every frame.
+  Size? _healRequestedFor;
+
+  /// Asks for fresh measurements when the window is not the size Flutter was
+  /// told it is.
+  ///
+  /// Everything on the rail is placed from [RailMetrics] — the ring size, the
+  /// slot pitch, where the settings control sits — while the window itself is
+  /// sized by Swift. When the two disagree, the rings are drawn at one scale
+  /// inside a window built for another: small rings, and the settings control
+  /// over the last slot's label. The window's real size is knowable here, so
+  /// the disagreement is detectable here, whatever caused it.
+  void _healMetrics(ShellController shell, RailMetrics metrics, Size actual) {
+    if (!actual.isFinite || actual.isEmpty) return;
+
+    final drift = (actual.width - metrics.windowWidth).abs() > 1 ||
+        (actual.height - metrics.windowHeight).abs() > 1;
+    if (!drift) {
+      _healRequestedFor = null;
+      return;
+    }
+    if (_healRequestedFor == actual) return;
+    _healRequestedFor = actual;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) unawaited(shell.reloadMetrics());
+    });
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -97,7 +127,11 @@ class _RailShellState extends State<RailShell>
         ? null
         : states.nonNulls.where((s) => s.id == _hoveredId).firstOrNull;
 
-    return Stack(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        _healMetrics(shell, metrics, constraints.biggest);
+
+        return Stack(
       children: [
         Positioned(
           top: fromTop ? metrics.shadowPadding : 0,
@@ -181,6 +215,8 @@ class _RailShellState extends State<RailShell>
             ),
           ),
       ],
+    );
+      },
     );
   }
 }

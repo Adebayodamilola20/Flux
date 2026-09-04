@@ -243,4 +243,31 @@ void main() {
       expect(native.isRailVisible, isTrue);
     });
   });
+
+  group('measurements', () {
+    test('survive a re-read that fails', () async {
+      // What was on screen: after a native read failed, the rail drew itself
+      // from the built-in fallback — small rings, the settings control over
+      // the last label — inside a window still sized for the real display.
+      await boot();
+      await shell.start();
+      expect(shell.metrics.windowHeight, 358);
+
+      native.failingMethods.add('rail.metrics');
+      await shell.reloadMetrics();
+
+      expect(shell.metrics.windowHeight, 358);
+    });
+
+    test('are read again when the window says so', () async {
+      await boot();
+      await shell.start();
+
+      var notified = 0;
+      shell.addListener(() => notified++);
+      await shell.reloadMetrics();
+
+      expect(notified, 1);
+    });
+  });
 }

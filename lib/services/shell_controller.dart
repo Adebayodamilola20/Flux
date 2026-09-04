@@ -120,7 +120,7 @@ class ShellController extends ChangeNotifier {
 
   /// Reads native geometry, then shows whichever surface the user should see.
   Future<void> start() async {
-    _metrics = await _native.railMetrics();
+    await _readMetrics();
     _screens = await _native.listScreens();
     notifyListeners();
 
@@ -199,8 +199,23 @@ class ShellController extends ChangeNotifier {
   /// the window resizes and the rings keep the size they had, which is worse
   /// than either scale on its own.
   Future<void> reloadMetrics() async {
-    _metrics = await _native.railMetrics();
+    await _readMetrics();
     notifyListeners();
+  }
+
+  /// Reads the measurements, keeping the ones already held if the read fails.
+  ///
+  /// A failed call answers with [RailMetrics.fallback], which is drawn for a
+  /// 1080-point display at scale one. Replacing real measurements with it
+  /// puts small rings and a misplaced settings control inside a window that
+  /// is still the right size — which is what was seen, briefly, when a read
+  /// happened to fail. Better to keep what was true a moment ago.
+  Future<void> _readMetrics() async {
+    final fresh = await _native.railMetrics();
+    final failed = identical(fresh, RailMetrics.fallback);
+    final haveReal = !identical(_metrics, RailMetrics.fallback);
+    if (failed && haveReal) return;
+    _metrics = fresh;
   }
 
   /// Takes the rail off screen, because the user chose "Hide Rail".

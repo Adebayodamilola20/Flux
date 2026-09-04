@@ -185,9 +185,13 @@ final class RailWindowController {
         glass.layout(windowSize: size, edge: edge, slots: slotCount)
 
         // Flutter lays the rail out inside these numbers, so it has to be told
-        // when they change or the rings keep their old size inside a resized
-        // window.
-        if rescaled { onMetricsChanged?() }
+        // whenever the window is placed, not only when the scale moved: a
+        // reading Flutter took before the first placement — or one that failed
+        // — is not corrected by a notification that never comes. The re-read
+        // is one channel call; sending it every time is what makes the rail
+        // and its window agree no matter which side ran first.
+        _ = rescaled
+        onMetricsChanged?()
     }
 
     @objc private func screensChanged() {
@@ -203,6 +207,21 @@ final class RailWindowController {
     /// just switched to.
     @objc private func spaceChanged() {
         guard isRailVisible, window.mode == .rail else { return }
+
+        // The window can be left at the wrong size without any announcement —
+        // a scale worked out before the display was known, or a screen change
+        // the system delivered while the rail was hidden. Coming back to the
+        // app is a moment the user is looking at it, so it is put right here
+        // rather than waiting for a screen-parameters notification that may
+        // never arrive.
+        let wantedSize = RailMetrics.windowSize(slots: slotCount, edge: edge)
+        let wantedScale = RailMetrics.scale(for: targetScreen())
+        if abs(wantedScale - RailMetrics.scale) > 0.001
+            || abs(window.frame.width - wantedSize.width) > 0.5
+            || abs(window.frame.height - wantedSize.height) > 0.5 {
+            reposition()
+        }
+
         guard !window.isVisible else { return }
         window.isPresentationAllowed = true
         window.orderFront(nil)
