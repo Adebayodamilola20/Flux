@@ -25,45 +25,17 @@ const ready = d.available && d.url;
     </p>
 
     <div class="card">
-      <div class="icon" aria-hidden="true">
-        <svg viewBox="0 0 128 128" width="112" height="112" class="appicon">
-          <defs>
-            <linearGradient id="body" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#323a41" />
-              <stop offset="0.55" stop-color="#1b2126" />
-              <stop offset="1" stop-color="#0e1317" />
-            </linearGradient>
-            <linearGradient id="arc" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0" stop-color="#5fdcc9" />
-              <stop offset="1" stop-color="#0d9488" />
-            </linearGradient>
-            <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stop-color="#fff" stop-opacity="0.16" />
-              <stop offset="1" stop-color="#fff" stop-opacity="0" />
-            </linearGradient>
-          </defs>
-
-          <!-- Squircle body, with the top highlight a real app icon carries. -->
-          <path
-            d="M64 6c34.6 0 45.4 2.5 52.5 9.5S126 29.4 126 64s-2.5 45.4-9.5 52.5S98.6 126 64 126s-45.4-2.5-52.5-9.5S2 98.6 2 64s2.5-45.4 9.5-52.5S29.4 6 64 6Z"
-            fill="url(#body)"
-          />
-          <path
-            d="M64 6c34.6 0 45.4 2.5 52.5 9.5 5.2 5.2 8.2 13.6 9.2 30.5-8 6-34 10-61.7 10S18.3 52 10.3 46c1-16.9 4-25.3 9.2-30.5C26.6 8.5 29.4 6 64 6Z"
-            fill="url(#gloss)"
-          />
-
-          <!-- The mark: the usage ring, with the notch standing inside it. -->
-          <circle cx="64" cy="66" r="30" fill="none" stroke="#fff" stroke-opacity="0.14" stroke-width="8" />
-          <path
-            d="M64 36a30 30 0 0 1 21.2 51.2"
-            fill="none"
-            stroke="url(#arc)"
-            stroke-width="8"
-            stroke-linecap="round"
-          />
-          <rect x="59.5" y="52" width="9" height="28" rx="4.5" fill="#fff" />
-        </svg>
+      <div class="icon">
+        <!-- The app's own icon, the one the Dock and the Keychain prompt
+             show. It used to be drawn here in SVG, which meant the picture on
+             the download page was not the thing being downloaded. -->
+        <img
+          class="appicon"
+          src="/logo-512.png"
+          alt="The DevNotch app icon"
+          width="512"
+          height="512"
+        />
       </div>
 
       <h2 class="name">{PRODUCT.name}</h2>
@@ -97,6 +69,13 @@ const ready = d.available && d.url;
 </section>
 
 <style>
+  .appicon {
+    width: 112px;
+    height: 112px;
+    display: block;
+    border-radius: 25px;
+  }
+
   .dl {
     padding-block: clamp(3rem, 8vw, 6rem) clamp(4rem, 9vw, 7rem);
   }
