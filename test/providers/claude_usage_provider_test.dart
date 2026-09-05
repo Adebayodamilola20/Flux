@@ -616,4 +616,41 @@ void main() {
       expect(await provider.detectActivity(), isEmpty);
     });
   });
+
+  group('a cached figure is never passed off as a live one', () {
+    // Reported by a user as "the app is not accurate": their terminal read
+    // 24% while the card read 0%, three days old, with nothing on it to say
+    // why. The number was Claude Code's cache, shown in silence and with no
+    // age attached, so the rail drew it as confidently as a live reading.
+    test('carries the age it was measured at, so the ring shows it', () async {
+      final provider = await build();
+      await provider.enableLocalOnly();
+
+      final data = await provider.fetchUsage(const AppSettings());
+
+      expect(data.windows, isNotEmpty);
+      for (final window in data.windows) {
+        expect(
+          window.observedAt,
+          isNotNull,
+          reason: 'an unstamped window can never read as stale',
+        );
+      }
+    });
+
+    test('says why it is not live, even with no credentials at all', () async {
+      // `noCredentials` used to fall through to no note whatsoever, which is
+      // precisely the case the user hit.
+      final provider = await build();
+      await provider.enableLocalOnly();
+
+      final data = await provider.fetchUsage(const AppSettings());
+
+      expect(
+        data.notes.any((n) => n.contains('cached') || n.contains('live')),
+        isTrue,
+        reason: 'the card must say the figure is not a live reading',
+      );
+    });
+  });
 }

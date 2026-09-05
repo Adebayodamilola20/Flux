@@ -1,7 +1,9 @@
 import '../../core/logger.dart';
+import '../../models/app_settings.dart';
 import '../cli/cli_usage_provider.dart';
 import '../provider_catalog.dart';
 import '../usage_provider.dart';
+import 'antigravity_local_server.dart';
 
 /// Google Antigravity, read from the CLI that is already signed in.
 ///
@@ -25,8 +27,35 @@ class AntigravityUsageProvider extends CliUsageProvider {
     required super.native,
     required super.connectionStore,
     super.source,
+    AntigravityLocalServer? server,
     Logger? logger,
-  }) : super(logger: logger ?? const Logger('antigravity'));
+  })  : _server = server ?? AntigravityLocalServer(),
+        super(logger: logger ?? const Logger('antigravity'));
+
+  /// Antigravity's own language server, asked first.
+  final AntigravityLocalServer _server;
+
+  /// Reads the quota, preferring the running server to driving the CLI.
+  ///
+  /// **Why the server comes first.** Both answer the same question, but one
+  /// takes milliseconds and the other takes the better part of a minute and
+  /// starts a real process. The consequence was not just slowness: because a
+  /// CLI launch can open a browser, it could only ever be done when the user
+  /// explicitly asked, so the figure on the rail was usually hours old and
+  /// disagreed with what `/usage` showed. When Antigravity is running there is
+  /// no reason to pay that cost at all.
+  ///
+  /// **The CLI is still the fallback**, for the case the server cannot cover:
+  /// Antigravity closed. Then the last panel that was read still stands, and
+  /// the user can still ask for a fresh one.
+  @override
+  Future<CliUsageReading> readUsage(AppSettings settings) async {
+    final live = await _server.read();
+    if (live != null && live.hasUsage) {
+      return CliUsageReading(windows: live.windows);
+    }
+    return super.readUsage(settings);
+  }
 
   @override
   ProviderDescriptor get descriptor => ProviderCatalog.antigravity;

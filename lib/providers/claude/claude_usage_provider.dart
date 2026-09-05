@@ -452,16 +452,30 @@ class ClaudeUsageProvider implements UsageProvider {
     // Why the cached figure is being shown, when there is a reason worth
     // telling the user. Without this the card shows a number that lags the
     // CLI with no explanation, which reads as the app being wrong.
+    //
+    // Every failure gets one. `noCredentials` used to fall through to null,
+    // which is the bug a user reported as "the app is not accurate": their CLI
+    // read 24% while the card read 0%, three days old, with nothing on it to
+    // say why or that anything had gone wrong. A cached figure presented in
+    // silence is indistinguishable from a current one.
     final fallbackNote = switch (failure) {
+      ClaudeLiveFailure.noCredentials =>
+        'Claude Code’s signed-in session could not be found on this Mac, so '
+            'this figure is the last one it cached rather than a live '
+            'reading. Run “claude” once, or sign in again, to reconnect it.',
       ClaudeLiveFailure.keychainDenied =>
         'Allow access to “Claude Code-credentials” in your Keychain to read '
             'live usage. Showing the last figure Claude Code cached.',
       ClaudeLiveFailure.tokenExpired || ClaudeLiveFailure.unauthorized =>
         'Claude Code’s stored session could not be used for a live reading. '
-            'Showing the last figure it cached.',
+            'Showing the last figure it cached. Running “claude” once renews '
+            'it.',
       ClaudeLiveFailure.network =>
         'Anthropic could not be reached. Showing the last cached figure.',
-      _ => null,
+      ClaudeLiveFailure.badResponse =>
+        'Anthropic’s reply could not be read, so this is the last figure '
+            'Claude Code cached.',
+      null => null,
     };
 
     // A cached figure only describes the window it was measured in. Once that
@@ -498,10 +512,24 @@ class ClaudeUsageProvider implements UsageProvider {
 
     final observedAt = reading.fetchedAt;
 
+    // Stamp every window with when it was actually measured.
+    //
+    // Without this the cached figure carried no age at all, so `isStale` was
+    // false and the rail drew it as a confident, current reading — which is
+    // how a three-day-old 0% came to sit beside a CLI reporting 24%, with
+    // nothing on the ring to suggest it was anything but live. The date is
+    // known here; not attaching it was the whole defect.
+    final aged = [
+      for (final window in await _withLocalTokens(current, settings))
+        window.observedAt == null && observedAt != null
+            ? window.copyWith(observedAt: observedAt)
+            : window,
+    ];
+
     return UsageData(
       providerId: id,
       providerName: displayName,
-      windows: await _withLocalTokens(current, settings),
+      windows: aged,
       connection: ConnectionStatus.connected,
       fetchedAt: observedAt ?? DateTime.now(),
       accountLabel: reading.email,
