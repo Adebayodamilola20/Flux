@@ -4,12 +4,17 @@ import { defineConfig } from 'astro/config';
 // Static output. The site is a couple of pages with no server behaviour, so
 // there is nothing to run at request time.
 export default defineConfig({
-  // PLACEHOLDER — set this to the real domain before deploying. It is what
-  // `<link rel="canonical">` and `og:url` are built from, so shipping as-is
-  // would point every canonical at example.com.
-  // If it is unset entirely, Base.astro omits those two tags rather than
-  // failing to render — see the comment on `canonical` there.
-  site: 'https://example.com',
+  // The public address, once there is one. Set it and the canonical link,
+  // `og:url` and the share image become absolute and correct.
+  //
+  // Deliberately unset rather than left on a placeholder: every one of those
+  // is built from this, so a stand-in domain does not degrade the tags, it
+  // publishes wrong ones — a canonical pointing somewhere else entirely, and
+  // a share card whose image is fetched from a site nobody owns. Base.astro
+  // omits all three when this is absent, which is the honest state for a
+  // deployment whose address is not yet known.
+  //
+  // site: 'https://devnotch.example',
   output: 'static',
   build: { inlineStylesheets: 'auto' },
   devToolbar: { enabled: false },
