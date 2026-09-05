@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../services/settings_service.dart';
 import '../../services/shell_controller.dart';
 import '../theme/app_theme.dart';
+import '../widgets/app_mark.dart';
 import '../widgets/pill_button.dart';
 
 /// First run, before the widget has ever been on screen.
@@ -193,6 +194,8 @@ class _Wordmark extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        const AppMark(size: 30),
+        const SizedBox(width: 10),
         Text(
           'Dev',
           style: TextStyle(

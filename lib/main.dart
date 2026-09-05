@@ -107,12 +107,36 @@ Future<void> _boot(
   ShellController shell,
   Logger log,
 ) async {
+  // What the user sees comes first.
+  //
+  // This used to fetch every provider's usage before deciding which window to
+  // open, on the reasoning that the decision might depend on it. It does not —
+  // the only question is whether onboarding has been completed — and the cost
+  // was severe: a CLI probe takes the better part of a minute, a Keychain
+  // dialog waits on the user indefinitely, and until all of it finished the
+  // app had no window at all. On a first run that meant the intro screen did
+  // not appear, which looked exactly like an app that had failed to start.
+  //
+  // So: restore what is already on disk, put the right window on screen, and
+  // only then go and ask anyone anything.
   try {
-    // Connections first: which surface to show depends on whether anything has
-    // been connected, so the shell must not decide before it knows.
-    await usage.start();
+    await usage.restore();
+  } catch (e, stack) {
+    log.error('restoring providers failed', e.runtimeType, stack);
+  }
+
+  try {
     await shell.start();
   } catch (e, stack) {
     log.error('startup failed', e.runtimeType, stack);
+  }
+
+  // Separately guarded: a provider that cannot be reached must not take the
+  // window down with it.
+  try {
+    usage.beginPolling();
+    await usage.refreshAll();
+  } catch (e, stack) {
+    log.error('first refresh failed', e.runtimeType, stack);
   }
 }

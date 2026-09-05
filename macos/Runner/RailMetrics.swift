@@ -20,28 +20,61 @@ enum RailMetrics {
     /// thought of — but one ratio against a reference height.
     static var scale: CGFloat = 1
 
-    /// The height this design was drawn against, in points.
-    private static let referenceHeight: CGFloat = 1080
-
-    /// Bounds on that ratio.
+    /// The usable height the rail is drawn at full size for, in points.
     ///
-    /// Without them a very small display shrinks the rings past being
-    /// clickable, and a very tall one turns the rail into furniture. This
-    /// range is what still reads as the same product.
-    private static let minScale: CGFloat = 0.82
+    /// A 13-inch laptop, which is the smallest display this is meant for —
+    /// *not* the largest. Measuring down from a desktop-sized reference is
+    /// what made the rail shrink on the machines most people use it on: a
+    /// 13-inch reported about 875 points against a 1080-point reference and
+    /// got a rail a fifth smaller than the one it was designed as, which read
+    /// as an afterthought stuck to the bezel. A laptop now gets the rail at
+    /// the size it was drawn, and bigger displays grow from there.
+    private static let referenceHeight: CGFloat = 900
+
+    /// How much of a display's extra height turns into extra rail.
+    ///
+    /// Not all of it. A 34-inch ultrawide is 60% taller than a 13-inch laptop,
+    /// and a rail 60% larger on it would be furniture. At this rate the same
+    /// ultrawide lands at 1.26 — exactly where it already sat, and where it
+    /// looks right — while every laptop stays close to 1.
+    private static let growthRate: CGFloat = 0.43
+
+    /// Bounds on the result.
+    ///
+    /// The floor is close to 1 on purpose: nothing this app runs on should get
+    /// a rail meaningfully smaller than the one it was designed as. The
+    /// ceiling stops a very tall display turning it into furniture.
+    private static let minScale: CGFloat = 0.95
     private static let maxScale: CGFloat = 1.35
 
     /// Works out the scale for a display.
     ///
     /// Driven by height in points rather than pixels: points are what the user
     /// has already told macOS they want things to be, so a Retina laptop set
-    /// to "More Space" reports a taller screen and gets a proportionally
-    /// smaller rail, which is the behaviour wanted.
+    /// to "More Space" reports a taller screen and gets a slightly smaller
+    /// rail, which is the behaviour wanted.
+    ///
+    /// Measured from the display, not the usable area inside it. The usable
+    /// area stops above the Dock, so a rail sized from it changed size when
+    /// the Dock was shown, hidden, or moved to the side — and on a laptop,
+    /// where the Dock takes a far larger share of a shorter screen, it made
+    /// the rail smaller still. How big the display is does not depend on
+    /// what else is on it.
+    ///
+    /// Worked examples, at the default resolution of each:
+    ///
+    ///     13-inch laptop     900 pt   ->  1.00
+    ///     15-inch laptop     982 pt   ->  1.04
+    ///     16-inch laptop    1117 pt   ->  1.10
+    ///     34-inch ultrawide 1440 pt   ->  1.26
     static func scale(for screen: NSScreen?) -> CGFloat {
         guard let screen else { return 1 }
-        let height = screen.visibleFrame.height
+        let height = screen.frame.height
         guard height > 0 else { return 1 }
-        return min(max(height / referenceHeight, minScale), maxScale)
+
+        let ratio = height / referenceHeight
+        let scaled = 1 + (ratio - 1) * growthRate
+        return min(max(scaled, minScale), maxScale)
     }
 
     /// Scales a base measurement and lands it on a whole point, so an edge

@@ -218,6 +218,20 @@ class ShellController extends ChangeNotifier {
     _metrics = fresh;
   }
 
+  /// Puts this Mac back to how it was before DevNotch was ever run.
+  ///
+  /// Clears the stored settings, connections and history, drops what is held
+  /// in memory, and returns to the intro screen — the same sequence a genuine
+  /// first launch goes through. See [SettingsService.resetEverything] for why
+  /// deleting the app is not enough on its own.
+  Future<void> resetEverything() async {
+    await _usage.forgetEverything();
+    await _settingsService.resetEverything();
+    _lastAppliedPlacement = const AppSettings();
+    await _applyPlacement(force: true);
+    await openPanel(ShellSurface.onboarding);
+  }
+
   /// Takes the rail off screen, because the user chose "Hide Rail".
   ///
   /// Distinct from [toggleRailVisibility]: a menu item that says Hide must

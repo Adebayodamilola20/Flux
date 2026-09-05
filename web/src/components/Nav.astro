@@ -6,6 +6,14 @@ import Icon from './Icon.astro';
 <header class="bar">
   <div class="wrap bar__in">
     <a class="brand" href="/">
+      <img
+        class="brand__mark"
+        src="/logo-128.png"
+        alt=""
+        width="128"
+        height="128"
+        aria-hidden="true"
+      />
       <span class="brand__name">
         <span class="brand__dev">Dev</span><span class="brand__notch"
           >Notch<span class="brand__swipe" aria-hidden="true" /></span
@@ -32,6 +40,15 @@ import Icon from './Icon.astro';
 </header>
 
 <style>
+  /* The app's own icon, at the size a favicon reads at. */
+  .brand__mark {
+    width: 1.55rem;
+    height: 1.55rem;
+    border-radius: 0.35rem;
+    display: block;
+    flex: none;
+  }
+
   .bar {
     position: sticky;
     top: 0;

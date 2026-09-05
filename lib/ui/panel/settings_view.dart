@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -12,6 +14,7 @@ import '../../services/shell_controller.dart';
 import '../../services/usage_controller.dart';
 import '../theme/app_theme.dart';
 import 'update_section.dart';
+import '../widgets/app_mark.dart';
 import '../widgets/pill_button.dart';
 import '../widgets/provider_glyph.dart';
 import '../widgets/settings_controls.dart';
@@ -639,22 +642,38 @@ class _AboutPage extends StatelessWidget {
 
     return ListView(
       children: [
-        Text(
-          'DevNotch',
-          style: TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: palette.textPrimary,
-          ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'A menu-bar monitor for how much of your AI quota you have used.',
-          style: TextStyle(
-            fontSize: 12,
-            height: 1.5,
-            color: palette.textSecondary,
-          ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const AppMark(size: 44),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'DevNotch',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w600,
+                      color: palette.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'A menu-bar monitor for how much of your AI quota you '
+                    'have used.',
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.5,
+                      color: palette.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 20),
         const UpdateSection(version: UpdateChecker.compiledVersion),
@@ -684,6 +703,54 @@ class _AboutPage extends StatelessWidget {
                 ),
               ),
           ],
+        ),
+        const SizedBox(height: 20),
+        const _ResetSection(),
+      ],
+    );
+  }
+}
+
+/// The way back to a new install.
+///
+/// macOS keeps an app's preferences in the user's Library, not in the app, so
+/// deleting DevNotch and downloading it again brings back the same slots and
+/// skips the intro — which looks like a fresh copy that arrived already set
+/// up. This is the honest way to start over, and it takes two presses because
+/// it cannot be undone.
+class _ResetSection extends StatefulWidget {
+  const _ResetSection();
+
+  @override
+  State<_ResetSection> createState() => _ResetSectionState();
+}
+
+class _ResetSectionState extends State<_ResetSection> {
+  bool _armed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return SettingsSection(
+      title: 'Start over',
+      footnote: _armed
+          ? 'This cannot be undone.'
+          : 'Deleting the app does not remove its settings. This does.',
+      children: [
+        SettingsRow(
+          label: 'Reset DevNotch',
+          description:
+              'Clears your slots, connections and history, and shows the '
+              'intro screen again, exactly as on a new Mac.',
+          control: PillButton(
+            label: _armed ? 'Tap again to reset' : 'Reset…',
+            onPressed: () {
+              if (!_armed) {
+                setState(() => _armed = true);
+                return;
+              }
+              unawaited(context.read<ShellController>().resetEverything());
+            },
+          ),
         ),
       ],
     );

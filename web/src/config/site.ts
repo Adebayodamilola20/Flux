@@ -264,6 +264,10 @@ export const FAQS = [
     a: 'A short arc sweeps inside the ring whenever the figure is not a current reading — either the provider could not be reached, or the number is more than fifteen minutes old. The card then shows the figure with its age rather than presenting it as now. An unmarked ring is a reading DevNotch just confirmed.',
   },
   {
+    q: 'I deleted DevNotch and downloaded it again — why is my old setup still there?',
+    a: 'Because macOS keeps an app’s settings in your Library, not inside the app, so dragging DevNotch to the Bin leaves them behind and the new copy finds them. That is true of every Mac app. To start genuinely fresh, open Settings → About → Start over and press Reset. It clears your slots, connections and history and brings the intro screen back, exactly as on a new Mac.',
+  },
+  {
     q: 'How do I get updates?',
     a: 'DevNotch checks for a newer build shortly after launch and every few hours, using one small request that carries nothing about your Mac. When there is one, Settings → About says so and offers the download. Quit DevNotch, open the disk image and drag the new copy over the old one; your slots and settings stay.',
   },

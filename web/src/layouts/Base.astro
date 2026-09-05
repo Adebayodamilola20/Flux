@@ -34,7 +34,9 @@ const canonical = Astro.site
     <meta name="color-scheme" content="light" />
     <meta name="theme-color" content="#e6f5f1" />
 
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon-32.png" type="image/png" sizes="32x32" />
+    <link rel="icon" href="/logo-512.png" type="image/png" sizes="512x512" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={PRODUCT.name} />
@@ -42,9 +44,12 @@ const canonical = Astro.site
     <meta property="og:description" content={description} />
     {canonical && <meta property="og:url" content={canonical} />}
 
-    <meta name="twitter:card" content="summary_large_image" />
+    {canonical && <meta property="og:image" content={new URL('/logo-512.png', Astro.site).href} />}
+
+    <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
+    {canonical && <meta name="twitter:image" content={new URL('/logo-512.png', Astro.site).href} />}
   </head>
   <body>
     <a class="skip" href="#main">Skip to content</a>

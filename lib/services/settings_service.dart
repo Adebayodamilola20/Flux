@@ -56,6 +56,27 @@ class SettingsService extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Forgets everything this Mac remembers about DevNotch.
+  ///
+  /// **Why this exists.** macOS keeps an app's preferences after the app is
+  /// deleted — they live in the user's Library, not in the bundle — so
+  /// dragging DevNotch to the Bin and downloading it again brings back the
+  /// same slots, the same connections, and no intro screen. That is normal
+  /// for every Mac app and is invisible to anyone who has not met it before,
+  /// where it reads as a fresh copy that came pre-configured with someone
+  /// else's setup. This is the way back to a genuinely new install without
+  /// going looking for a plist.
+  ///
+  /// Clears every key the app owns, not just its own: connections, history
+  /// and any stored key belong to the same install.
+  Future<void> resetEverything() async {
+    await _prefs.clear();
+    _settings = const AppSettings();
+    await _native.setLaunchAtLogin(false);
+    notifyListeners();
+    _log.info('all stored state cleared');
+  }
+
   Future<void> update(AppSettings next) async {
     if (next == _settings) return;
     final previous = _settings;

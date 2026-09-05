@@ -394,6 +394,18 @@ class UsageController extends ChangeNotifier {
 
   /// Loads stored connections and performs the first fetch.
   Future<void> start() async {
+    await restore();
+    beginPolling();
+    await refreshAll();
+  }
+
+  /// Loads what is already known, and asks nobody anything.
+  ///
+  /// Split out from [start] because it is fast and local, while everything
+  /// after it can take half a minute: a CLI probe, a network call, or a
+  /// Keychain dialog that waits on the user. The first window the app shows
+  /// must not be behind any of that — see `_boot` in `main.dart`.
+  Future<void> restore() async {
     await _registry.restoreAll();
     for (final provider in _registry.all) {
       _states[provider.id] = _states[provider.id]!.copyWith(
@@ -401,10 +413,12 @@ class UsageController extends ChangeNotifier {
       );
     }
     _safeNotify();
+  }
 
+  /// Starts the refresh timer and the change watchers.
+  void beginPolling() {
     _watchProviders();
     _scheduleTimer();
-    await refreshAll();
   }
 
   /// Subscribes to providers that can tell us when their data changed.
@@ -614,6 +628,28 @@ class UsageController extends ChangeNotifier {
       descriptor: provider.descriptor,
       connection: provider.connection,
     );
+    _safeNotify();
+    await _syncMenuBar();
+  }
+
+  /// Drops every connection and reading, so nothing survives a reset.
+  ///
+  /// The stored side of this is [SettingsService.resetEverything]; this is the
+  /// half that lives in memory. Without it a reset clears the disk and the
+  /// rail carries on showing the connections it already had.
+  Future<void> forgetEverything() async {
+    for (final provider in _registry.all) {
+      try {
+        await provider.disconnect();
+      } catch (e) {
+        _log.warn('could not disconnect ${provider.id}: ${e.runtimeType}');
+      }
+      _states[provider.id] = ProviderState(
+        descriptor: provider.descriptor,
+        connection: provider.connection,
+      );
+    }
+    await _history.clear();
     _safeNotify();
     await _syncMenuBar();
   }

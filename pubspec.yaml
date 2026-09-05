@@ -24,3 +24,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/screenshots/
+    # Only the size the UI draws; the 1024 master stays out of the bundle.
+    - assets/brand/devnotch-mark-512.png

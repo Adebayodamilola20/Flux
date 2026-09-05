@@ -270,4 +270,39 @@ void main() {
       expect(notified, 1);
     });
   });
+
+  group('starting over', () {
+    // macOS keeps an app's preferences after the app is deleted, so
+    // downloading DevNotch again brings back the previous setup and skips the
+    // intro — which is what made a fresh download look pre-configured.
+    test('clears the slots and shows the intro again', () async {
+      await boot(
+        prefs: {
+          'flutter.app_settings_v1':
+              '{"onboardingComplete":true,"slots":["claude",null,null]}',
+        },
+      );
+      await shell.start();
+      expect(shell.surface, ShellSurface.rail);
+
+      await shell.resetEverything();
+
+      expect(shell.surface, ShellSurface.onboarding);
+      expect(settings.settings.onboardingComplete, isFalse);
+      expect(settings.settings.slots, everyElement(isNull));
+    });
+
+    test('leaves nothing for the next launch to find', () async {
+      await boot(
+        prefs: {
+          'flutter.app_settings_v1': '{"onboardingComplete":true}',
+          'connection.claude': '{"providerId":"claude","status":"connected"}',
+        },
+      );
+      await shell.start();
+      await shell.resetEverything();
+
+      expect(preferences.getKeys(), isEmpty);
+    });
+  });
 }

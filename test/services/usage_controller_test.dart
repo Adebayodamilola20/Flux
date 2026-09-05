@@ -100,6 +100,24 @@ void main() {
     });
   });
 
+  group('startup', () {
+    test('restoring asks nobody anything', () async {
+      // The first window the app shows waits on this, so it must not be
+      // behind a CLI probe, a network call, or a Keychain dialog. A first run
+      // that sat blank until all of that finished is what made the intro
+      // screen look like it never appeared.
+      final provider = FakeProvider(id: 'claude', percent: 52)..seedConnected();
+      final (controller: controller, primary: _) = buildController(
+        provider: provider,
+      );
+
+      await controller.restore();
+
+      expect(provider.fetchCount, 0);
+      expect(controller.stateFor('claude').status, ConnectionStatus.connected);
+    });
+  });
+
   group('refresh', () {
     test('a Refresh pressed during a fetch runs after it, not never', () async {
       // The complaint: press Refresh while a poll happens to be running and
