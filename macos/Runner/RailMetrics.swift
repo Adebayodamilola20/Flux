@@ -20,31 +20,35 @@ enum RailMetrics {
     /// thought of — but one ratio against a reference height.
     static var scale: CGFloat = 1
 
-    /// The usable height the rail is drawn at full size for, in points.
-    ///
-    /// A 13-inch laptop, which is the smallest display this is meant for —
-    /// *not* the largest. Measuring down from a desktop-sized reference is
-    /// what made the rail shrink on the machines most people use it on: a
-    /// 13-inch reported about 875 points against a 1080-point reference and
-    /// got a rail a fifth smaller than the one it was designed as, which read
-    /// as an afterthought stuck to the bezel. A laptop now gets the rail at
-    /// the size it was drawn, and bigger displays grow from there.
+    /// The display height the baseline size is quoted for, in points: a
+    /// 13-inch laptop, the smallest machine this is meant for.
     private static let referenceHeight: CGFloat = 900
+
+    /// The size the rail is drawn at on that reference display.
+    ///
+    /// **Why this is not 1.** The rail is very nearly the same size on every
+    /// display, and this is the size it is — chosen because it is what a
+    /// 34-inch ultrawide was already showing, and what the design was signed
+    /// off at. A laptop used to get 0.82 of it, which is what "the notch looks
+    /// so small on my laptop" was: not a laptop-specific fault, but a rail
+    /// sized down by a fifth on exactly the machines it is carried around on.
+    private static let baseScale: CGFloat = 1.20
 
     /// How much of a display's extra height turns into extra rail.
     ///
-    /// Not all of it. A 34-inch ultrawide is 60% taller than a 13-inch laptop,
-    /// and a rail 60% larger on it would be furniture. At this rate the same
-    /// ultrawide lands at 1.26 — exactly where it already sat, and where it
-    /// looks right — while every laptop stays close to 1.
-    private static let growthRate: CGFloat = 0.43
+    /// Almost none of it, deliberately. A rail is read at arm's length on a
+    /// laptop and at arm's length on a desktop; the display being larger does
+    /// not move the reader further away, so there is very little reason for
+    /// the rings to grow. What is left is a slight lift on big displays so the
+    /// rail does not look mean next to everything else on them — a 34-inch
+    /// ultrawide lands on 1.26, five per cent above a 13-inch laptop, which is
+    /// where it already sat and where it looks right.
+    private static let growthRate: CGFloat = 0.10
 
-    /// Bounds on the result.
-    ///
-    /// The floor is close to 1 on purpose: nothing this app runs on should get
-    /// a rail meaningfully smaller than the one it was designed as. The
-    /// ceiling stops a very tall display turning it into furniture.
-    private static let minScale: CGFloat = 0.95
+    /// Bounds on the result. Narrow, because the point is that this barely
+    /// moves: a rail the user has learned the size of should not change
+    /// because they plugged in a monitor.
+    private static let minScale: CGFloat = 1.12
     private static let maxScale: CGFloat = 1.35
 
     /// Works out the scale for a display.
@@ -63,17 +67,17 @@ enum RailMetrics {
     ///
     /// Worked examples, at the default resolution of each:
     ///
-    ///     13-inch laptop     900 pt   ->  1.00
-    ///     15-inch laptop     982 pt   ->  1.04
-    ///     16-inch laptop    1117 pt   ->  1.10
+    ///     13-inch laptop     900 pt   ->  1.20
+    ///     15-inch laptop     982 pt   ->  1.21
+    ///     16-inch laptop    1117 pt   ->  1.22
     ///     34-inch ultrawide 1440 pt   ->  1.26
     static func scale(for screen: NSScreen?) -> CGFloat {
-        guard let screen else { return 1 }
+        guard let screen else { return baseScale }
         let height = screen.frame.height
-        guard height > 0 else { return 1 }
+        guard height > 0 else { return baseScale }
 
         let ratio = height / referenceHeight
-        let scaled = 1 + (ratio - 1) * growthRate
+        let scaled = baseScale + (ratio - 1) * growthRate
         return min(max(scaled, minScale), maxScale)
     }
 
@@ -114,6 +118,9 @@ enum RailMetrics {
     /// the control is a stroked arc inset roughly ten points inside that box,
     /// so a positive gap here leaves the arc floating well clear of the rail.
     /// A slightly negative value is what seats it against the rail's edge.
+    /// Gap left between the rail and a MacBook's camera housing.
+    static var notchClearance: CGFloat { s(10) }
+
     static var settingsButtonSize: CGFloat { s(34) }
     static var settingsButtonGap: CGFloat { s(-4) }
     static var settingsHotZonePadding: CGFloat { s(8) }

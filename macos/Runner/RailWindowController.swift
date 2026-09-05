@@ -148,8 +148,29 @@ final class RailWindowController {
             // which is the one thing a notch must never do. This is the whole
             // screen, so the rail's flat side lands on the physical top edge.
             let full = screen.frame
-            x = full.midX - size.width / 2
             y = full.maxY - size.height + RailMetrics.shadowPadding
+
+            // Clear of the hardware notch, on the Macs that have one.
+            //
+            // Centred on the bezel is exactly where a MacBook Pro or a 15-inch
+            // Air puts its camera housing, so on those machines a top rail was
+            // drawn straight behind it: the middle of the rail — the rings —
+            // simply was not there, and no amount of hovering brought it back.
+            // Beside the notch instead, still welded to the top edge.
+            let centred = full.midX - size.width / 2
+            if let notch = screen.hardwareNotchWidth {
+                // The drawn rail is narrower than its window, which carries the
+                // shadow; it is the drawn part that has to clear the housing.
+                let drawn = RailMetrics.railLength(slots: slotCount, edge: edge)
+                let clearance = notch / 2 + drawn / 2 + RailMetrics.notchClearance
+                // Whichever side has room. The right is preferred: the left of
+                // the menu bar is the app's own menus, which people read.
+                let right = full.midX + clearance - size.width / 2
+                let left = full.midX - clearance - size.width / 2
+                x = (right + size.width) <= full.maxX ? right : left
+            } else {
+                x = centred
+            }
         } else {
             x = edge == .right
                 ? visible.maxX - size.width + RailMetrics.shadowPadding
@@ -471,5 +492,24 @@ extension NSScreen {
             return localizedName
         }
         return "Display \(railIdentifier ?? "?")"
+    }
+}
+
+extension NSScreen {
+    /// The width of this display's camera housing, or nil when it has none.
+    ///
+    /// AppKit does not describe the notch. What it describes are the two
+    /// usable strips of menu bar either side of it, so the housing is what is
+    /// left of the width once both are taken off. A display without one
+    /// reports no auxiliary areas at all, which is the test.
+    var hardwareNotchWidth: CGFloat? {
+        guard
+            let left = auxiliaryTopLeftArea,
+            let right = auxiliaryTopRightArea
+        else { return nil }
+
+        let width = frame.width - left.width - right.width
+        guard width > 0 else { return nil }
+        return width
     }
 }
