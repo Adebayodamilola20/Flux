@@ -1,0 +1,95 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="800" viewBox="0 0 1240 800">
+  <defs>
+    <linearGradient id="base" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0"    stop-color="#7B3BF2"/>
+      <stop offset="0.22" stop-color="#6533E6"/>
+      <stop offset="0.46" stop-color="#3B34D8"/>
+      <stop offset="0.72" stop-color="#1E3AC4"/>
+      <stop offset="1"    stop-color="#14267F"/>
+    </linearGradient>
+
+    <linearGradient id="topViolet" x1="0" y1="0" x2="0.7" y2="0.55">
+      <stop offset="0"   stop-color="#8B45FF" stop-opacity="0.95"/>
+      <stop offset="0.55" stop-color="#6A34EE" stop-opacity="0.45"/>
+      <stop offset="1"   stop-color="#4E2FD6" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="waveLight" x1="0" y1="0" x2="1" y2="0.25">
+      <stop offset="0"    stop-color="#FFFFFF" stop-opacity="0.10"/>
+      <stop offset="0.28" stop-color="#DCE9FF" stop-opacity="0.85"/>
+      <stop offset="0.62" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="1"    stop-color="#BBD6FF" stop-opacity="0.35"/>
+    </linearGradient>
+
+    <linearGradient id="waveSoft" x1="0" y1="0" x2="1" y2="0.3">
+      <stop offset="0"   stop-color="#4E8BFF" stop-opacity="0.0"/>
+      <stop offset="0.4" stop-color="#7FB4FF" stop-opacity="0.55"/>
+      <stop offset="1"   stop-color="#9FC8FF" stop-opacity="0.15"/>
+    </linearGradient>
+
+    <linearGradient id="deepBlue" x1="0.1" y1="1" x2="0.9" y2="0.2">
+      <stop offset="0"   stop-color="#0C1A6B" stop-opacity="0.85"/>
+      <stop offset="0.5" stop-color="#14309B" stop-opacity="0.35"/>
+      <stop offset="1"   stop-color="#2A55D8" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="lowerGlow" x1="0.2" y1="1" x2="1" y2="0.4">
+      <stop offset="0"   stop-color="#2E6BF0" stop-opacity="0.55"/>
+      <stop offset="0.6" stop-color="#5A96FF" stop-opacity="0.30"/>
+      <stop offset="1"   stop-color="#BBD8FF" stop-opacity="0.10"/>
+    </linearGradient>
+
+    <linearGradient id="irid" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0"    stop-color="#FF7AD9" stop-opacity="0"/>
+      <stop offset="0.3"  stop-color="#FF9AE0" stop-opacity="0.30"/>
+      <stop offset="0.55" stop-color="#7FE9FF" stop-opacity="0.28"/>
+      <stop offset="0.8"  stop-color="#B49CFF" stop-opacity="0.22"/>
+      <stop offset="1"    stop-color="#7FE9FF" stop-opacity="0"/>
+    </linearGradient>
+
+    <filter id="blurBig"   x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="34"/></filter>
+    <filter id="blurHuge"  x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="72"/></filter>
+    <filter id="blurMed"   x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="16"/></filter>
+    <filter id="blurSoft"  x="-40%" y="-40%" width="180%" height="180%"><feGaussianBlur stdDeviation="7"/></filter>
+
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch" result="n"/>
+      <feColorMatrix in="n" type="saturate" values="0"/>
+    </filter>
+  </defs>
+
+  <rect width="1240" height="800" fill="url(#base)"/>
+  <rect width="1240" height="800" fill="url(#topViolet)"/>
+  <rect width="1240" height="800" fill="url(#deepBlue)"/>
+
+  <!-- iridescent diagonal streaks, -24deg, heavily blurred -->
+  <g opacity="0.55" filter="url(#blurHuge)">
+    <g transform="rotate(-24 620 400)">
+      <rect x="-500" y="120" width="2400" height="46" fill="url(#irid)"/>
+      <rect x="-500" y="300" width="2400" height="30" fill="url(#irid)" opacity="0.8"/>
+      <rect x="-500" y="520" width="2400" height="58" fill="url(#irid)" opacity="0.7"/>
+      <rect x="-500" y="690" width="2400" height="26" fill="url(#irid)" opacity="0.6"/>
+    </g>
+  </g>
+
+  <!-- lower luminous field -->
+  <path d="M -60 860 C 240 700 520 640 900 470 C 1080 392 1200 330 1320 268 L 1320 880 L -60 880 Z"
+        fill="url(#lowerGlow)" opacity="0.85" filter="url(#blurBig)"/>
+
+  <!-- soft under-band beneath the main wave -->
+  <path d="M -80 690 C 200 596 470 520 760 392 C 960 304 1150 214 1320 132 L 1320 250 C 1140 330 950 424 760 512 C 470 646 220 730 -80 800 Z"
+        fill="url(#waveSoft)" filter="url(#blurBig)"/>
+
+  <!-- the signature bright sweep -->
+  <path d="M -80 636 C 210 548 480 470 770 344 C 972 256 1160 168 1330 88 L 1330 128 C 1156 210 968 300 768 390 C 476 520 208 604 -80 692 Z"
+        fill="url(#waveLight)" filter="url(#blurMed)"/>
+  <path d="M -80 646 C 210 558 480 480 770 354 C 972 266 1160 178 1330 98 L 1330 108 C 1156 190 968 280 768 370 C 476 500 208 584 -80 672 Z"
+        fill="#FFFFFF" opacity="0.75" filter="url(#blurSoft)"/>
+
+  <!-- faint secondary highlight, upper right -->
+  <path d="M 380 210 C 640 150 900 78 1300 -40 L 1300 40 C 920 150 660 232 400 300 Z"
+        fill="#C9DCFF" opacity="0.20" filter="url(#blurBig)"/>
+
+  <!-- grain -->
+  <rect width="1240" height="800" filter="url(#grain)" opacity="0.05"/>
+</svg>

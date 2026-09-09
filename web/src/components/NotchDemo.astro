@@ -1,21 +1,24 @@
 ---
 /**
- * The product, drawn to its own measurements and made interactive.
+ * The product, drawn to its own measurements.
  *
- * Every dimension is the app's: notch 46 wide, 66 per slot, 28 of vertical
- * padding, a 32px ring at 2.8 stroke, a 218px card with a 12x18 tail. The
- * whole assembly scales as a unit so the proportions stay true.
+ * Every dimension is the app's, from `native_bridge.dart` at scale 1:
+ *   ring 32 / stroke 2.8 · slot 66 · rail 46 wide · vertical padding 28
+ *   sliver 11 x 84, radius 5.5 · slot label 12px w700, 3px under the ring
+ *   corner radius = 46 * 0.62 · fillet = 46 * 0.46
  *
- * It opens the way the real one does — on hover — because that is the product.
- * Reading about a hover is not the same as doing it.
+ * `tilt` presents it as a product shot — the screen turned toward the viewer,
+ * the way a photograph of a laptop would be — rather than flat-on.
  */
 
 interface Props {
-  /** Larger, with a caption. Used once, in the hero. */
+  /** Angled presentation. Used once, in the hero. */
+  tilt?: boolean;
+  /** Larger, with the caption. */
   hero?: boolean;
 }
 
-const { hero = false } = Astro.props;
+const { tilt = false, hero = false } = Astro.props;
 
 interface Slot {
   name: string;
@@ -29,25 +32,25 @@ const slots: Slot[] = [
   {
     name: 'Claude',
     accent: '#D97757',
-    used: 0.62,
+    used: 0.73,
     windows: [
-      { label: 'Current session', percent: 62, resets: '2h 14m' },
-      { label: 'All models · weekly', percent: 38, resets: '4d' },
+      { label: 'Current session', percent: 73, resets: 'Resets in 51 min' },
+      { label: 'All models', percent: 7, resets: 'Resets Thu 12:00 AM' },
     ],
     source: 'Live from Anthropic',
   },
   {
     name: 'Codex',
     accent: '#10A37F',
-    used: 0.24,
-    windows: [{ label: 'Codex allowance', percent: 24, resets: '3h 40m' }],
+    used: 0.21,
+    windows: [{ label: 'Codex allowance', percent: 21, resets: 'Resets in 3h 40m' }],
     source: 'Recorded 12m ago',
   },
   {
     name: 'Antigravity',
     accent: '#4285F4',
-    used: 0.81,
-    windows: [{ label: 'Weekly · Gemini 3 Pro', percent: 81, resets: '2d 6h' }],
+    used: 0.52,
+    windows: [{ label: 'Weekly · Gemini 3 Pro', percent: 52, resets: 'Resets Mon' }],
     source: 'CLI-derived',
   },
 ];
@@ -60,362 +63,346 @@ const R = 14.6;
 const CIRC = 2 * Math.PI * R;
 ---
 
-<figure class:list={['demo', hero && 'demo--hero']}>
+<figure class:list={['demo', tilt && 'demo--tilt', hero && 'demo--hero']}>
   <p class="sr-only">
-    An interactive illustration of the DevNotch notch on the left edge of a Mac
-    display. Open it to reveal one ring per tool, then focus a ring to read its
-    usage card.
+    The DevNotch rail on the left edge of a Mac display: one ring per tool with
+    its percentage beneath, and a card for the focused ring.
   </p>
 
-  <div class="screen" data-screen>
-    <div class="desktop" aria-hidden="true">
-      <svg class="paper" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice">
-        <defs>
-          <linearGradient id="wpBase" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#04262b" />
-            <stop offset="0.55" stop-color="#06333a" />
-            <stop offset="1" stop-color="#031b21" />
-          </linearGradient>
-          <linearGradient id="wpA" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stop-color="#12b8a6" stop-opacity="0.85" />
-            <stop offset="1" stop-color="#0b7f8f" stop-opacity="0.25" />
-          </linearGradient>
-          <linearGradient id="wpB" x1="1" y1="0" x2="0" y2="1">
-            <stop offset="0" stop-color="#5fdcc9" stop-opacity="0.75" />
-            <stop offset="1" stop-color="#0d9488" stop-opacity="0.1" />
-          </linearGradient>
-          <linearGradient id="wpC" x1="0" y1="1" x2="1" y2="0">
-            <stop offset="0" stop-color="#0891b2" stop-opacity="0.6" />
-            <stop offset="1" stop-color="#083344" stop-opacity="0" />
-          </linearGradient>
-          <filter id="soft" x="-30%" y="-30%" width="160%" height="160%">
-            <feGaussianBlur stdDeviation="46" />
+  <div class="frame">
+    <div class="screen" data-screen>
+      <!-- Wallpaper: iridescent streaks with grain, the way a real desktop
+           picture behaves — the dark rail needs something live to sit on. -->
+      <div class="paper" aria-hidden="true">
+        <span class="band b1"></span>
+        <span class="band b2"></span>
+        <span class="band b3"></span>
+        <span class="band b4"></span>
+        <span class="band b5"></span>
+        <svg class="grain" aria-hidden="true">
+          <filter id="gr">
+            <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" />
           </filter>
-        </defs>
-        <rect width="1200" height="700" fill="url(#wpBase)" />
-        <g filter="url(#soft)">
-          <path d="M-120 470C160 330 360 560 640 400s420-190 700-330v760h-1460Z" fill="url(#wpA)" />
-          <path d="M-120 610C200 470 420 660 700 520s360-120 640-240v460h-1460Z" fill="url(#wpB)" />
-          <path d="M-120 250C120 150 340 330 600 230s400-160 720-250v300c-320 130-560 40-820 150S140 380-120 430Z" fill="url(#wpC)" />
-        </g>
-        <ellipse cx="330" cy="620" rx="440" ry="220" fill="#5fdcc9" opacity="0.16" filter="url(#soft)" />
-      </svg>
-    </div>
+          <rect width="100%" height="100%" filter="url(#gr)"></rect>
+        </svg>
+      </div>
 
-    <div class="menubar" aria-hidden="true">
-      <span class="menubar__item">
-        <span class="menubar__mark"></span>62%
-      </span>
-      <span class="menubar__time">Thu 09:41</span>
-    </div>
+      <div class="menubar" aria-hidden="true">
+        <span class="mb__glyph"></span>
+        <span class="mb__glyph mb__glyph--wide"></span>
+        <span class="mb__time">Thu 27 Aug 11.22</span>
+      </div>
 
-    <!-- The notch, flush against the display's left edge. -->
-    <div class="notch">
-      <button class="nub" type="button" data-toggle aria-expanded="false">
-        <span class="sr-only">Open the notch</span>
-        <span class="nub__bar" aria-hidden="true"></span>
-      </button>
+      <!-- The rail, flush to the left edge. -->
+      <div class="rail">
+        <div class="rings" data-rings>
+          {
+            slots.map((s, i) => (
+              <button
+                class="slot"
+                type="button"
+                data-slot={i}
+                aria-label={`${s.name}, ${Math.round(s.used * 100)} percent used`}
+              >
+                <span class="ringwrap">
+                  <svg class="ring" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
+                    <circle cx="16" cy="16" r={R} fill="none" stroke="var(--track-d)" stroke-width="2.8" />
+                    <circle
+                      cx="16" cy="16" r={R} fill="none"
+                      stroke={accentFor(s.used)} stroke-width="2.8" stroke-linecap="round"
+                      stroke-dasharray={CIRC}
+                      style={`--arc:${(CIRC * (1 - s.used)).toFixed(2)}; --d:${i * 90}ms`}
+                      transform="rotate(-90 16 16)"
+                      class="ring__arc"
+                    />
+                  </svg>
+                  <span class="glyph" style={`background:${s.accent}`} aria-hidden="true" />
+                </span>
+                {/* 12px, w700, 3px under the ring — as _RailSlot draws it. */}
+                <span class="pct">{Math.round(s.used * 100)}%</span>
+              </button>
+            ))
+          }
+        </div>
 
-      <div class="rings" data-rings>
+        <button class="gear" type="button" aria-label="DevNotch settings">
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+            <path
+              d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z"
+              fill="none" stroke="currentColor" stroke-width="2"
+            />
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"
+              fill="none" stroke="currentColor" stroke-width="1.6"
+            />
+          </svg>
+        </button>
+      </div>
+
+      <!-- One card, which follows the pointer between rings. -->
+      <div class="callout" data-callout aria-live="polite">
         {
           slots.map((s, i) => (
-            <button class="slot" type="button" data-slot={i} aria-label={`${s.name}, ${Math.round(s.used * 100)} percent used`}>
-              <svg class="ring" viewBox="0 0 32 32" width="32" height="32" aria-hidden="true">
-                <circle cx="16" cy="16" r={R} fill="none" stroke="var(--track-d)" stroke-width="2.8" />
-                <circle
-                  cx="16" cy="16" r={R} fill="none"
-                  stroke={accentFor(s.used)} stroke-width="2.8" stroke-linecap="round"
-                  stroke-dasharray={CIRC}
-                  style={`--arc:${(CIRC * (1 - s.used)).toFixed(2)}; --d:${i * 80}ms`}
-                  transform="rotate(-90 16 16)"
-                  class="ring__arc"
-                />
-              </svg>
-              <span class="slot__dot" style={`background:${s.accent}`} aria-hidden="true"></span>
-            </button>
+            <div class="card" data-card={i} hidden={i !== 0}>
+              <div class="card__head">
+                <span class="card__dot" style={`background:${s.accent}`} aria-hidden="true" />
+                <span class="card__title">{s.name} Usage</span>
+              </div>
+              {s.windows.map((w) => (
+                <div class="win">
+                  <div class="win__label">{w.label}</div>
+                  <div class="win__track">
+                    <span
+                      class="win__bar"
+                      style={`width:${w.percent}%; background:${accentFor(w.percent / 100)}`}
+                    />
+                  </div>
+                  <div class="win__foot">
+                    <span>{w.percent}% Used</span>
+                    <span class="win__reset">{w.resets}</span>
+                  </div>
+                </div>
+              ))}
+              <div class="card__src">{s.source}</div>
+            </div>
           ))
         }
       </div>
     </div>
-
-    <div class="callout" data-callout aria-live="polite">
-      {
-        slots.map((s, i) => (
-          <div class="card" data-card={i} hidden={i !== 0}>
-            <div class="card__head">
-              <span class="card__dot" style={`background:${s.accent}`} aria-hidden="true"></span>
-              <span class="card__title">{s.name} Usage</span>
-            </div>
-            {s.windows.map((w) => (
-              <div class="win">
-                <div class="win__top">
-                  <span class="win__label">{w.label}</span>
-                  <span class="win__resets">{w.resets}</span>
-                </div>
-                <div class="win__track">
-                  <span class="win__bar" style={`width:${w.percent}%; background:${accentFor(w.percent / 100)}`} />
-                </div>
-                <div class="win__pct">{w.percent}% used</div>
-              </div>
-            ))}
-            <div class="card__src">{s.source}</div>
-          </div>
-        ))
-      }
-    </div>
   </div>
-
-  {
-    hero && (
-      <figcaption class="hint" data-hint>
-        <span class="hint__dot" aria-hidden="true" />
-        Psst — hover the notch. It really opens.
-      </figcaption>
-    )
-  }
 </figure>
 
 <script>
   document.querySelectorAll<HTMLElement>('[data-screen]').forEach((screen) => {
-    const notch = screen.querySelector<HTMLElement>('.notch')!;
-    const toggle = screen.querySelector<HTMLButtonElement>('[data-toggle]')!;
     const callout = screen.querySelector<HTMLElement>('[data-callout]')!;
     const cards = [...screen.querySelectorAll<HTMLElement>('[data-card]')];
     const slots = [...screen.querySelectorAll<HTMLElement>('[data-slot]')];
-    const hint = screen.parentElement?.querySelector<HTMLElement>('[data-hint]');
-
-    let open = false;
-    const setOpen = (v: boolean) => {
-      open = v;
-      screen.dataset.open = String(v);
-      toggle.setAttribute('aria-expanded', String(v));
-      if (v && hint) hint.dataset.done = 'true';
-    };
 
     const focus = (i: number) => {
-      callout.style.setProperty('--slot', String(i));
+      callout.style.setProperty('--slot-i', String(i));
       cards.forEach((c, n) => (c.hidden = n !== i));
       slots.forEach((s, n) => s.classList.toggle('is-active', n === i));
     };
 
-    // Hover is how the real one works.
-    notch.addEventListener('mouseenter', () => setOpen(true));
-    screen.addEventListener('mouseleave', () => setOpen(false));
-
-    // Keyboard and touch get an explicit toggle.
-    toggle.addEventListener('click', () => setOpen(!open));
     slots.forEach((slot, i) => {
       slot.addEventListener('mouseenter', () => focus(i));
-      slot.addEventListener('focus', () => {
-        setOpen(true);
-        focus(i);
-      });
-    });
-
-    screen.addEventListener('focusout', (e) => {
-      if (!screen.contains(e.relatedTarget as Node)) setOpen(false);
+      slot.addEventListener('focus', () => focus(i));
     });
 
     focus(0);
-
-    // Show the payoff once, unprompted, so the interaction is discoverable.
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (!reduced) {
-      const io = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (!entry.isIntersecting) return;
-            io.disconnect();
-            setTimeout(() => {
-              if (!open) {
-                setOpen(true);
-                setTimeout(() => {
-                  if (!screen.matches(':hover')) setOpen(false);
-                }, 1900);
-              }
-            }, 900);
-          });
-        },
-        { threshold: 0.5 },
-      );
-      io.observe(screen);
-    }
   });
 </script>
 
 <style>
   .demo {
-    --w: 46px;
-    --h: 66px;
+    /* The app's own numbers, at scale 1. */
+    --rail: 46px;
+    --slot: 66px;
     --pad: 28px;
+    --ring: 32px;
+    --nub: 11px;
+    --corner: 28.5px;
     margin: 0;
+  }
+
+  .frame {
+    perspective: 1800px;
+    perspective-origin: 30% 50%;
   }
 
   .screen {
     position: relative;
     aspect-ratio: 16 / 10;
-    min-height: 300px;
+    min-height: 320px;
     border-radius: var(--r-xl);
-    background: #082f36;
-    border: 0;
     overflow: hidden;
+    background: #05171a;
     box-shadow: var(--shadow-screen);
   }
 
-  /* Cinematic band, so the notch clears the fold instead of sitting under it. */
-  .demo--hero .screen {
-    aspect-ratio: 21 / 9;
-    max-height: 34rem;
+  /* Turned toward the viewer, as a product photograph would be. Modest
+     angles on purpose — past about 16deg the UI text stops being legible. */
+  .demo--tilt .screen {
+    /* Modest on purpose: past ~10deg the card's text starts to smear. */
+    transform: rotateY(8deg) rotateZ(-2.5deg);
+    transform-origin: 25% 50%;
+    border-radius: 26px;
+    box-shadow:
+      0 40px 90px -30px rgba(20, 24, 27, 0.55),
+      0 8px 24px -12px rgba(20, 24, 27, 0.3);
   }
 
-  /* A real desktop behind the product — layered ribbons rather than a flat
-     blob wash, so the screen reads as a screen and the notch reads as an
-     object sitting on it. Clipped by both .desktop and .screen. */
-  .desktop {
+  .demo--hero .screen {
+    aspect-ratio: 16 / 10;
+    max-height: 33rem;
+  }
+
+  /* ------------------------------------------------------------ wallpaper */
+
+  .paper {
     position: absolute;
     inset: 0;
+    background: linear-gradient(150deg, #0b3f52 0%, #12707a 42%, #0a2f3d 100%);
     overflow: hidden;
   }
 
-  .paper {
+  /* Iridescent streaks, skewed and blurred so they read as light rather than
+     as shapes. */
+  .band {
+    position: absolute;
+    inset: -30% -20%;
+    transform: rotate(-24deg);
+    filter: blur(34px);
+    opacity: 0.85;
+  }
+
+  .b1 {
+    background: linear-gradient(
+      90deg,
+      transparent 4%,
+      #7fe9dc 14%,
+      transparent 26%,
+      #4dd0e1 38%,
+      transparent 50%
+    );
+  }
+  .b2 {
+    background: linear-gradient(
+      90deg,
+      transparent 20%,
+      #ffd28a 30%,
+      transparent 40%,
+      #ff9068 52%,
+      transparent 62%
+    );
+    opacity: 0.55;
+  }
+  .b3 {
+    background: linear-gradient(
+      90deg,
+      transparent 44%,
+      #b8f7c0 54%,
+      transparent 64%
+    );
+    opacity: 0.45;
+  }
+  .b4 {
+    background: linear-gradient(
+      90deg,
+      transparent 58%,
+      #8fb6ff 70%,
+      transparent 82%
+    );
+    opacity: 0.6;
+  }
+  .b5 {
+    background: linear-gradient(
+      90deg,
+      transparent 74%,
+      #ff8fa3 84%,
+      transparent 94%
+    );
+    opacity: 0.4;
+  }
+
+  /* The grain that keeps a gradient from looking like a gradient. */
+  .grain {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
-    display: block;
+    opacity: 0.22;
+    mix-blend-mode: overlay;
+    pointer-events: none;
   }
+
+  /* ------------------------------------------------------------- menu bar */
 
   .menubar {
     position: absolute;
     inset: 0 0 auto 0;
-    height: 26px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 1rem;
+    gap: 0.75rem;
     padding-inline: 0.875rem;
-    background: rgba(0, 0, 0, 0.34);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    font-size: 11px;
-    color: rgba(255,255,255,0.75);
-    z-index: 1;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.92);
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    z-index: 2;
   }
 
-  .menubar__item {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
+  .mb__glyph {
+    width: 13px;
+    height: 13px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.55);
+  }
+
+  .mb__glyph--wide {
+    width: 20px;
+    border-radius: 7px;
+  }
+
+  .mb__time {
     font-variant-numeric: tabular-nums;
   }
 
-  .menubar__mark {
-    width: 3px;
-    height: 11px;
-    border-radius: 1.5px;
-    background: var(--warn-d);
-  }
+  /* ----------------------------------------------------------------- rail */
 
-  .menubar__time {
-    color: rgba(255,255,255,0.55);
-    font-variant-numeric: tabular-nums;
-  }
-
-  /* ------------------------------------------------------------- the notch */
-
-  .notch {
-    position: absolute;
-    left: 0;
-    /* Centred in the area below the menu bar, not in the whole screen —
-       otherwise the card rides over the menu bar on short screens. */
-    top: calc(50% + 13px);
-    transform: translateY(-50%);
-    z-index: 3;
-  }
-
-  /* Closed: a 7px sliver, at true size. */
-  .nub {
-    display: grid;
-    place-items: center;
-    width: 34px;
-    height: 110px;
-    padding: 0;
-    border: 0;
-    background: none;
-    cursor: pointer;
-    transition: opacity var(--fast) var(--ease-out);
-  }
-
-  .nub__bar {
-    width: 7px;
-    height: 84px;
-    border-radius: 3.5px;
-    background: #000;
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.1),
-      0 4px 16px rgba(0, 0, 0, 0.6);
-  }
-
-  [data-open='true'] .nub {
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  /* Open: the rings, in a tab that grows out of the edge. */
-  .rings {
+  .rail {
     position: absolute;
     left: 0;
     top: 50%;
-    width: var(--w);
-    padding-block: var(--pad);
-    background: #000;
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-left: none;
-    border-radius: 0 20px 20px 0;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.66);
+    transform: translateY(-50%);
     display: flex;
     flex-direction: column;
-    transform: translate(-60%, -50%);
-    opacity: 0;
-    pointer-events: none;
-    transition:
-      transform var(--mid) var(--ease-out),
-      opacity var(--mid) var(--ease-out);
+    align-items: center;
+    gap: 8px;
+    z-index: 4;
   }
 
-  [data-open='true'] .rings {
-    transform: translate(0, -50%);
-    opacity: 1;
-    pointer-events: auto;
+  .rings {
+    width: var(--rail);
+    padding-block: var(--pad);
+    background: #000;
+    /* Square against the bezel, rounded away from it. */
+    border-radius: 0 var(--corner) var(--corner) 0;
+    box-shadow: 0 10px 34px rgba(0, 0, 0, 0.6);
+    display: flex;
+    flex-direction: column;
   }
 
   .slot {
-    height: var(--h);
+    height: var(--slot);
     width: 100%;
-    display: grid;
-    place-items: center;
-    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
     background: none;
     border: 0;
     padding: 0;
     cursor: pointer;
-    border-radius: var(--r-sm);
   }
 
-  .ring {
+  .ringwrap {
+    position: relative;
+    display: grid;
+    place-items: center;
     transition: transform var(--fast) var(--ease-out);
   }
 
-  .slot:hover .ring,
-  .slot.is-active .ring {
-    transform: scale(1.07);
+  .slot:hover .ringwrap,
+  .slot.is-active .ringwrap {
+    transform: translateY(-1.5px) scale(1.06);
   }
 
   .ring__arc {
     stroke-dashoffset: var(--arc);
-  }
-
-  [data-open='true'] .ring__arc {
-    animation: draw 520ms var(--ease-out) both;
+    animation: draw 620ms var(--ease-out) both;
     animation-delay: var(--d);
   }
 
@@ -425,107 +412,113 @@ const CIRC = 2 * Math.PI * R;
     }
   }
 
-  .slot__dot {
+  .glyph {
     position: absolute;
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    opacity: 0.92;
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
+    opacity: 0.95;
   }
 
-  /* -------------------------------------------------------------- the card */
+  /* The percentage the app prints beneath each ring. */
+  .pct {
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .gear {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    background: #000;
+    color: rgba(255, 255, 255, 0.75);
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+    transition: color var(--fast) var(--ease-out);
+  }
+
+  .gear:hover {
+    color: #fff;
+  }
+
+  /* ----------------------------------------------------------------- card */
 
   .callout {
-    --slot: 0;
+    --slot-i: 0;
     position: absolute;
-    left: calc(var(--w) + 2px);
-    top: calc(50% + 13px);
-    transform: translateY(calc(-50% + (var(--slot) - 1) * var(--h)));
-    transition:
-      transform var(--mid) var(--ease-out),
-      opacity var(--mid) var(--ease-out);
-    z-index: 4;
+    left: calc(var(--rail) + 6px);
+    top: 50%;
+    /* Centre on the rail, then step down to the focused slot. */
+    transform: translateY(-50%)
+      translateY(calc((var(--slot-i) - 1) * var(--slot)));
+    transition: transform var(--mid) var(--ease-out);
+    z-index: 5;
     pointer-events: none;
-    opacity: 0;
-  }
-
-  [data-open='true'] .callout {
-    opacity: 1;
   }
 
   .card {
     position: relative;
-    width: 218px;
-    padding: 10px 11px;
-    background: #050506;
-    border: 1px solid #1c1c1f;
-    border-radius: 14px;
+    width: 232px;
+    padding: 11px 12px;
+    background: #0a0a0b;
+    border-radius: 16px;
     color: #fff;
-    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.75);
   }
 
-  /* CalloutShape's tail — 12 x 18 — so the card says which ring it means. */
   .card::before {
     content: '';
     position: absolute;
-    left: -11px;
+    left: -10px;
     top: 50%;
     width: 12px;
     height: 18px;
     transform: translateY(-50%);
-    background: #050506;
+    background: #0a0a0b;
     clip-path: polygon(100% 0, 0 50%, 100% 100%);
   }
 
   .card__head {
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-bottom: 9px;
+    gap: 7px;
+    margin-bottom: 10px;
   }
 
   .card__dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 2px;
+    width: 11px;
+    height: 11px;
+    border-radius: 3px;
     flex: none;
   }
 
   .card__title {
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
     letter-spacing: -0.02em;
   }
 
   .win + .win {
-    margin-top: 9px;
-  }
-
-  .win__top {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    gap: 8px;
+    margin-top: 10px;
   }
 
   .win__label {
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .win__resets {
-    font-size: 10px;
-    color: rgba(255,255,255,0.55);
-    flex: none;
+    color: rgba(255, 255, 255, 0.92);
   }
 
   .win__track {
     height: 4px;
     border-radius: 2px;
-    background: var(--track-d);
+    background: rgba(255, 255, 255, 0.16);
     margin-top: 5px;
     overflow: hidden;
   }
@@ -536,64 +529,46 @@ const CIRC = 2 * Math.PI * R;
     border-radius: 2px;
   }
 
-  .win__pct {
+  .win__foot {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
     margin-top: 4px;
     font-size: 10px;
-    color: rgba(255,255,255,0.75);
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .win__reset {
+    white-space: nowrap;
   }
 
   .card__src {
-    margin-top: 9px;
-    padding-top: 7px;
-    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
     font-family: var(--mono);
     font-size: 9.5px;
-    color: rgba(255,255,255,0.55);
+    color: rgba(255, 255, 255, 0.5);
   }
 
-  /* -------------------------------------------------------------- the hint */
+  /* ---------------------------------------------------------- responsive */
 
-  .hint {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    margin-top: 1rem;
-    font-size: 0.875rem;
-    color: var(--ink-3);
-    transition: opacity var(--mid) var(--ease-out);
-  }
-
-  .hint[data-done='true'] {
-    opacity: 0.35;
-  }
-
-  .hint__dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--ok);
-    animation: pulse 2s var(--ease-in-out) infinite;
-  }
-
-  .hint[data-done='true'] .hint__dot {
-    animation: none;
-  }
-
-  @keyframes pulse {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.25;
+  @media (max-width: 60rem) {
+    .demo--tilt .screen {
+      transform: rotateY(5deg) rotateZ(-1.5deg);
     }
   }
 
   @media (max-width: 40rem) {
     .demo {
-      --w: 38px;
-      --h: 54px;
+      --rail: 38px;
+      --slot: 54px;
       --pad: 20px;
+      --corner: 23px;
+    }
+    .demo--tilt .screen {
+      transform: none;
+      border-radius: var(--r-lg);
     }
     .screen,
     .demo--hero .screen {
@@ -604,12 +579,21 @@ const CIRC = 2 * Math.PI * R;
       width: 26px;
       height: 26px;
     }
+    .pct {
+      font-size: 10px;
+    }
     .card {
-      width: 168px;
+      width: 176px;
       padding: 9px 10px;
     }
-    .win__label {
+    .menubar {
       font-size: 10px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ring__arc {
+      animation: none;
     }
   }
 </style>

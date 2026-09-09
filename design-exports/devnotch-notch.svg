@@ -1,0 +1,130 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="750" viewBox="0 0 1200 750" font-family="SF Pro Text, system-ui, -apple-system, Helvetica, Arial, sans-serif">
+  <title>DevNotch — rail, rings and usage card</title>
+  <desc>Drawn at the application's own metrics: rail 46 wide, slot 66, ring 32 at 2.8 stroke, slot label 12px bold 3px beneath the ring, corner radius 28.5, card 232 wide with a 12x18 tail.</desc>
+
+  <defs>
+    <linearGradient id="wallBase" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B3F52"/>
+      <stop offset="0.45" stop-color="#12707A"/>
+      <stop offset="1" stop-color="#0A2F3D"/>
+    </linearGradient>
+    <linearGradient id="streakA" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#7FE9DC" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#7FE9DC" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#7FE9DC" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="streakB" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFD28A" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#FF9068" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#FFD28A" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="streakC" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#8FB6FF" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#8FB6FF" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#8FB6FF" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="blurStreak" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="30"/>
+    </filter>
+    <filter id="railShadow" x="-60%" y="-30%" width="240%" height="180%">
+      <feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+    <filter id="cardShadow" x="-40%" y="-40%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="14" stdDeviation="20" flood-color="#000" flood-opacity="0.7"/>
+    </filter>
+    <clipPath id="screenClip">
+      <rect x="60" y="60" width="1080" height="630" rx="26"/>
+    </clipPath>
+  </defs>
+
+  <g id="Screen">
+    <rect x="60" y="60" width="1080" height="630" rx="26" fill="url(#wallBase)"/>
+
+    <g id="Wallpaper" clip-path="url(#screenClip)">
+      <g filter="url(#blurStreak)" transform="rotate(-24 600 375)">
+        <rect x="-100" y="-40" width="300" height="900" fill="url(#streakA)"/>
+        <rect x="240" y="-40" width="340" height="900" fill="url(#streakB)"/>
+        <rect x="640" y="-40" width="300" height="900" fill="url(#streakC)"/>
+        <rect x="960" y="-40" width="260" height="900" fill="url(#streakA)" opacity="0.6"/>
+      </g>
+    </g>
+
+    <g id="MenuBar" clip-path="url(#screenClip)">
+      <rect x="60" y="60" width="1080" height="30" fill="#000" opacity="0.16"/>
+      <rect x="1000" y="69" width="13" height="13" rx="3" fill="#FFF" opacity="0.55"/>
+      <rect x="1023" y="69" width="20" height="13" rx="6.5" fill="#FFF" opacity="0.55"/>
+      <text x="1120" y="80" font-size="12" fill="#FFFFFF" opacity="0.92" text-anchor="end">Thu 27 Aug 11.22</text>
+    </g>
+  </g>
+
+  <!-- Rail: 46 wide, 3 slots x 66, 28 padding top and bottom = 254 tall.
+       Square against the bezel, radius 28.5 away from it. -->
+  <g id="Chrome" clip-path="url(#screenClip)">
+  <g id="Rail" filter="url(#railShadow)">
+    <path d="M60 248 h17.5 a28.5 28.5 0 0 1 28.5 28.5 v197 a28.5 28.5 0 0 1 -28.5 28.5 h-17.5 Z" fill="#000000"/>
+
+    <g id="Slot-Claude">
+      <circle cx="83" cy="309" r="14.6" fill="none" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2.8"/>
+      <circle cx="83" cy="309" r="14.6" fill="none" stroke="#FF5A1F" stroke-width="2.8" stroke-linecap="round"
+              stroke-dasharray="91.73" stroke-dashoffset="24.77" transform="rotate(-90 83 309)"/>
+      <rect x="77.5" y="303.5" width="11" height="11" rx="3" fill="#D97757"/>
+      <text x="83" y="335" font-size="12" font-weight="700" fill="#FFFFFF" text-anchor="middle">73%</text>
+    </g>
+
+    <g id="Slot-Codex">
+      <circle cx="83" cy="375" r="14.6" fill="none" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2.8"/>
+      <circle cx="83" cy="375" r="14.6" fill="none" stroke="#00E58A" stroke-width="2.8" stroke-linecap="round"
+              stroke-dasharray="91.73" stroke-dashoffset="72.47" transform="rotate(-90 83 375)"/>
+      <rect x="77.5" y="369.5" width="11" height="11" rx="3" fill="#10A37F"/>
+      <text x="83" y="401" font-size="12" font-weight="700" fill="#FFFFFF" text-anchor="middle">21%</text>
+    </g>
+
+    <g id="Slot-Antigravity">
+      <circle cx="83" cy="441" r="14.6" fill="none" stroke="#FFFFFF" stroke-opacity="0.14" stroke-width="2.8"/>
+      <circle cx="83" cy="441" r="14.6" fill="none" stroke="#D7FF2F" stroke-width="2.8" stroke-linecap="round"
+              stroke-dasharray="91.73" stroke-dashoffset="44.03" transform="rotate(-90 83 441)"/>
+      <rect x="77.5" y="435.5" width="11" height="11" rx="3" fill="#4285F4"/>
+      <text x="83" y="467" font-size="12" font-weight="700" fill="#FFFFFF" text-anchor="middle">52%</text>
+    </g>
+  </g>
+
+  <g id="SettingsButton" filter="url(#railShadow)">
+    <circle cx="83" cy="536" r="17" fill="#000000"/>
+    <g transform="translate(74 527) scale(0.75)" fill="none" stroke="#FFFFFF" stroke-opacity="0.78" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3.4" stroke-width="2.2"/>
+      <path stroke-width="2" d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/>
+    </g>
+  </g>
+
+  <!-- Card: 232 wide, 16 radius, 12x18 tail pointing at the focused ring. -->
+  <g id="UsageCard" filter="url(#cardShadow)">
+    <path d="M124 309 l12 -9 v-53 a16 16 0 0 1 16 -16 h200 a16 16 0 0 1 16 16 v124 a16 16 0 0 1 -16 16 h-200 a16 16 0 0 1 -16 -16 v-53 Z" fill="#0A0A0B"/>
+
+    <g id="Card-Header">
+      <rect x="148" y="243" width="11" height="11" rx="3" fill="#D97757"/>
+      <text x="166" y="253" font-size="13" font-weight="700" fill="#FFFFFF">Claude Usage</text>
+    </g>
+
+    <g id="Window-CurrentSession">
+      <text x="148" y="279" font-size="11" font-weight="600" fill="#FFFFFF" opacity="0.92">Current session</text>
+      <rect x="148" y="286" width="200" height="4" rx="2" fill="#FFFFFF" opacity="0.16"/>
+      <rect x="148" y="286" width="146" height="4" rx="2" fill="#FF5A1F"/>
+      <text x="148" y="303" font-size="10" fill="#FFFFFF" opacity="0.6">73% Used</text>
+      <text x="348" y="303" font-size="10" fill="#FFFFFF" opacity="0.6" text-anchor="end">Resets in 51 min</text>
+    </g>
+
+    <g id="Window-AllModels">
+      <text x="148" y="327" font-size="11" font-weight="600" fill="#FFFFFF" opacity="0.92">All models</text>
+      <rect x="148" y="334" width="200" height="4" rx="2" fill="#FFFFFF" opacity="0.16"/>
+      <rect x="148" y="334" width="14" height="4" rx="2" fill="#00E58A"/>
+      <text x="148" y="351" font-size="10" fill="#FFFFFF" opacity="0.6">7% Used</text>
+      <text x="348" y="351" font-size="10" fill="#FFFFFF" opacity="0.6" text-anchor="end">Resets Thu 12:00 AM</text>
+    </g>
+
+    <g id="Card-Provenance">
+      <rect x="148" y="366" width="200" height="1" fill="#FFFFFF" opacity="0.08"/>
+      <text x="148" y="382" font-size="9.5" font-family="SF Mono, ui-monospace, Menlo, monospace" fill="#FFFFFF" opacity="0.5">Live from Anthropic</text>
+    </g>
+  </g>
+  </g>
+</svg>
