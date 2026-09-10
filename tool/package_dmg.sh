@@ -24,38 +24,53 @@
 set -euo pipefail
 
 APP_NAME="DevNotch"
-VERSION="$(grep '^version:' pubspec.yaml | sed 's/version: *//' | cut -d+ -f1)"
+# The single source of truth for the version is project.yml, which is also what
+# stamps Info.plist. Reading it here keeps the DMG's name and the manifest from
+# drifting away from the bundle they describe.
+VERSION="$(awk -F'"' '/MARKETING_VERSION:/ {print $2; exit}' project.yml)"
 TAG="${TAG:-v${VERSION}}"
 REPO="${REPO:-Adebayodamilola20/Flux}"
 NOTES="${1:-}"
 BUILD_STAMP="$(date -u +%Y%m%d%H%M)"
 
-BUILT="build/macos/Build/Products/Release/${APP_NAME}.app"
+DERIVED="build/xcode"
+BUILT="${DERIVED}/Build/Products/Release/${APP_NAME}.app"
 DIST="build/dist"
 DMG="${DIST}/${APP_NAME}-${VERSION}.dmg"
 MANIFEST="${DIST}/latest.json"
 STAGE="build/dmg-stage"
-ENTITLEMENTS="macos/Runner/Release.entitlements"
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 fail() { printf '\n\033[31mstopped: %s\033[0m\n' "$1" >&2; exit 1; }
 
 command -v gh >/dev/null || fail "the gh CLI is needed to publish"
-[[ -f "${ENTITLEMENTS}" ]] || fail "missing ${ENTITLEMENTS}"
+command -v xcodegen >/dev/null || fail "xcodegen is needed: brew install xcodegen"
+
+step "Generating the Xcode project"
+xcodegen generate >/dev/null
 
 step "Building ${APP_NAME} ${VERSION} (build ${BUILD_STAMP})"
 rm -rf "${BUILT}"
-flutter build macos --release \
-  --dart-define=APP_VERSION="${VERSION}" \
-  --dart-define=BUILD_STAMP="${BUILD_STAMP}"
+# Signing is switched off for the build itself and applied afterwards. The
+# project asks for a Developer ID identity, which this machine does not have;
+# overriding it here keeps project.yml honest about what a real release wants.
+xcodebuild \
+  -project "${APP_NAME}.xcodeproj" \
+  -scheme "${APP_NAME}" \
+  -configuration Release \
+  -derivedDataPath "${DERIVED}" \
+  CODE_SIGN_IDENTITY=- \
+  CODE_SIGNING_REQUIRED=NO \
+  CODE_SIGNING_ALLOWED=NO \
+  build >/dev/null
+
 [[ -d "${BUILT}" ]] || fail "the build produced no app at ${BUILT}"
 
-# Flutter's build leaves App.framework failing the bundle's own seal, which a
-# strict verify reports as "nested code is modified". Re-signing the whole
-# bundle inside-out makes it verify; still ad-hoc, still the same warning on
-# first launch, but no "damaged" dialog.
-step "Re-signing (ad-hoc)"
-codesign --force --deep --sign - --entitlements "${ENTITLEMENTS}" "${BUILT}"
+# Ad-hoc signed, inside out, so the bundle passes its own seal. An app that
+# fails a strict verify can be reported as damaged on another Mac, on top of
+# the Gatekeeper warning the missing Developer ID already causes.
+step "Signing (ad-hoc)"
+codesign --force --deep --sign - "${BUILT}"
 codesign --verify --deep --strict "${BUILT}" || fail "the app does not verify"
 
 step "Building the disk image"

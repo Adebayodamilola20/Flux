@@ -27,7 +27,7 @@ export const PRODUCT = {
   // What the bundle actually declares (LSMinimumSystemVersion, from the
   // deployment target). Advertising anything lower sends people a download
   // that refuses to launch.
-  minOS: 'macOS 13',
+  minOS: 'macOS 15',
   author: 'Stephen Adebayo',
 } as const;
 
