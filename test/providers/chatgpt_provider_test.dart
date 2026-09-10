@@ -224,4 +224,71 @@ void main() {
     expect(native.openedUrls.single, contains('platform.openai.com'));
     expect(result.status, ConnectionStatus.connecting);
   });
+
+  group('an empty allowance event never blanks a real figure', () {
+    // Taken from a real transcript. OpenAI writes an allowance event after
+    // every turn and some arrive with both windows null — a different limit
+    // reported under the same roof. The app reported nothing while the CLI
+    // showed a real percentage.
+    String event({
+      required String at,
+      required String limitId,
+      String primary = 'null',
+    }) =>
+        jsonEncode({
+          'timestamp': at,
+          'payload': {
+            'rate_limits': {
+              'limit_id': limitId,
+              'primary': primary == 'null' ? null : jsonDecode(primary),
+              'secondary': null,
+            },
+          },
+        });
+
+    test('a later null-window event does not erase an earlier figure',
+        () async {
+      final dir = Directory('${emptyHome.path}/.codex/sessions')
+        ..createSync(recursive: true);
+      File('${dir.path}/rollout.jsonl').writeAsStringSync([
+        event(
+          at: '2026-09-05T09:00:00Z',
+          limitId: 'codex',
+          primary: '{"used_percent":24.0,"window_minutes":43200}',
+        ),
+        // The turn that followed reported no window at all.
+        event(at: '2026-09-05T09:05:00Z', limitId: 'codex'),
+      ].join('\n'));
+
+      final source = CodexUsageSource(homeDirectory: emptyHome.path);
+      final reading = await source.read();
+
+      expect(reading.hasUsage, isTrue);
+      expect(reading.windows.first.consumed, 24);
+    });
+
+    test('a transcript with only empty events is not the final answer',
+        () async {
+      final dir = Directory('${emptyHome.path}/.codex/sessions/2026/09/05')
+        ..createSync(recursive: true);
+      // Newest file, allowance mentioned but no figure in it.
+      File('${dir.path}/new.jsonl').writeAsStringSync(
+        event(at: '2026-09-05T10:00:00Z', limitId: 'codex'),
+      );
+      final older = File('${emptyHome.path}/.codex/sessions/old.jsonl')
+        ..writeAsStringSync(event(
+          at: '2026-09-04T10:00:00Z',
+          limitId: 'codex',
+          primary: '{"used_percent":61.0,"window_minutes":43200}',
+        ));
+      older.setLastModifiedSync(DateTime.now().subtract(const Duration(days: 1)));
+
+      final source = CodexUsageSource(homeDirectory: emptyHome.path);
+      final reading = await source.read();
+
+      expect(reading.hasUsage, isTrue,
+          reason: 'the scan must keep going back until a figure turns up');
+      expect(reading.windows.first.consumed, 61);
+    });
+  });
 }

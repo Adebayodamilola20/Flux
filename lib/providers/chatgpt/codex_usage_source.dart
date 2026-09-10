@@ -152,7 +152,12 @@ class CodexUsageSource {
       }
 
       final reading = await _readFile(file, notBefore: notBefore);
-      if (reading != null) return reading;
+      // A file that mentions the allowance but carries no figure is not an
+      // answer. It used to be treated as one, so the scan stopped there and
+      // the card reported nothing while the CLI had a real number — the
+      // "everything reads 0" complaint. Keep going back until a figure turns
+      // up, or run out of transcripts.
+      if (reading != null && reading.hasUsage) return reading;
     }
 
     return CodexUsageReading.none;
@@ -207,8 +212,18 @@ class CodexUsageSource {
         if (recorded == null || recorded.toLocal().isBefore(notBefore)) continue;
       }
 
+      // Only a block that actually carries a window counts as the latest.
+      //
+      // OpenAI writes an allowance event after every turn, and some of them
+      // arrive with both windows null — a different limit reported under the
+      // same roof. Taking the last matching block regardless meant one empty
+      // event at the end of a session erased a transcript full of real
+      // figures.
+      final candidate = parse(limits, timestamp: at as String?);
+      if (!candidate.hasUsage) continue;
+
       latest = limits;
-      latestTimestamp = at as String?;
+      latestTimestamp = at;
     }
 
     if (latest == null) return null;
