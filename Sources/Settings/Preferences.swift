@@ -43,6 +43,18 @@ final class Preferences: ObservableObject {
         didSet { defaults.set(providerOrder, forKey: Keys.order) }
     }
 
+    /// Whether the current figure is printed in the menu bar, cycling through
+    /// the providers being tracked.
+    ///
+    /// Independent of `appPresence` on purpose. Presence answers "is there an
+    /// icon, and where" — a menu bar item *instead of* a Dock tile. This
+    /// answers "can I read the number without looking at the notch", which is
+    /// the thing people actually keep it for, and which has to work while the
+    /// notch is on a screen edge they are not looking at.
+    @Published var menuBarReadout: Bool {
+        didSet { defaults.set(menuBarReadout, forKey: Keys.menuBarReadout) }
+    }
+
     /// How much of itself the notch shows at rest.
     @Published var notchVisibility: NotchVisibility {
         didSet { defaults.set(notchVisibility.rawValue, forKey: Keys.visibility) }
@@ -255,6 +267,7 @@ final class Preferences: ObservableObject {
         static let mutedAlerts = "mutedAlertProviders"
         static let hasLaunched = "hasLaunchedBefore"
         static let visibility = "notchVisibility"
+        static let menuBarReadout = "menuBarReadout"
         static let presence = "appPresence"
         static let edge = "notchEdge"
         // A new key, so there is nothing under the old app name to migrate.
@@ -368,6 +381,11 @@ final class Preferences: ObservableObject {
         // Absent means never chosen, which is the hover behaviour the app was
         // designed around — not hidden, which would make a fresh install look
         // like it failed to start.
+        // On unless it has been turned off. `object(forKey:)` rather than
+        // `bool(forKey:)`: the latter answers false for a key that was never
+        // written, which would ship the feature switched off for everyone.
+        self.menuBarReadout = (defaults.object(forKey: Keys.menuBarReadout) as? Bool) ?? true
+
         self.notchVisibility = defaults.string(forKey: Keys.visibility)
             .flatMap(NotchVisibility.init(rawValue:)) ?? .onHover
         // Absent means never chosen. The Dock is the default because it is the

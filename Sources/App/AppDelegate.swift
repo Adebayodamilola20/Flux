@@ -233,13 +233,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             statusItem.onRefreshProvider = { [weak store] id in store?.refresh(providerID: id) }
             statusItem.onRefreshAll = { [weak store] in store?.refreshNow() }
 
-            preferences.$appPresence
-                .receive(on: RunLoop.main)
-                .sink { presence in
-                    NSApp.setActivationPolicy(presence.activationPolicy)
-                    if presence.wantsStatusItem { statusItem.show() } else { statusItem.hide() }
+            // The status item is wanted for either of two independent
+            // reasons: presence says the app lives in the menu bar, or the
+            // readout is on and needs somewhere to print. Combined here so
+            // neither switch can hide the other's item.
+            Publishers.CombineLatest(
+                preferences.$appPresence,
+                preferences.$menuBarReadout
+            )
+            .receive(on: RunLoop.main)
+            .sink { presence, readout in
+                NSApp.setActivationPolicy(presence.activationPolicy)
+                if presence.wantsStatusItem || readout {
+                    statusItem.show()
+                } else {
+                    statusItem.hide()
                 }
-                .store(in: &cancellables)
+                statusItem.showsReadout = readout
+            }
+            .store(in: &cancellables)
 
             preferences.$notchVisibility
                 .receive(on: RunLoop.main)

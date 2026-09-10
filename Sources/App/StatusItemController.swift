@@ -20,7 +20,27 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     /// The latest readings, mirrored from the store. The menu is rebuilt from
     /// these every time it opens, so reset countdowns and ages are fresh.
-    var snapshots: [ProviderSnapshot] = []
+    var snapshots: [ProviderSnapshot] = [] {
+        didSet { refreshReadout() }
+    }
+
+    /// Whether the figure is printed beside the icon in the menu bar.
+    var showsReadout = true {
+        didSet {
+            guard showsReadout != oldValue else { return }
+            refreshReadout()
+        }
+    }
+
+    /// How long one provider holds the menu bar before the next takes it.
+    ///
+    /// Long enough to read without being a distraction in peripheral vision,
+    /// short enough that a glance at three providers sees all of them inside
+    /// a quarter of a minute.
+    static let readoutDwell: TimeInterval = 4
+
+    private var readoutTimer: Timer?
+    private var readoutIndex = 0
 
     init(onOpenSettings: @escaping () -> Void) {
         self.onOpenSettings = onOpenSettings
@@ -31,8 +51,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     func show() {
         guard item == nil else { return }
 
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        // Variable rather than square: the readout beside the icon changes
+        // width as it moves between providers, and a fixed square clips it.
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.button?.image = Self.icon()
+        item.button?.imagePosition = .imageLeading
         item.button?.toolTip = L10n.t("DevNotch")
 
         let menu = NSMenu()
@@ -44,8 +67,85 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     func hide() {
         guard let item else { return }
+        stopReadout()
         NSStatusBar.system.removeStatusItem(item)
         self.item = nil
+    }
+
+    // MARK: - The readout
+
+    /// Every provider with a figure worth printing.
+    ///
+    /// Not just the first one. The menu bar used to show a single provider,
+    /// which in practice meant Claude for ever: the rest were measured, on the
+    /// notch, and invisible up here. Anything the user is tracking earns its
+    /// turn.
+    private var readable: [ProviderSnapshot] {
+        snapshots.filter { $0.hasReading && $0.ringFraction != nil }
+    }
+
+    /// Puts the current provider's figure in the menu bar and keeps the
+    /// rotation running, or clears it when there is nothing to say.
+    private func refreshReadout() {
+        guard let button = item?.button else { return }
+
+        let providers = readable
+        guard showsReadout, !providers.isEmpty else {
+            stopReadout()
+            button.attributedTitle = NSAttributedString(string: "")
+            return
+        }
+
+        if readoutIndex >= providers.count { readoutIndex = 0 }
+        let snapshot = providers[readoutIndex]
+
+        // Set as an attributed string so the figure sits at menu-bar weight
+        // rather than the button's default, which reads as oversized next to
+        // the system's own items.
+        button.attributedTitle = NSAttributedString(
+            string: " \(snapshot.displayName) \(snapshot.headlineText)",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 11, weight: .medium),
+                .foregroundColor: NSColor.labelColor,
+            ]
+        )
+
+        // One provider needs no rotation, and a timer that fires for it only
+        // redraws the same text for ever.
+        if providers.count > 1 {
+            startReadout()
+        } else {
+            stopReadout()
+        }
+    }
+
+    private func startReadout() {
+        guard readoutTimer == nil else { return }
+        let timer = Timer.scheduledTimer(
+            withTimeInterval: Self.readoutDwell,
+            repeats: true
+        ) { [weak self] _ in
+            Task { @MainActor in self?.advanceReadout() }
+        }
+        // Keeps ticking while a menu is open, which is when the app is most
+        // obviously alive and a frozen readout is most obviously wrong.
+        RunLoop.main.add(timer, forMode: .common)
+        readoutTimer = timer
+    }
+
+    private func stopReadout() {
+        readoutTimer?.invalidate()
+        readoutTimer = nil
+    }
+
+    private func advanceReadout() {
+        let providers = readable
+        guard !providers.isEmpty else {
+            refreshReadout()
+            return
+        }
+        readoutIndex = (readoutIndex + 1) % providers.count
+        refreshReadout()
     }
 
     // MARK: - Menu

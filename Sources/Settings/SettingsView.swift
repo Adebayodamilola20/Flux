@@ -181,11 +181,18 @@ struct SettingsView: View {
         // — neither reliably suppresses it (see the note in
         // `SettingsWindowController.show()`). A fixed-width list beside the
         // pane gets the same look with no toggle to remove.
-        HStack(spacing: 0) {
-            if isSidebarVisible {
-                sidebar
-                    .transition(.move(edge: .leading).combined(with: .opacity))
-            }
+        // Subjects across the top rather than down the side.
+        //
+        // A sidebar is the obvious shape for this and it is the shape the
+        // project this grew from uses. It is also the shape of macOS's own
+        // System Settings, which is the problem: with five subjects there is
+        // nothing for a 196pt column to do but hold five words, and the pane
+        // beside it loses that width for the whole of its life. Across the
+        // top the same five subjects cost one row, the pane gets the entire
+        // window, and the window stops being mistaken for something else.
+        VStack(spacing: 0) {
+            subjectBar
+            Divider().opacity(reduceTransparency ? 1 : 0.5)
             pane(for: selection)
                 // A fixed subject per window, not a document — nothing here
                 // is titled the way a sidebar of documents would be.
@@ -267,6 +274,57 @@ struct SettingsView: View {
     /// everywhere instead of only on the one side facing the pane. The
     /// traffic lights land inside it, which is why the rows start a clear
     /// `trafficLightClearance` below the top rather than at it.
+    /// The five subjects, as a row of tabs under the traffic lights.
+    ///
+    /// Kept in the band the traffic lights occupy rather than below it: that
+    /// band is already reserved and otherwise empty, so spending it here costs
+    /// the pane nothing. The leading inset clears the lights themselves.
+    private var subjectBar: some View {
+        HStack(spacing: 2) {
+            ForEach(SettingsSection.allCases) { section in
+                subjectTab(section)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.leading, SettingsView.trafficLightWidth + 12)
+        .padding(.trailing, 12)
+        .frame(height: SettingsView.headerHeight)
+    }
+
+    private func subjectTab(_ section: SettingsSection) -> some View {
+        let isSelected = selection == section
+
+        return Button {
+            // Snappy rather than a spring: the pane behind it is a full page
+            // of controls, and anything springy makes the whole window wobble.
+            withAnimation(.snappy(duration: 0.18)) { selection = section }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: section.icon)
+                    .font(.system(size: 11, weight: .semibold))
+                    // The badge colour is what makes a subject recognisable
+                    // before its name is read; selected, it goes to the
+                    // accent so the pill reads as one object.
+                    .foregroundStyle(isSelected ? Color.white : section.tint)
+                Text(section.title)
+                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                    .foregroundStyle(isSelected ? Color.white : Color.primary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background {
+                if isSelected {
+                    Capsule(style: .continuous)
+                        .fill(preferences.accentColor.color)
+                }
+            }
+            .contentShape(Capsule(style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .help(section.title)
+        .accessibilityAddTraits(isSelected ? [.isSelected, .isButton] : .isButton)
+    }
+
     private var sidebar: some View {
         List(SettingsSection.allCases, selection: $selection) { section in
             Label {
@@ -684,6 +742,14 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
 
                 Text(preferences.appPresence.explanation)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Toggle(L10n.t("Show usage in the menu bar"),
+                       isOn: $preferences.menuBarReadout)
+
+                Text(L10n.t("The figure for each provider in turn, beside the clock — readable without looking at the notch."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
