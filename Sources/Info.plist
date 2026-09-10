@@ -29,13 +29,13 @@
 	<key>LSMinimumSystemVersion</key>
 	<string>15.0</string>
 	<key>SUAutomaticallyUpdate</key>
-	<false/>
+	<true/>
 	<key>SUEnableAutomaticChecks</key>
-	<false/>
+	<true/>
 	<key>SUFeedURL</key>
-	<string>https://devnotch-ai.vercel.app/appcast.xml</string>
+	<string>https://github.com/Adebayodamilola20/Flux/releases/latest/download/appcast.xml</string>
 	<key>SUPublicEDKey</key>
-	<string></string>
+	<string>sMd65Xnoc6CAfWupbUTkUBT21tl8cWQHqXKi2OtqnEk=</string>
 	<key>SUScheduledCheckInterval</key>
 	<integer>86400</integer>
 </dict>

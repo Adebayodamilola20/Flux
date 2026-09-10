@@ -11,14 +11,23 @@
 # WHAT GETS PUBLISHED
 #
 #   DevNotch-<version>.dmg   the app
-#   latest.json              { version, build, url, notes }
+#   appcast.xml              the Sparkle feed this build's app reads
+#   latest.json              the feed the *old* Flutter app read
 #
-# Both go on the GitHub release named by TAG (default v<version>), replacing
-# what is there. The app fetches latest.json from the "latest" release URL,
-# compares `build` — the minute this script ran, UTC, yyyyMMddHHmm — against
-# the stamp compiled into it, and offers the download when the published one
-# is newer. The marketing version is not compared, so the asset can be
-# replaced in place as many times as needed without bumping it.
+# All three go on the GitHub release named by TAG (default v<version>),
+# replacing what is there, so `releases/latest/download/…` always resolves to
+# the newest without any of them needing a new URL.
+#
+# Two feeds, because there are two generations of the app in the wild. The
+# current one uses Sparkle, which reads appcast.xml, verifies the EdDSA
+# signature and installs in the background. Copies still running the Flutter
+# build poll latest.json and can only offer a download — that generation has
+# no installer. Dropping latest.json would stop those copies ever hearing
+# about another release, so it is still written.
+#
+# Both carry the same build stamp: the minute this script ran, UTC, as
+# yyyyMMddHHmm. It rises with every build, which is what makes "is this newer"
+# answerable without touching the marketing version.
 #
 # Usage:  tool/package_dmg.sh ["what changed, one line"]
 set -euo pipefail
@@ -38,12 +47,15 @@ BUILT="${DERIVED}/Build/Products/Release/${APP_NAME}.app"
 DIST="build/dist"
 DMG="${DIST}/${APP_NAME}-${VERSION}.dmg"
 MANIFEST="${DIST}/latest.json"
+APPCAST="${DIST}/appcast.xml"
 STAGE="build/dmg-stage"
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 fail() { printf '\n\033[31mstopped: %s\033[0m\n' "$1" >&2; exit 1; }
 
 command -v gh >/dev/null || fail "the gh CLI is needed to publish"
+
+DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/${APP_NAME}-${VERSION}.dmg"
 command -v xcodegen >/dev/null || fail "xcodegen is needed: brew install xcodegen"
 
 step "Generating the Xcode project"
@@ -59,6 +71,7 @@ xcodebuild \
   -scheme "${APP_NAME}" \
   -configuration Release \
   -derivedDataPath "${DERIVED}" \
+  CURRENT_PROJECT_VERSION="${BUILD_STAMP}" \
   CODE_SIGN_IDENTITY=- \
   CODE_SIGNING_REQUIRED=NO \
   CODE_SIGNING_ALLOWED=NO \
@@ -81,8 +94,28 @@ rm -f "${DMG}"
 hdiutil create -volname "${APP_NAME}" -srcfolder "${STAGE}" \
   -ov -format UDZO "${DMG}" >/dev/null
 
+# --- the update feed --------------------------------------------------------
+# Signed with our own EdDSA key, whose private half lives in this machine's
+# login keychain. Sparkle refuses an update whose signature does not verify,
+# so a wrongly signed image simply never installs, which is the failure worth
+# having. Nothing to do with Apple's Developer ID: that one decides whether
+# Gatekeeper opens the download at all, this one decides whether Sparkle
+# trusts it as an update.
+step "Signing the update"
+SIGN_TOOL="${DERIVED}/SourcePackages/artifacts/sparkle/Sparkle/bin/sign_update"
+[[ -x "${SIGN_TOOL}" ]] || fail "Sparkle's sign_update is missing at ${SIGN_TOOL}"
+
+SIGNATURE_LINE="$("${SIGN_TOOL}" "${DMG}")" || fail "could not sign the disk image.
+  The private key lives in this machine's login keychain; if it is gone, make a
+  new pair with Sparkle's generate_keys and put the public half in project.yml."
+echo "${SIGNATURE_LINE}"
+
+step "Writing the appcast"
+python3 tool/make_appcast.py \
+  "${VERSION}" "${BUILD_STAMP}" "${DOWNLOAD_URL}" "${NOTES}" "${SIGNATURE_LINE}" "${APPCAST}"
+cat "${APPCAST}"
+
 step "Writing the manifest"
-DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/${APP_NAME}-${VERSION}.dmg"
 python3 - "$VERSION" "$BUILD_STAMP" "$DOWNLOAD_URL" "$NOTES" "$MANIFEST" <<'PY'
 import json, sys
 version, build, url, notes, out = sys.argv[1:]
@@ -93,7 +126,7 @@ PY
 cat "${MANIFEST}"
 
 step "Publishing to ${REPO} ${TAG}"
-gh release upload "${TAG}" "${DMG}" "${MANIFEST}" --clobber --repo "${REPO}"
+gh release upload "${TAG}" "${DMG}" "${MANIFEST}" "${APPCAST}" --clobber --repo "${REPO}"
 
 step "Verifying the live download"
 SCRATCH="$(mktemp -d)"

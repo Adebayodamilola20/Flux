@@ -96,26 +96,27 @@ targets:
         # DevNotch user silently download and install *his* app from *his*
         # server on the next check. Nothing about the rename would have
         # stopped it: Sparkle reads this, not the bundle name.
-        SUFeedURL: https://devnotch-ai.vercel.app/appcast.xml
+        SUFeedURL: https://github.com/Adebayodamilola20/Flux/releases/latest/download/appcast.xml
         # The public half of the EdDSA key in the login keychain. Sparkle
         # refuses any update not signed by its private half, so a hijacked feed
         # or a swapped download cannot install code. Losing the private key
         # means no existing install can ever be updated again — back it up.
-        # Left empty on purpose. This is the public half of the key an
-        # update must be signed with, and the private half belongs to the
-        # upstream author — so his key could only ever validate his builds,
-        # and ours cannot be signed at all until we generate our own pair.
-        # Sparkle refuses unsigned updates rather than installing them, which
-        # is the safe failure and the reason the checks below are off.
-        SUPublicEDKey: ""
+        # The public half of our own EdDSA pair; the private half is in the
+        # release machine's login keychain, put there by Sparkle's
+        # `generate_keys`. Every disk image is signed with it and Sparkle
+        # refuses anything that does not verify.
+        #
+        # Worth knowing: this is nothing to do with Apple's Developer ID. That
+        # one governs whether Gatekeeper opens the app on first launch; this
+        # one governs whether Sparkle trusts an update. Not having the former
+        # is why the download still needs Open Anyway once, and is no reason
+        # not to have the latter.
+        SUPublicEDKey: sMd65Xnoc6CAfWupbUTkUBT21tl8cWQHqXKi2OtqnEk=
         # Set explicitly so Sparkle never asks on first launch. Left unset, it
         # shows a "check for updates automatically?" prompt, which is exactly
         # the permission this is meant to avoid.
-        # Off until there is a Developer ID certificate and our own
-        # signing key; until then the in-app check on the About screen is
-        # what tells people a new build exists.
-        SUEnableAutomaticChecks: false
-        SUAutomaticallyUpdate: false
+        SUEnableAutomaticChecks: true
+        SUAutomaticallyUpdate: true
         SUScheduledCheckInterval: 86400
     settings:
       base:
