@@ -398,14 +398,30 @@ final class NotchWindowController {
         )
     }
 
-    private func updateInteractiveRects() {
+    /// - Parameter card: the hovered tooltip's rect, when the caller has
+    ///   already computed it. Passed in rather than recomputed because this
+    ///   runs on every mouse-moved event and `tooltipRect` is not cheap — it
+    ///   measures a whole card, formatting a blocked-summary string on the way.
+    private func updateInteractiveRects(card: CGRect?? = nil) {
         var rects = [liveRect]
-        if model.isExpanded, let index = model.hoveredIndex, let card = tooltipRect(index: index) {
-            rects.append(card)
+        let hoveredCard = card ?? model.hoveredIndex.flatMap(tooltipRect(index:))
+        if model.isExpanded, let hoveredCard {
+            rects.append(hoveredCard)
         }
-        hostingView?.interactiveRects = rects
+
+        // Both of these are written on every pointer event, and both used to
+        // be written whether or not anything had changed. `ignoresMouseEvents`
+        // is the expensive one: it is window state, so each assignment is a
+        // round trip to the window server, and at the rate mouse-moved arrives
+        // that was enough to make opening the notch feel like it was dragging.
+        if hostingView?.interactiveRects != rects {
+            hostingView?.interactiveRects = rects
+        }
         if let panel {
-            panel.ignoresMouseEvents = !rects.contains { $0.contains(localCursor(in: panel.frame)) }
+            let wanted = !rects.contains { $0.contains(localCursor(in: panel.frame)) }
+            if panel.ignoresMouseEvents != wanted {
+                panel.ignoresMouseEvents = wanted
+            }
         }
     }
 
@@ -450,16 +466,20 @@ final class NotchWindowController {
     private func cursorMoved() {
         guard let panel else { return }
         let local = localCursor(in: panel.frame)
-        let overTooltip = model.hoveredIndex
-            .flatMap(tooltipRect(index:))
-            .map { model.isExpanded && $0.contains(local) } ?? false
+
+        // Measured once and reused three times over. It used to be computed
+        // separately for the fold test, the hover test and the interactive
+        // rects — three card measurements per pointer event, for one card.
+        let currentCard = model.hoveredIndex.flatMap(tooltipRect(index:))
+
+        let overTooltip = currentCard.map { model.isExpanded && $0.contains(local) } ?? false
         setExpanded(liveRect.contains(local) || overTooltip)
 
         var target: Int?
         if model.isExpanded, notchRect.contains(local) {
             target = cellIndex(along: placement.along(of: local))
         } else if model.isExpanded, let current = model.hoveredIndex,
-                  let card = tooltipRect(index: current),
+                  let card = currentCard,
                   card.contains(local) {
             target = current
         }
@@ -492,7 +512,9 @@ final class NotchWindowController {
             DispatchQueue.main.asyncAfter(deadline: .now() + hoverGrace, execute: work)
         }
 
-        updateInteractiveRects()
+        // Only re-measure when the hovered cell actually moved; otherwise the
+        // card computed at the top of this call still describes it.
+        updateInteractiveRects(card: target == model.hoveredIndex ? currentCard : nil)
     }
 
     /// Opens on contact, folds shut after a pause — unless it has been pinned
