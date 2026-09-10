@@ -84,6 +84,18 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         snapshots.filter { $0.hasReading && $0.ringFraction != nil }
     }
 
+    /// How long the readout takes to leave, and to arrive behind it.
+    ///
+    /// Short, and deliberately unequal. Out is quicker than in: the eye
+    /// forgives a label leaving faster than it forgives one that has not
+    /// settled by the time it is read.
+    private static let fadeOut: TimeInterval = 0.14
+    private static let fadeIn: TimeInterval = 0.20
+
+    /// The provider currently printed, so a refresh that does not change the
+    /// subject updates the figure in place instead of crossfading to itself.
+    private var shownProviderID: String?
+
     /// Puts the current provider's figure in the menu bar and keeps the
     /// rotation running, or clears it when there is nothing to say.
     private func refreshReadout() {
@@ -92,23 +104,25 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let providers = readable
         guard showsReadout, !providers.isEmpty else {
             stopReadout()
+            shownProviderID = nil
             button.attributedTitle = NSAttributedString(string: "")
+            button.alphaValue = 1
             return
         }
 
         if readoutIndex >= providers.count { readoutIndex = 0 }
         let snapshot = providers[readoutIndex]
 
-        // Set as an attributed string so the figure sits at menu-bar weight
-        // rather than the button's default, which reads as oversized next to
-        // the system's own items.
-        button.attributedTitle = NSAttributedString(
-            string: " \(snapshot.displayName) \(snapshot.headlineText)",
-            attributes: [
-                .font: NSFont.systemFont(ofSize: 11, weight: .medium),
-                .foregroundColor: NSColor.labelColor,
-            ]
-        )
+        // Crossfade only when the subject changes. A figure that moves while
+        // its own provider is showing should just move — fading the label out
+        // and back for a number ticking 73 to 74 draws the eye to the wrong
+        // thing, and does it every refresh.
+        if shownProviderID == snapshot.id {
+            button.attributedTitle = Self.title(for: snapshot)
+        } else {
+            crossfade(button: button, to: snapshot)
+        }
+        shownProviderID = snapshot.id
 
         // One provider needs no rotation, and a timer that fires for it only
         // redraws the same text for ever.
@@ -117,6 +131,45 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         } else {
             stopReadout()
         }
+    }
+
+    /// Fades the old subject out, swaps the label, and brings the new one in.
+    ///
+    /// Done on the button's own alpha rather than by animating the string:
+    /// `attributedTitle` is not an animatable property, so anything that
+    /// changes it mid-flight lands as a jump no matter what it is wrapped in.
+    /// Fading the view that draws it is what makes the swap invisible.
+    private func crossfade(button: NSStatusBarButton, to snapshot: ProviderSnapshot) {
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = Self.fadeOut
+            context.timingFunction = CAMediaTimingFunction(name: .easeIn)
+            button.animator().alphaValue = 0
+        } completionHandler: { [weak self, weak button] in
+            guard let self, let button, let item = self.item, button === item.button else { return }
+
+            button.attributedTitle = Self.title(for: snapshot)
+
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = Self.fadeIn
+                context.timingFunction = CAMediaTimingFunction(name: .easeOut)
+                button.animator().alphaValue = 1
+            }
+        }
+    }
+
+    /// The label itself: the provider, then its headline figure.
+    ///
+    /// Attributed rather than a plain title so the figure sits at menu-bar
+    /// weight, which the button's default is not — it reads as oversized
+    /// beside the system's own items.
+    private static func title(for snapshot: ProviderSnapshot) -> NSAttributedString {
+        NSAttributedString(
+            string: " \(snapshot.displayName) \(snapshot.headlineText)",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 11, weight: .medium),
+                .foregroundColor: NSColor.labelColor,
+            ]
+        )
     }
 
     private func startReadout() {
@@ -136,6 +189,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private func stopReadout() {
         readoutTimer?.invalidate()
         readoutTimer = nil
+        // A fade cancelled halfway would otherwise leave the item sitting at
+        // whatever alpha it had reached, which for a menu bar icon means
+        // invisible but still taking its width.
+        item?.button?.alphaValue = 1
     }
 
     private func advanceReadout() {
