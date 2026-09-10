@@ -43,6 +43,19 @@ final class Preferences: ObservableObject {
         didSet { defaults.set(providerOrder, forKey: Keys.order) }
     }
 
+    /// How many cells the notch draws, or 0 for "as many as there are".
+    ///
+    /// Zero rather than an optional so the stored value stays a plain integer,
+    /// and because "automatic" is a real choice a user can come back to — not
+    /// the absence of one. Everything above it is a deliberate cap: someone
+    /// tracking six providers may still only want two on the bezel.
+    @Published var notchCellLimit: Int {
+        didSet { defaults.set(notchCellLimit, forKey: Keys.notchCellLimit) }
+    }
+
+    /// The caps offered, beyond automatic.
+    static let notchCellLimits = Array(1...7)
+
     /// Whether the current figure is printed in the menu bar, cycling through
     /// the providers being tracked.
     ///
@@ -268,6 +281,7 @@ final class Preferences: ObservableObject {
         static let hasLaunched = "hasLaunchedBefore"
         static let visibility = "notchVisibility"
         static let menuBarReadout = "menuBarReadout"
+        static let notchCellLimit = "notchCellLimit"
         static let presence = "appPresence"
         static let edge = "notchEdge"
         // A new key, so there is nothing under the old app name to migrate.
@@ -385,6 +399,10 @@ final class Preferences: ObservableObject {
         // `bool(forKey:)`: the latter answers false for a key that was never
         // written, which would ship the feature switched off for everyone.
         self.menuBarReadout = (defaults.object(forKey: Keys.menuBarReadout) as? Bool) ?? true
+
+        // Automatic unless it has been set, so the notch keeps the shape it
+        // has today for everyone who never opens this.
+        self.notchCellLimit = defaults.integer(forKey: Keys.notchCellLimit)
 
         self.notchVisibility = defaults.string(forKey: Keys.visibility)
             .flatMap(NotchVisibility.init(rawValue:)) ?? .onHover

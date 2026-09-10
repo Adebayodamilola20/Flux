@@ -101,7 +101,7 @@ struct SettingsOrb: View {
             Circle()
                 .trim(from: restingTrim.lowerBound, to: restingTrim.upperBound)
                 .stroke(
-                    Palette.notch,
+                    surfaceStyle.surfaceColor,
                     style: StrokeStyle(lineWidth: NotchLayout.orbStroke, lineCap: .round)
                 )
                 .frame(width: arcRadius * 2, height: arcRadius * 2)
@@ -120,7 +120,7 @@ struct SettingsOrb: View {
             }
         } else {
             Circle()
-                .fill(Palette.notch)
+                .fill(surfaceStyle.surfaceColor)
                 .frame(width: NotchLayout.orbDiameter, height: NotchLayout.orbDiameter)
         }
     }

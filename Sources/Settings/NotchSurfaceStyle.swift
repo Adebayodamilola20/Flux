@@ -9,6 +9,7 @@ import SwiftUI
 enum NotchSurfaceStyle: String, CaseIterable, Identifiable {
     case glass
     case solid
+    case light
 
     var id: String { rawValue }
 
@@ -27,13 +28,42 @@ enum NotchSurfaceStyle: String, CaseIterable, Identifiable {
     /// preference set on a newer Mac (or restored from one) still draws
     /// something sensible on an older one instead of drawing nothing.
     var effective: NotchSurfaceStyle {
-        self == .glass && Self.glassAvailable ? .glass : .solid
+        switch self {
+        // Glass needs macOS 26; everything else draws anywhere.
+        case .glass: return Self.glassAvailable ? .glass : .solid
+        case .solid, .light: return self
+        }
+    }
+
+    /// Whether this style paints an opaque surface of its own.
+    var isOpaque: Bool { effective != .glass }
+
+    /// The colour this style paints its surface with.
+    ///
+    /// Stated outright rather than resolved from a dynamic `NSColor`. A
+    /// dynamic one answers to whatever appearance is in force where it is
+    /// drawn, which is the panel's in the running app but *light* anywhere
+    /// there is no panel — an offscreen render, a snapshot test. That turned
+    /// the black band across a MacBook's camera housing white, which is the
+    /// one place on the whole surface that must never be anything but black.
+    var surfaceColor: Color {
+        effective == .light ? .white : .black
+    }
+
+    /// The styles worth putting in front of someone on this Mac.
+    ///
+    /// Glass is dropped where it cannot be drawn rather than offered and
+    /// silently downgraded, which would be a control that appears to do
+    /// nothing.
+    static var offered: [NotchSurfaceStyle] {
+        allCases.filter { $0 != .glass || glassAvailable }
     }
 
     var title: String {
         switch self {
         case .glass: return L10n.t("Liquid Glass")
         case .solid: return L10n.t("Solid black")
+        case .light: return L10n.t("Solid white")
         }
     }
 
@@ -43,6 +73,8 @@ enum NotchSurfaceStyle: String, CaseIterable, Identifiable {
             return L10n.t("System Liquid Glass. Follows this Mac's Appearance settings, including Clear or Tinted glass and light or dark mode.")
         case .solid:
             return L10n.t("The original opaque black notch. Always dark, whatever the Mac's appearance.")
+        case .light:
+            return L10n.t("An opaque white notch, with dark text and rings. Always light, whatever the Mac's appearance.")
         }
     }
 
@@ -62,7 +94,13 @@ enum NotchSurfaceStyle: String, CaseIterable, Identifiable {
     /// precedence is the Settings window's — reduce transparency first, then
     /// glass, then the opaque fill.
     func panelAppearance(reduceTransparency: Bool) -> NSAppearance? {
-        effective == .glass && !reduceTransparency ? nil : NSAppearance(named: .darkAqua)
+        // Light is the one style that names a light appearance, and it names
+        // it even under reduce transparency: that setting means "no
+        // see-through chrome", which the white surface already satisfies.
+        // Forcing dark there would hand back a black notch to someone who
+        // explicitly asked for a white one.
+        if effective == .light { return NSAppearance(named: .aqua) }
+        return effective == .glass && !reduceTransparency ? nil : NSAppearance(named: .darkAqua)
     }
 }
 

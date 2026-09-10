@@ -356,6 +356,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 .sink { [weak store] in store?.order = $0 }
                 .store(in: &cancellables)
 
+            preferences.$notchCellLimit
+                .receive(on: RunLoop.main)
+                .sink { [weak store] in store?.cellLimit = $0 }
+                .store(in: &cancellables)
+
             // Redraw the Gemini API ring against the new ceiling.
             //
             // `dropFirst` because `@Published` publishes the value it is given

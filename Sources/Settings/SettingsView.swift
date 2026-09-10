@@ -606,20 +606,36 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                // Offered only where there is a glass to choose. Below macOS 26
-                // the choice has one possible answer, and a picker that cannot
-                // be moved is worse than no picker at all.
-                if #available(macOS 26.0, *) {
-                    Picker(L10n.t("Surface"), selection: $preferences.notchSurfaceStyle) {
-                        ForEach(NotchSurfaceStyle.allCases) { Text($0.title).tag($0) }
-                    }
-                    .pickerStyle(.segmented)
-
-                    Text(preferences.notchSurfaceStyle.explanation)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
+                // Every version gets this now. It used to be hidden below
+                // macOS 26 on the grounds that glass was the only thing worth
+                // choosing, which stopped being true the moment there was a
+                // white surface as well as a black one — that hid a real
+                // choice from everyone on an older Mac. Glass itself is still
+                // only offered where it exists.
+                Picker(L10n.t("Surface"), selection: $preferences.notchSurfaceStyle) {
+                    ForEach(NotchSurfaceStyle.offered) { Text($0.title).tag($0) }
                 }
+                .pickerStyle(.segmented)
+
+                Text(preferences.notchSurfaceStyle.explanation)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Picker(L10n.t("Rings"), selection: $preferences.notchCellLimit) {
+                    Text(L10n.t("Automatic")).tag(0)
+                    ForEach(Preferences.notchCellLimits, id: \.self) {
+                        Text("\($0)").tag($0)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Text(preferences.notchCellLimit == 0
+                     ? L10n.t("One ring for everything being tracked.")
+                     : L10n.t("Only the first few, in the order set under Accounts. The rest are still read, and still in the menu bar."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 // Two ways to answer the same question, because they suit
                 // different people: three named sizes for anyone who wants a

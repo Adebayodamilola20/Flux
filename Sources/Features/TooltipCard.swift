@@ -143,7 +143,7 @@ private struct TooltipShell<Content: View>: View {
 
     /// Clear on glass: anything of ours under it would override the Clear or
     /// Tinted choice in Appearance settings.
-    private var surfaceFill: Color { glassy ? .clear : Palette.card }
+    private var surfaceFill: Color { glassy ? .clear : surfaceStyle.surfaceColor }
 
     private var card: some View {
         // The same arrangement that makes the notch fold work: the contents

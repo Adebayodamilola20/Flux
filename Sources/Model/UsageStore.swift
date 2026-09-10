@@ -194,10 +194,23 @@ final class UsageStore: ObservableObject {
         updateNotchSnapshots()
     }
 
+    /// How many cells the notch may draw, or 0 for all of them.
+    ///
+    /// Applied last, after ordering and after the disconnected are dropped, so
+    /// the cap keeps the first N the user actually arranged rather than the
+    /// first N of some earlier list.
+    @Published var cellLimit: Int = 0 {
+        didSet {
+            guard cellLimit != oldValue else { return }
+            updateNotchSnapshots()
+        }
+    }
+
     private func updateNotchSnapshots() {
         let cells = ProviderOrder.cells(from: snapshots, keeping: notchSnapshots)
-        notchSnapshots = ProviderOrder.arrange(cells, by: order, id: \.id)
+        let arranged = ProviderOrder.arrange(cells, by: order, id: \.id)
             .filter { !disconnected.contains($0.id) }
+        notchSnapshots = cellLimit > 0 ? Array(arranged.prefix(cellLimit)) : arranged
     }
 
     /// Model discovery does not need to re-read any cloud account's credential.

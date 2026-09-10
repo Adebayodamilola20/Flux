@@ -129,7 +129,7 @@ struct NotchRootView: View {
                     .opacity(glassy ? 1 : 0)
             }
 
-            shape.fill(Palette.notch).opacity(glassy ? 0 : 1)
+            shape.fill(model.surfaceStyle.surfaceColor).opacity(glassy ? 0 : 1)
 
             // The band at the hardware's height is the strip beside a hole in
             // the screen. Glass there makes the cutout read as a black
