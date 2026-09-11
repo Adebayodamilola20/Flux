@@ -20,7 +20,7 @@ export const PRODUCT = {
    */
   description:
     'A notch that lives on the edge of your screen and shows how much of each AI quota you have left. Reads the tools already on your Mac. Nothing to sign in to.',
-  version: '1.0.0',
+  version: '2.0.0',
   /** From the app's own platform support: only `macos/` exists. */
   platforms: 'macOS 11 or later',
   /** The bare floor, for the "Minimum …" line on the download card. */
@@ -48,9 +48,9 @@ export const GITHUB = {
    * in the repository. Nothing here needs a server — the link is a redirect
    * GitHub serves.
    */
-  latestTag: 'v1.0.0',
+  latestTag: 'v2.0.0',
   macAssetUrl:
-    'https://github.com/Adebayodamilola20/Flux/releases/download/v1.0.0/DevNotch-1.0.0.dmg',
+    'https://github.com/Adebayodamilola20/Flux/releases/download/v2.0.0/DevNotch-2.0.0.dmg',
 } as const;
 
 /**
