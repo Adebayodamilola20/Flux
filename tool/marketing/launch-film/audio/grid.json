@@ -1,0 +1,184 @@
+{
+ "bpm": 120.0,
+ "beats_per_bar": 4,
+ "bar1": 0.0,
+ "downbeat_margin": 0.112,
+ "bars": [
+  {
+   "bar": 1,
+   "start": 0.0,
+   "rms": 0.5016,
+   "change": 0.0,
+   "mark": "",
+   "hits": 4.0,
+   "bright": 540,
+   "fill": 0.006,
+   "crest": 8.1
+  },
+  {
+   "bar": 2,
+   "start": 2.0,
+   "rms": 0.5146,
+   "change": 0.026,
+   "mark": "",
+   "hits": 3.75,
+   "bright": 490,
+   "fill": 0.005,
+   "crest": 7.8
+  },
+  {
+   "bar": 3,
+   "start": 4.0,
+   "rms": 0.5601,
+   "change": 0.102,
+   "mark": "",
+   "hits": 3.75,
+   "bright": 2834,
+   "fill": 0.291,
+   "crest": 7.0
+  },
+  {
+   "bar": 4,
+   "start": 6.0,
+   "rms": 0.4281,
+   "change": -0.185,
+   "mark": "",
+   "hits": 5.0,
+   "bright": 2103,
+   "fill": 0.259,
+   "crest": 8.3
+  },
+  {
+   "bar": 5,
+   "start": 8.0,
+   "rms": 0.4051,
+   "change": -0.192,
+   "mark": "",
+   "hits": 4.5,
+   "bright": 1938,
+   "fill": 0.225,
+   "crest": 8.8
+  },
+  {
+   "bar": 6,
+   "start": 10.0,
+   "rms": 0.4153,
+   "change": -0.129,
+   "mark": "",
+   "hits": 5.5,
+   "bright": 1898,
+   "fill": 0.216,
+   "crest": 8.6
+  },
+  {
+   "bar": 7,
+   "start": 12.0,
+   "rms": 0.4378,
+   "change": -0.032,
+   "mark": "",
+   "hits": 4.0,
+   "bright": 1874,
+   "fill": 0.217,
+   "crest": 8.1
+  },
+  {
+   "bar": 8,
+   "start": 14.0,
+   "rms": 0.4299,
+   "change": 0.02,
+   "mark": "",
+   "hits": 4.0,
+   "bright": 1872,
+   "fill": 0.223,
+   "crest": 8.2
+  },
+  {
+   "bar": 9,
+   "start": 16.0,
+   "rms": 0.4086,
+   "change": -0.032,
+   "mark": "",
+   "hits": 3.5,
+   "bright": 1900,
+   "fill": 0.224,
+   "crest": 8.7
+  },
+  {
+   "bar": 10,
+   "start": 18.0,
+   "rms": 0.4167,
+   "change": -0.015,
+   "mark": "",
+   "hits": 4.75,
+   "bright": 1887,
+   "fill": 0.22,
+   "crest": 8.4
+  },
+  {
+   "bar": 11,
+   "start": 20.0,
+   "rms": 0.4382,
+   "change": 0.035,
+   "mark": "",
+   "hits": 3.0,
+   "bright": 1865,
+   "fill": 0.217,
+   "crest": 8.1
+  },
+  {
+   "bar": 12,
+   "start": 22.0,
+   "rms": 0.2886,
+   "change": -0.318,
+   "mark": "breakdown",
+   "hits": 4.25,
+   "bright": 1233,
+   "fill": 0.127,
+   "crest": 11.7
+  },
+  {
+   "bar": 13,
+   "start": 24.0,
+   "rms": 0.731,
+   "change": 0.884,
+   "mark": "drop",
+   "hits": 2.5,
+   "bright": 497,
+   "fill": 0.009,
+   "crest": 4.8
+  },
+  {
+   "bar": 14,
+   "start": 26.0,
+   "rms": 0.8656,
+   "change": 0.847,
+   "mark": "",
+   "hits": 3.75,
+   "bright": 532,
+   "fill": 0.011,
+   "crest": 3.4
+  },
+  {
+   "bar": 15,
+   "start": 28.0,
+   "rms": 0.4598,
+   "change": -0.208,
+   "mark": "",
+   "hits": 5.25,
+   "bright": 397,
+   "fill": 0.006,
+   "crest": 8.6
+  },
+  {
+   "bar": 16,
+   "start": 30.0,
+   "rms": 0.4574,
+   "change": -0.22,
+   "mark": "",
+   "hits": 2.5,
+   "bright": 529,
+   "fill": 0.009,
+   "crest": 8.8
+  }
+ ]
+}
